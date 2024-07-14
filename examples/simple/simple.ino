@@ -19,6 +19,8 @@ void setup()
         Serial.print(".");
         delay(1000);
     }
+
+    iot.setVar("humid","temp");
     iot.connect(email);
 }
 
@@ -26,7 +28,7 @@ void loop()
 {
     iot.handle();
     delay(5000);
-    iot.update();
+    // iot.update();
 
     if (!iot.status())
     {
