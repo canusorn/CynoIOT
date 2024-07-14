@@ -7,6 +7,17 @@ const char email[] = "anusorn1998@gmail.com";
 
 Cynoiot iot;
 
+void iotSetup()
+{
+    uint8_t numVariables = 2;
+    String keyname[numVariables];
+    keyname[0] = "humid";
+    keyname[1] = "temp";
+    iot.setkeyname(keyname, numVariables);
+
+    iot.connect(email);
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -20,18 +31,18 @@ void setup()
         delay(1000);
     }
 
-    iot.setVar("humid","temp");
-    iot.connect(email);
+    iotSetup();
 }
 
 void loop()
 {
     iot.handle();
-    delay(5000);
-    // iot.update();
 
     if (!iot.status())
     {
         iot.connect(email);
     }
+    delay(5000);
+    float val[2] = {random(70, 80), random(20, 30)};
+    iot.update(val);
 }
