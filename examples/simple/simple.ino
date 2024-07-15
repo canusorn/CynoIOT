@@ -7,6 +7,8 @@ const char email[] = "anusorn1998@gmail.com";
 
 Cynoiot iot;
 
+unsigned long previousMillis = 0;
+
 void iotSetup()
 {
     uint8_t numVariables = 2;
@@ -22,15 +24,18 @@ void setup()
 {
     Serial.begin(115200);
     Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
+    Serial.print("Wifi connecting to ");
+    Serial.print(ssid);
     WiFi.begin(ssid, pass);
     while (WiFi.status() != WL_CONNECTED)
     {
         Serial.print(".");
         delay(1000);
     }
+    Serial.print("\nWiFi connected, IP address: ");
+    Serial.println(WiFi.localIP());
 
+    Serial.print("Connecting to server.");
     iotSetup();
 }
 
@@ -42,7 +47,16 @@ void loop()
     {
         iot.connect(email);
     }
-    delay(5000);
-    float val[2] = {random(70, 80), random(20, 30)};
-    iot.update(val);
+    // delay(200);
+    // Serial.println("loop running...");
+
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - previousMillis >= 2000)
+    {
+        previousMillis = currentMillis;
+
+        float val[2] = {random(70, 80), random(20, 30)};
+        iot.update(val);
+    }
 }

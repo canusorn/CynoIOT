@@ -33,11 +33,11 @@ Cynoiot::Cynoiot()
     this->_client_id = S;
 }
 
-void Cynoiot::connect(const char email[])
+bool Cynoiot::connect(const char email[])
 {
-    connect(email, "192.168.0.101");
+    return connect(email, DEFAULT_SERVER);
 }
-void Cynoiot::connect(const char email[], const char server[])
+bool Cynoiot::connect(const char email[], const char server[])
 {
     client.begin(server, net);
     client.onMessage(messageReceived);
@@ -46,14 +46,18 @@ void Cynoiot::connect(const char email[], const char server[])
     char ClientID[ArrayLength];
     this->_client_id.toCharArray(ClientID, ArrayLength);
 
-    while (!client.connect(ClientID, email, this->_secret))
+    if (!client.connect(ClientID, email, this->_secret))
     {
         DEBUG(".");
-        delay(1000);
+        connected = false;
     }
-
-    DEBUGLN("\nconnected!");
-    subscribe();
+    else if (!connected && client.connect(ClientID, email, this->_secret))
+    {
+        connected = true;
+        DEBUGLN("\nServer Connected!");
+        subscribe();
+    }
+    return connected;
 }
 
 void Cynoiot::handle()
@@ -76,11 +80,6 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     // sending and receiving acknowledgments. Instead, change a global variable,
     // or push to a queue and handle it in the loop after calling `client.loop()`.
 }
-
-// void Cynoiot::update()
-// {
-//     client.publish("/" + this->_client_id + "/data/update", "{\"humid\":" + String(random(70, 80)) + "," + "\"temp\":" + String(random(20, 30)) + "}");
-// }
 
 bool Cynoiot::status()
 {

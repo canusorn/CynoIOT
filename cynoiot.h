@@ -10,6 +10,8 @@
 #include <WiFi.h>
 #endif
 
+#define DEFAULT_SERVER "192.168.0.101"
+
 #define CYNOIOT_DEBUG
 
 class Cynoiot
@@ -19,8 +21,8 @@ private:
   String _client_id;
   const char _secret[14] = {0x63, 0x79, 0x6E, 0x6F, 0x69, 0x6F, 0x74, 0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0x00};
   String _var[16];
-  // float val[16];
   uint8_t numElements = 0;
+  bool connected = false;
 
   void subscribe();
   static void messageReceived(String &topic, String &payload);
@@ -31,16 +33,14 @@ private:
 public:
   Cynoiot();
 
-  void connect(const char email[]);
-  void connect(const char server[], const char email[]);
+  bool connect(const char email[]);
+  bool connect(const char server[], const char email[]);
 
   void handle();
 
   void setkeyname(String keyname[], uint8_t numElements);
 
   void update(float val[]);
-
-  // void update();
 
   bool status();
 };
