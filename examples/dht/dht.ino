@@ -1,5 +1,13 @@
 #include <ESP8266WiFi.h>
 #include <cynoiot.h>
+#include <DHT.h>
+
+#define DHTPIN D7
+// Uncomment whatever type you're using!
+#define DHTTYPE DHT11 // DHT 11
+// #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
+//  #define DHTTYPE DHT21   // DHT 21 (AM2301)
+DHT dht(DHTPIN, DHTTYPE);
 
 const char ssid[] = "G6PD";
 const char pass[] = "570610193";
@@ -54,7 +62,23 @@ void loop()
     {
         previousMillis = currentMillis;
 
-        float val[2] = {random(70, 80), random(20, 30)};
+        float humid = dht.readHumidity();
+        float temp = dht.readTemperature();
+
+        Serial.print(F("Humidity: "));
+        Serial.print(humid);
+        Serial.print(F("%  Temperature: "));
+        Serial.print(temp);
+        Serial.println(F("°C "));
+
+        if (isnan(humid) || isnan(temp))
+        {
+            Serial.println(F("Failed to read from DHT sensor!"));
+            return;
+        }
+        float val[2];
+        val[0] = humid;
+        val[1] = temp;
         iot.update(val);
     }
 }
