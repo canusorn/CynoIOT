@@ -39,6 +39,11 @@ bool Cynoiot::connect(const char email[])
 }
 bool Cynoiot::connect(const char email[], const char server[])
 {
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        return false;
+    }
+
     client.begin(server, net);
     client.onMessage(messageReceived);
 
@@ -46,18 +51,39 @@ bool Cynoiot::connect(const char email[], const char server[])
     char ClientID[ArrayLength];
     this->_client_id.toCharArray(ClientID, ArrayLength);
 
-    if (!client.connect(ClientID, email, this->_secret))
+    uint32_t currentMillis = millis();
+
+    if (currentMillis - _lastReConnect > RECONNECT_SERVER_TIME || _lastReConnect == 0)
     {
-        DEBUG(".");
-        connected = false;
+        _lastReConnect = currentMillis;
+        client.connect(ClientID, email, this->_secret);
     }
-    else if (!connected && client.connect(ClientID, email, this->_secret))
+
+    if (!status() && this->_connected)
     {
-        connected = true;
+        DEBUGLN("Server disconnect ,reconnecting.");
+        this->_connected = false;
+    }
+    else if (!status() && !this->_connected)
+    {
+        // DEBUG(".");
+    }
+    else if (status() && !this->_connected)
+    {
+        this->_connected = true;
         DEBUGLN("\nServer Connected!");
         subscribe();
     }
-    return connected;
+
+#ifdef CYNOIOT_DEBUG
+    uint32_t timetoconnect = millis() - currentMillis;
+    if (timetoconnect > 1000)
+    {
+        DEBUGLN("Reconnecting time : " + String(timetoconnect) + " ms");
+    }
+#endif
+
+    return this->_connected;
 }
 
 void Cynoiot::handle()
@@ -89,9 +115,9 @@ bool Cynoiot::status()
 void Cynoiot::setkeyname(String keyname[], uint8_t numElements)
 {
 
-    this->numElements = numElements;
+    this->_numElements = numElements;
 
-    for (uint8_t i = 0; i < this->numElements; i++)
+    for (uint8_t i = 0; i < this->_numElements; i++)
     {
         this->_var[i] = keyname[i];
     }
@@ -100,7 +126,7 @@ void Cynoiot::setkeyname(String keyname[], uint8_t numElements)
 void Cynoiot::update(float val[])
 {
     String payload = "{";
-    for (uint8_t i = 0; i < this->numElements; i++)
+    for (uint8_t i = 0; i < this->_numElements; i++)
     {
         if (i)
             payload += ",";
@@ -111,6 +137,12 @@ void Cynoiot::update(float val[])
 
     DEBUGLN("Payload:" + payload);
 
+    if (millis() - this->_lastPublish < MAX_PUBLISH_TIME && this->_lastPublish)
+    {
+        Serial.println(F("Update too fast"));
+        return;
+    }
+    this->_lastPublish = millis();
     publish(payload);
 }
 

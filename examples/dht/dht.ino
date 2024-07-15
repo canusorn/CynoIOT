@@ -45,6 +45,8 @@ void setup()
 
     Serial.print("Connecting to server.");
     iotSetup();
+
+    dht.begin();
 }
 
 void loop()
@@ -67,7 +69,7 @@ void loop()
 
         Serial.print(F("Humidity: "));
         Serial.print(humid);
-        Serial.print(F("%  Temperature: "));
+        Serial.print(F("% \t Temperature: "));
         Serial.print(temp);
         Serial.println(F("°C "));
 
