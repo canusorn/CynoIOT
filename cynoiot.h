@@ -20,18 +20,21 @@ class Cynoiot
 {
 
 private:
-  String _client_id;
   const char _secret[14] = {0x63, 0x79, 0x6E, 0x6F, 0x69, 0x6F, 0x74, 0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0x00};
   String _var[16];
   uint8_t _numElements = 0;
   bool _connected = false;
   uint32_t _lastReConnect,_lastPublish;
+  String _topic,_payload;
+  String getPublishTopic();
+  String getClientId();
 
   void subscribe();
   static void messageReceived(String &topic, String &payload);
 
   void publish(String payload);
   void publish(String payload, String topic);
+  int getPinNumber(String pinId);
 
 public:
   Cynoiot();

@@ -25,6 +25,7 @@ void iotSetup()
     keyname[1] = "temp";
     iot.setkeyname(keyname, numVariables);
 
+    Serial.print("Connecting to server.");
     iot.connect(email);
 }
 
@@ -59,8 +60,7 @@ void loop()
     }
 
     unsigned long currentMillis = millis();
-
-    if (currentMillis - previousMillis >= 2000)
+    if (currentMillis - previousMillis >= 5000)
     {
         previousMillis = currentMillis;
 

@@ -12,9 +12,7 @@ unsigned long previousMillis = 0;
 void iotSetup()
 {
     uint8_t numVariables = 2;
-    String keyname[numVariables];
-    keyname[0] = "humid";
-    keyname[1] = "temp";
+    String keyname[numVariables] = {"humid", "temp"};
     iot.setkeyname(keyname, numVariables);
 
     iot.connect(email);
