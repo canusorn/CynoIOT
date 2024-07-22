@@ -1,7 +1,8 @@
 #include "cynoiot.h"
 
 WiFiClient net;
-MQTTClient client;
+MQTTClient client(256);
+
 Cynoiot cynoiotInstance;
 
 Cynoiot::Cynoiot()
@@ -149,7 +150,7 @@ void Cynoiot::update(float val[])
 
     DEBUGLN("Payload:" + payload);
 
-    if (millis() - this->_lastPublish < MAX_PUBLISH_TIME && this->_lastPublish)
+    if (millis() - this->_lastPublish < MAX_PUBLISH_TIME - 100 && this->_lastPublish)
     {
         Serial.println(F("Update too fast"));
         return;

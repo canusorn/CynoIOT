@@ -11,8 +11,8 @@
 #endif
 
 #define DEFAULT_SERVER "192.168.0.101"
-#define RECONNECT_SERVER_TIME 60000   // in ms
-#define MAX_PUBLISH_TIME 4500   // in ms
+#define RECONNECT_SERVER_TIME 60000 // in ms
+#define MAX_PUBLISH_TIME 5000       // in ms
 
 #define CYNOIOT_DEBUG
 
@@ -20,12 +20,14 @@ class Cynoiot
 {
 
 private:
+
+
   const char _secret[14] = {0x63, 0x79, 0x6E, 0x6F, 0x69, 0x6F, 0x74, 0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0x00};
-  String _var[16];
+  String _var[32];
   uint8_t _numElements = 0;
   bool _connected = false;
-  uint32_t _lastReConnect,_lastPublish;
-  String _topic,_payload;
+  uint32_t _lastReConnect, _lastPublish;
+  String _topic;
   String getPublishTopic();
   String getClientId();
 
