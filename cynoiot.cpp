@@ -73,53 +73,6 @@ void Cynoiot::subscribe()
     DEBUGLN("subscripted!");
 }
 
-void Cynoiot::messageReceived(String &topic, String &payload)
-{
-    String _topic = cynoiotInstance.getPublishTopic();
-    String _clientid = cynoiotInstance.getClientId();
-
-    if (topic == _topic)
-        return;
-
-    else if (topic.startsWith("/" + _clientid + "/"))
-    {
-        String pinStr = topic.substring(topic.lastIndexOf('/') + 1);
-        // Serial.println(pinStr);
-        int pin = cynoiotInstance.getPinNumber(pinStr);
-
-        if (pin < 0)
-            return;
-
-        if (topic.startsWith("/" + _clientid + "/digit/"))
-        {
-            DEBUGLN("Control pin : " + String(pin) + " - " + payload);
-            if (payload == "high" || payload == "1" || payload == "HIGH" || payload == "on")
-            {
-                digitalWrite(pin, HIGH);
-            }
-            else
-            {
-                digitalWrite(pin, LOW);
-            }
-            pinMode(pin, OUTPUT);
-        }
-
-        else if (topic.startsWith("/" + _clientid + "/pwm/"))
-        {
-        }
-        else if (topic.startsWith("/" + _clientid + "/getStatus/"))
-        {
-        }
-    }
-
-    DEBUGLN("incoming: " + topic + " - " + payload);
-
-    // Note: Do not use the client in the callback to publish, subscribe or
-    // unsubscribe as it may cause deadlocks when other things arrive while
-    // sending and receiving acknowledgments. Instead, change a global variable,
-    // or push to a queue and handle it in the loop after calling `client.loop()`.
-}
-
 bool Cynoiot::status()
 {
     return client.connected();
@@ -211,6 +164,7 @@ String Cynoiot::getClientId()
     return S;
 }
 
+#ifdef ESP8266
 int Cynoiot::getPinNumber(String pinId)
 {
     if (pinId == "D0")
@@ -232,4 +186,138 @@ int Cynoiot::getPinNumber(String pinId)
     if (pinId == "D8")
         return D8; // GPIO 15
     return -1;     // Invalid pin identifier
+}
+#endif
+
+void Cynoiot::parsePinsString(const String &input)
+{
+    // Define the maximum number of elements
+#ifdef ESP8266
+    const int maxElements = 9;
+#elif defined(ESP32)
+    const int maxElements = 30;
+#endif
+
+    // Arrays to hold the parsed values
+    String pins[maxElements];
+    String modes[maxElements];
+    String values[maxElements];
+
+    int pinIndex = 0;
+    int modeIndex = 0;
+    int valueIndex = 0;
+
+    // Split the input string by commas
+    int startPos = 0;
+    int endPos = input.indexOf(',');
+
+    while (endPos != -1)
+    {
+        String segment = input.substring(startPos, endPos);
+        int firstColon = segment.indexOf(':');
+        int secondColon = segment.indexOf(':', firstColon + 1);
+
+        if (firstColon != -1 && secondColon != -1)
+        {
+            // pins[pinIndex++] = segment.substring(0, firstColon);
+            // modes[modeIndex++] = segment.substring(firstColon + 1, secondColon);
+            // values[valueIndex++] = segment.substring(secondColon + 1);
+
+            pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
+        }
+
+        startPos = endPos + 1;
+        endPos = input.indexOf(',', startPos);
+    }
+
+    // Handle the last segment
+    String segment = input.substring(startPos);
+    int firstColon = segment.indexOf(':');
+    int secondColon = segment.indexOf(':', firstColon + 1);
+
+    if (firstColon != -1 && secondColon != -1)
+    {
+        // pins[pinIndex++] = segment.substring(0, firstColon);
+        // modes[modeIndex++] = segment.substring(firstColon + 1, secondColon);
+        // values[valueIndex++] = segment.substring(secondColon + 1);
+
+        pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
+    }
+}
+
+void Cynoiot::pinHandle(const String &pins, const String &modes, const String &values)
+{
+    DEBUGLN("saved control gpio : " + pins + " " + modes + " " + values);
+
+    int pin;
+#ifdef ESP8266
+    uint8_t str_len = pins.length() + 1;
+    char buff[str_len];
+    pins.toCharArray(buff, str_len);
+
+    if (buff[0] == 'D')
+    {
+        pin = getPinNumber(pins);
+    }
+    else
+    {
+        pin = pins.toInt();
+    }
+#else
+    int pin = pins.toInt();
+#endif
+
+    // digit pwm dac get
+    if (modes == "digit")
+    {
+        if (values == "high" || values == "on" || values == "1")
+        {
+            digitalWrite(pin, HIGH);
+        }
+        else
+        {
+            digitalWrite(pin, LOW);
+        }
+        pinMode(pin, OUTPUT);
+    }
+    else if (modes == "pwm")
+    {
+        analogWrite(pin, values.toInt());
+    }
+#ifdef ESP32
+    else if (modes == "dac")
+    {
+        dacWrite(pin, value.toInt());
+    }
+#endif
+}
+
+void Cynoiot::messageReceived(String &topic, String &payload)
+{
+    String _topic = cynoiotInstance.getPublishTopic();
+    String _clientid = cynoiotInstance.getClientId();
+
+    if (topic == _topic)
+    {
+        return;
+    }
+    else if (topic.startsWith("/" + _clientid + "/io"))
+    {
+        DEBUGLN("Control:  - " + payload);
+        cynoiotInstance.parsePinsString(payload);
+    }
+    else if (topic.startsWith("/" + _clientid + "/init"))
+    {
+        DEBUGLN("Init:  - " + payload);
+        cynoiotInstance.parsePinsString(payload);
+    }
+    else
+    {
+        DEBUGLN("incoming: " + topic + " - " + payload);
+    }
+
+    // Note: Do not use the client in the callback to publish, subscribe or
+    // unsubscribe as it may cause deadlocks when other things arrive while
+    // sending and receiving acknowledgments. Instead, change a global variable,
+    // or push to a queue and handle it in the loop after calling `client.loop()`.
 }

@@ -20,8 +20,6 @@ class Cynoiot
 {
 
 private:
-
-
   const char _secret[14] = {0x63, 0x79, 0x6E, 0x6F, 0x69, 0x6F, 0x74, 0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0x00};
   String _var[32];
   uint8_t _numElements = 0;
@@ -30,13 +28,18 @@ private:
   String _topic;
   String getPublishTopic();
   String getClientId();
-
   void subscribe();
-  static void messageReceived(String &topic, String &payload);
-
   void publish(String payload);
   void publish(String payload, String topic);
+  void parsePinsString(const String &input);
+  void pinHandle(const String &pins, const String &modes, const String &values);
+#ifdef ESP8266
   int getPinNumber(String pinId);
+  int Readpin[9];
+#elif defined(ESP32)
+  int Readpin[30];
+#endif
+  static void messageReceived(String &topic, String &payload);
 
 public:
   Cynoiot();
