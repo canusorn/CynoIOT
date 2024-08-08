@@ -31,6 +31,7 @@ bool Cynoiot::connect(const char email[], const char server[])
 
     if (currentMillis - _lastReConnect > RECONNECT_SERVER_TIME || _lastReConnect == 0)
     {
+        DEBUGLN("\nConnecting to " + String(server));
         _lastReConnect = currentMillis;
         client.connect(ClientID, email, this->_secret);
     }

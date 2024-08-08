@@ -10,7 +10,11 @@
 #include <WiFi.h>
 #endif
 
-#define DEFAULT_SERVER "192.168.0.101"
+#ifndef DEFAULT_SERVER
+#define DEFAULT_SERVER "cynoiot.com"
+// #define DEFAULT_SERVER "192.168.0.101"
+#endif
+
 #define RECONNECT_SERVER_TIME 60000 // in ms
 #define MAX_PUBLISH_TIME 5000       // in ms
 
