@@ -368,8 +368,8 @@ void Cynoiot::checkSubscription()
     {
         pub2SubTime++;
 
-        if(pub2SubTime>=this->_noSubTime-2)
-        DEBUGLN("pub to Sub Time:" + String(pub2SubTime) + " s");
+        if (pub2SubTime >= this->_noSubTime - 2)
+            DEBUGLN("pub to Sub Time:" + String(pub2SubTime) + " s");
 
         if (pub2SubTime >= this->_noSubTime)
         {
