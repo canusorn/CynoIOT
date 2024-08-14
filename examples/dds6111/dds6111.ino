@@ -4,7 +4,7 @@
 #include <SoftwareSerial.h>
 #include <ModbusMaster.h>
 
-SoftwareSerial PZEMSerial;
+SoftwareSerial RS485Serial;
 
 // ตั้งค่า pin สำหรับต่อกับ MAX485
 #define MAX485_RO D7
@@ -25,7 +25,7 @@ void setup()
 {
 
     Serial.begin(115200);
-    PZEMSerial.begin(9600, SWSERIAL_8N1, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
+    RS485Serial.begin(9600, SWSERIAL_8N1, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
 
     Serial.println();
     Serial.print("Wifi connecting to ");
@@ -46,7 +46,7 @@ void setup()
 
     node.preTransmission(preTransmission); // Callbacks allow us to configure the RS485 transceiver correctly
     node.postTransmission(postTransmission);
-    node.begin(12, PZEMSerial);
+    node.begin(12, RS485Serial);
 
     uint8_t numVariables = 8;
     String keyname[numVariables] = {"volt", "curr", "power", "pf", "e1", "e2", "e3", "freq"};

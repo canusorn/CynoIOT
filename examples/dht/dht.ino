@@ -11,6 +11,8 @@ DHT dht(DHTPIN, DHTTYPE);
 
 const char ssid[] = "G6PD";
 const char pass[] = "570610193";
+// const char ssid[] = "Anusorn";
+// const char pass[] = "0827705969";
 const char email[] = "anusorn1998@gmail.com";
 
 Cynoiot iot;
@@ -58,9 +60,9 @@ void loop()
     {
         iot.connect(email);
     }
-
+delay(100);
     unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= 5000)
+    if (currentMillis - previousMillis >= 2000)
     {
         previousMillis = currentMillis;
 

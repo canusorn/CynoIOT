@@ -1,9 +1,13 @@
 #include "cynoiot.h"
 
-WiFiClient net;
+WiFiClientSecure net;
+// WiFiClient net;
 MQTTClient client(256);
 
 Cynoiot cynoiotInstance;
+
+uint32_t previousTime;
+uint8_t pub2SubTime;
 
 Cynoiot::Cynoiot()
 {
@@ -20,19 +24,21 @@ bool Cynoiot::connect(const char email[], const char server[])
         return false;
     }
 
-    client.begin(server, net);
+    // client.begin(server, net);
+    client.begin(server, 8883, net);
     client.onMessage(messageReceived);
+    // client.setCleanSession(false);
 
     uint8_t ArrayLength = getClientId().length() + 1; // The +1 is for the 0x00h Terminator
     char ClientID[ArrayLength];
     getClientId().toCharArray(ClientID, ArrayLength);
 
     uint32_t currentMillis = millis();
-
     if (currentMillis - _lastReConnect > RECONNECT_SERVER_TIME || _lastReConnect == 0)
     {
+        net.setInsecure();
         DEBUGLN("\nConnecting to " + String(server));
-        _lastReConnect = currentMillis;
+        this->_lastReConnect = currentMillis;
         client.connect(ClientID, email, this->_secret);
     }
 
@@ -40,6 +46,7 @@ bool Cynoiot::connect(const char email[], const char server[])
     {
         DEBUGLN("Server disconnect ,reconnecting.");
         this->_connected = false;
+        this->_Subscribed = false;
     }
     // else if (!status() && !this->_connected)
     // {
@@ -49,7 +56,7 @@ bool Cynoiot::connect(const char email[], const char server[])
     {
         this->_connected = true;
         DEBUGLN("\nServer Connected!");
-        subscribe();
+        this->_Subscribed = false;
     }
 
 #ifdef CYNOIOT_DEBUG
@@ -66,12 +73,40 @@ bool Cynoiot::connect(const char email[], const char server[])
 void Cynoiot::handle()
 {
     client.loop();
+
+    // if subscriped flag
+    if (!this->_Subscribed && status() && this->_connected)
+    {
+        this->_Subscribed = subscribe();
+        DEBUGLN("Subscribed:" + String(this->_Subscribed));
+    }
+
+    // run every 1 second
+    uint32_t currentTime = millis();
+    if (currentTime - previousTime >= 1000)
+    {
+        previousTime = currentTime;
+
+        checkSubscription();
+        DEBUGLN("pub to Sub Time:" + String(pub2SubTime) + " s");
+    }
 }
 
-void Cynoiot::subscribe()
+bool Cynoiot::subscribe()
 {
-    client.subscribe("/" + getClientId() + "/#");
-    DEBUGLN("subscripted!");
+    bool isSubscribed = client.subscribe("/" + getClientId() + "/#");
+    // client.subscribe("/ESP8266-2802776_ECFABC2AC458/#");
+    if (isSubscribed)
+    {
+        DEBUGLN("subscripted!");
+        pub2SubTime = 0;
+        return true;
+    }
+    else
+    {
+        DEBUGLN("not subscripted!");
+        return false;
+    }
 }
 
 bool Cynoiot::status()
@@ -128,6 +163,8 @@ void Cynoiot::publish(String payload, String topic)
     topic.toCharArray(topic_c, ArrayLength);
 
     client.publish(topic_c, payload_c);
+
+    pub2SubTime++;
 }
 
 String Cynoiot::getPublishTopic()
@@ -300,6 +337,8 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
     if (topic == _topic)
     {
+        pub2SubTime = 0;
+        DEBUGLN("Done publishing");
         return;
     }
     else if (topic.startsWith("/" + _clientid + "/io"))
@@ -321,4 +360,20 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     // unsubscribe as it may cause deadlocks when other things arrive while
     // sending and receiving acknowledgments. Instead, change a global variable,
     // or push to a queue and handle it in the loop after calling `client.loop()`.
+}
+
+void Cynoiot::checkSubscription()
+{
+    // check received my publish message
+    if (pub2SubTime)
+    {
+        pub2SubTime++;
+        if (pub2SubTime >= this->_noSubTime)
+        {
+            this->_Subscribed = false;
+            DEBUGLN("No Subscripe for : " + String(pub2SubTime) + " s");
+            DEBUGLN("Resubscripe ....");
+            pub2SubTime = 0;
+        }
+    }
 }

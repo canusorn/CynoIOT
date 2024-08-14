@@ -8,15 +8,19 @@
 #include <ESP8266WiFi.h>
 #elif defined(ESP32)
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #endif
 
 #ifndef DEFAULT_SERVER
 #define DEFAULT_SERVER "cynoiot.com"
-// #define DEFAULT_SERVER "192.168.0.101"
+//  #define DEFAULT_SERVER "192.168.0.101"
 #endif
 
 #define RECONNECT_SERVER_TIME 60000 // in ms
-#define MAX_PUBLISH_TIME 5000       // in ms
+
+#ifndef MAX_PUBLISH_TIME
+#define MAX_PUBLISH_TIME 500 // in ms
+#endif
 
 #define CYNOIOT_DEBUG
 
@@ -28,15 +32,20 @@ private:
   String _var[32];
   uint8_t _numElements = 0;
   bool _connected = false;
+  const uint8_t _noSubTime = 5;
   uint32_t _lastReConnect, _lastPublish;
   String _topic;
+  bool _Subscribed = false;
+
+
   String getPublishTopic();
   String getClientId();
-  void subscribe();
+  bool subscribe();
   void publish(String payload);
   void publish(String payload, String topic);
   void parsePinsString(const String &input);
   void pinHandle(const String &pins, const String &modes, const String &values);
+  void checkSubscription();
 #ifdef ESP8266
   int getPinNumber(String pinId);
   int Readpin[9];
