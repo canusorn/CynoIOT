@@ -88,7 +88,6 @@ void Cynoiot::handle()
         previousTime = currentTime;
 
         checkSubscription();
-        DEBUGLN("pub to Sub Time:" + String(pub2SubTime) + " s");
     }
 }
 
@@ -368,6 +367,10 @@ void Cynoiot::checkSubscription()
     if (pub2SubTime)
     {
         pub2SubTime++;
+
+        if(pub2SubTime>=this->_noSubTime-2)
+        DEBUGLN("pub to Sub Time:" + String(pub2SubTime) + " s");
+
         if (pub2SubTime >= this->_noSubTime)
         {
             this->_Subscribed = false;
