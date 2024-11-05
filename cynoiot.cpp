@@ -2,7 +2,7 @@
 
 WiFiClientSecure net;
 // WiFiClient net;
-MQTTClient client(256);
+MQTTClient client(512);
 
 Cynoiot cynoiotInstance;
 
@@ -25,7 +25,7 @@ bool Cynoiot::connect(const char email[], const char server[])
     }
 
     // client.begin(server, net);
-    client.begin(server, 8883, net);
+    client.begin(server, PORT, net);
     client.onMessage(messageReceived);
     // client.setCleanSession(false);
 
@@ -78,7 +78,6 @@ void Cynoiot::handle()
     if (!this->_Subscribed && status() && this->_connected)
     {
         this->_Subscribed = subscribe();
-        DEBUGLN("Subscribed:" + String(this->_Subscribed));
     }
 
     // run every 1 second
@@ -97,7 +96,7 @@ bool Cynoiot::subscribe()
     // client.subscribe("/ESP8266-2802776_ECFABC2AC458/#");
     if (isSubscribed)
     {
-        DEBUGLN("subscripted!");
+        DEBUGLN("subscripted! to /" + getClientId() + "/#");
         pub2SubTime = 0;
         return true;
     }
@@ -132,7 +131,7 @@ void Cynoiot::update(float val[])
         if (i)
             payload += ",";
 
-        payload += "\"" + this->_var[i] + "\":" + String(val[i]);
+        payload += "\"" + this->_var[i] + "\":" + String(val[i],3);
     }
     payload += "}";
 
@@ -368,7 +367,7 @@ void Cynoiot::checkSubscription()
     {
         pub2SubTime++;
 
-        if (pub2SubTime >= this->_noSubTime - 2)
+        if (pub2SubTime >= this->_noSubTime - 1)
             DEBUGLN("pub to Sub Time:" + String(pub2SubTime) + " s");
 
         if (pub2SubTime >= this->_noSubTime)

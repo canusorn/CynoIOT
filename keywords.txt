@@ -1,0 +1,9 @@
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+connect	KEYWORD2
+handle	KEYWORD2
+setkeyname	KEYWORD2
+update	KEYWORD2
+connected	KEYWORD2
+status	KEYWORD2

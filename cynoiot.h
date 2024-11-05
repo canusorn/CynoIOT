@@ -23,6 +23,7 @@
 #endif
 
 #define CYNOIOT_DEBUG
+#define PORT 7458
 
 class Cynoiot
 {
