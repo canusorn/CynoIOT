@@ -12,8 +12,8 @@
 #endif
 
 #ifndef DEFAULT_SERVER
-#define DEFAULT_SERVER "cynoiot.com"
-//  #define DEFAULT_SERVER "192.168.0.101"
+// #define DEFAULT_SERVER "cynoiot.com"
+ #define DEFAULT_SERVER "192.168.0.101"
 #endif
 
 #define RECONNECT_SERVER_TIME 60000 // in ms
@@ -37,7 +37,7 @@ private:
   uint32_t _lastReConnect, _lastPublish;
   String _topic;
   bool _Subscribed = false;
-
+  String _template = "";
 
   String getPublishTopic();
   String getClientId();
@@ -55,10 +55,13 @@ private:
 #endif
   static void messageReceived(String &topic, String &payload);
 
+  void templatePublish();
+
 public:
   Cynoiot();
 
   bool connect(const char email[]);
+
   bool connect(const char server[], const char email[]);
 
   void handle();
@@ -68,6 +71,8 @@ public:
   void update(float val[]);
 
   bool status();
+
+  void setTemplate(String templateName);
 };
 
 // for set debug mode

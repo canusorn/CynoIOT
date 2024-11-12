@@ -14,7 +14,7 @@ void iotSetup()
     uint8_t numVariables = 2;
     String keyname[numVariables] = {"humid", "temp"};
     iot.setkeyname(keyname, numVariables);
-
+    iot.setTemplate("testtemplate");
     iot.connect(email);
 }
 

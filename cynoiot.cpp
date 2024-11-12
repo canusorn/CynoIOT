@@ -57,6 +57,9 @@ bool Cynoiot::connect(const char email[], const char server[])
         this->_connected = true;
         DEBUGLN("\nServer Connected!");
         this->_Subscribed = false;
+
+        if (this->_template != "")
+            templatePublish();
     }
 
 #ifdef CYNOIOT_DEBUG
@@ -131,7 +134,7 @@ void Cynoiot::update(float val[])
         if (i)
             payload += ",";
 
-        payload += "\"" + this->_var[i] + "\":" + String(val[i],3);
+        payload += "\"" + this->_var[i] + "\":" + String(val[i], 3);
     }
     payload += "}";
 
@@ -378,4 +381,23 @@ void Cynoiot::checkSubscription()
             pub2SubTime = 0;
         }
     }
+}
+
+void Cynoiot::setTemplate(String templateName)
+{
+    this->_template = templateName;
+}
+
+void Cynoiot::templatePublish()
+{
+    uint8_t ArrayLength = this->_template.length() + 1; // The +1 is for the 0x00h Terminator
+    char payload_c[ArrayLength];
+    this->_template.toCharArray(payload_c, ArrayLength);
+
+    String topic = "/" + getClientId() + "/template/name";
+    ArrayLength = topic.length() + 1; // The +1 is for the 0x00h Terminator
+    char topic_c[ArrayLength];
+    topic.toCharArray(topic_c, ArrayLength);
+
+    client.publish(topic_c, payload_c);
 }
