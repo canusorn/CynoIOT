@@ -501,13 +501,9 @@ void wifiConnected()
     Serial.printf("Ready! Open http://%s.local in your browser\n", String(iotWebConf.getThingName()));
     if ((String)emailParamValue != "")
     {
+        // เริ่มเชื่อมต่อ หลังจากต่อไวไฟได้
         Serial.println("login");
-
-        // 2 เริ่มเชื่อมต่อ หลังจากต่อไวไฟได้
-        if ((String)emailParamValue != "")
-        {
-            iot.connect((String)emailParamValue);
-        }
+        iot.connect((String)emailParamValue);
     }
 }
 
