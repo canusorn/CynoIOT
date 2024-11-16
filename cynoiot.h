@@ -11,9 +11,12 @@
 #include <WiFiClientSecure.h>
 #endif
 
+#define VERSION "0" // for iotwebconfig -> don't change
+#define IOTVERSION "0.0.1"
+
 #ifndef DEFAULT_SERVER
-// #define DEFAULT_SERVER "cynoiot.com"
- #define DEFAULT_SERVER "192.168.0.101"
+#define DEFAULT_SERVER "cynoiot.com"
+// #define DEFAULT_SERVER "192.168.0.101"
 #endif
 
 #define RECONNECT_SERVER_TIME 60000 // in ms
@@ -22,7 +25,7 @@
 #define MAX_PUBLISH_TIME 500 // in ms
 #endif
 
-#define CYNOIOT_DEBUG
+// #define CYNOIOT_DEBUG
 #define PORT 7458
 
 class Cynoiot
@@ -38,6 +41,7 @@ private:
   String _topic;
   bool _Subscribed = false;
   String _template = "";
+  uint32_t daytimestamp;
 
   String getPublishTopic();
   String getClientId();
@@ -60,6 +64,11 @@ private:
 public:
   Cynoiot();
 
+  // masage from server
+  String noti;
+
+  bool connect(String email);
+
   bool connect(const char email[]);
 
   bool connect(const char server[], const char email[]);
@@ -73,6 +82,8 @@ public:
   bool status();
 
   void setTemplate(String templateName);
+
+  void interrupt1sec();
 };
 
 // for set debug mode

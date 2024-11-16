@@ -13,6 +13,14 @@ Cynoiot::Cynoiot()
 {
 }
 
+bool Cynoiot::connect(String email)
+{
+    uint8_t ArrayLength = email.length() + 1; // The +1 is for the 0x00h Terminator
+    char email_c[ArrayLength];
+    email.toCharArray(email_c, ArrayLength);
+
+    return connect(email_c, DEFAULT_SERVER);
+}
 bool Cynoiot::connect(const char email[])
 {
     return connect(email, DEFAULT_SERVER);
@@ -400,4 +408,10 @@ void Cynoiot::templatePublish()
     topic.toCharArray(topic_c, ArrayLength);
 
     client.publish(topic_c, payload_c);
+}
+
+void Cynoiot::interrupt1sec()
+{
+    // today timestamp update
+    this->daytimestamp++;
 }
