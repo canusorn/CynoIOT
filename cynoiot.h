@@ -6,6 +6,9 @@
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
+#include <WiFiClientSecureBearSSL.h>
 #elif defined(ESP32)
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -25,7 +28,7 @@
 #define MAX_PUBLISH_TIME 500 // in ms
 #endif
 
-// #define CYNOIOT_DEBUG
+#define CYNOIOT_DEBUG
 #define PORT 7458
 
 class Cynoiot
@@ -51,6 +54,7 @@ private:
   void parsePinsString(const String &input);
   void pinHandle(const String &pins, const String &modes, const String &values);
   void checkSubscription();
+  void opdateOTA(String otafile);
 #ifdef ESP8266
   int getPinNumber(String pinId);
   int Readpin[9];

@@ -360,6 +360,11 @@ void Cynoiot::messageReceived(String &topic, String &payload)
         DEBUGLN("Init:  - " + payload);
         cynoiotInstance.parsePinsString(payload);
     }
+    else if (topic.startsWith("/" + _clientid + "/ota"))
+    {
+        DEBUGLN("OTA update to :  - " + payload);
+        cynoiotInstance.opdateOTA(payload);
+    }
     else
     {
         DEBUGLN("incoming: " + topic + " - " + payload);
@@ -414,4 +419,43 @@ void Cynoiot::interrupt1sec()
 {
     // today timestamp update
     this->daytimestamp++;
+}
+
+void Cynoiot::opdateOTA(String otafile)
+{
+    DEBUGLN("opdateOTA: " + otafile);
+
+    ESPhttpUpdate.onStart([]()
+                          { Serial.println("CALLBACK:  HTTP update process started"); });
+
+    ESPhttpUpdate.onEnd([]()
+                        { Serial.println("CALLBACK:  HTTP update process finished"); });
+
+    ESPhttpUpdate.onProgress([](int cur, int total)
+                             { Serial.printf("CALLBACK:  HTTP update process at %d of %d bytes...\n", cur, total); });
+
+    ESPhttpUpdate.onError([](int err)
+                          { Serial.printf("CALLBACK:  HTTP update fatal error code %d\n", err); });
+
+    WiFiClientSecure client;
+    client.setInsecure();
+    t_httpUpdate_return ret = ESPhttpUpdate.update(client, "https://cynoiot.com/api/ota/" + otafile + "/update");
+
+    // WiFiClient client;
+    // t_httpUpdate_return ret = ESPhttpUpdate.update(client, "http://192.168.0.101:3000/api/ota/" + otafile + "/update");
+
+    switch (ret)
+    {
+    case HTTP_UPDATE_FAILED:
+        Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+        break;
+
+    case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("HTTP_UPDATE_NO_UPDATES");
+        break;
+
+    case HTTP_UPDATE_OK:
+        Serial.println("HTTP_UPDATE_OK");
+        break;
+    }
 }
