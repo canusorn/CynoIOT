@@ -18,8 +18,8 @@
 #define IOTVERSION "0.0.1"
 
 #ifndef DEFAULT_SERVER
-#define DEFAULT_SERVER "cynoiot.com"
-// #define DEFAULT_SERVER "192.168.0.101"
+// #define DEFAULT_SERVER "cynoiot.com"
+#define DEFAULT_SERVER "192.168.0.101"
 #endif
 
 #define RECONNECT_SERVER_TIME 60000 // in ms
@@ -45,6 +45,7 @@ private:
   bool _Subscribed = false;
   String _template = "";
   uint32_t daytimestamp;
+  uint8_t _templateVersion = 0;
 
   String getPublishTopic();
   String getClientId();
@@ -86,6 +87,7 @@ public:
   bool status();
 
   void setTemplate(String templateName);
+  void setTemplate(String templateName, uint8_t version);
 
   void interrupt1sec();
 };

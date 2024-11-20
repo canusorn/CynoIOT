@@ -400,9 +400,15 @@ void Cynoiot::setTemplate(String templateName)
 {
     this->_template = templateName;
 }
+void Cynoiot::setTemplate(String templateName, uint8_t version)
+{
+    this->_template = templateName;
+    this->_templateVersion = version;
+}
 
 void Cynoiot::templatePublish()
 {
+    String templateVersion = this->_template + "," + String(_templateVersion);
     uint8_t ArrayLength = this->_template.length() + 1; // The +1 is for the 0x00h Terminator
     char payload_c[ArrayLength];
     this->_template.toCharArray(payload_c, ArrayLength);
