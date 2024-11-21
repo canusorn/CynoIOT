@@ -1,15 +1,12 @@
 /*
-  -PZEM004T-
-  5V - 5V
-  GND - GND
-  D3 - TX
-  D4 - RX
+   -PMS7003-
+   5V - VCC
+   GND - GND
+   D4  - TX
+   D3  - RX(not use in this code)
 */
 
 #include <ESP8266WiFi.h>
-#include <PZEM004Tv30.h>
-#include <Wire.h>
-#include <SFE_MicroOLED.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -18,16 +15,17 @@
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266mDNS.h>
 #include <Ticker.h>
+#include <Wire.h>
+#include <SFE_MicroOLED.h>
+#include <PMS.h>
+#include <SoftwareSerial.h>
 #include <EEPROM.h>
 #include <cynoiot.h>
 
 // สร้าง object ชื่อ iot
 Cynoiot iot;
 
-#define PIN_RESET -1
-#define DC_JUMPER 0
-
-const char thingName[] = "pzem004t";
+const char thingName[] = "pms7003";
 const char wifiInitialApPassword[] = "cynoiot";
 
 #define STRING_LEN 128
@@ -43,23 +41,28 @@ void wifiConnected();
 void configSaved();
 bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
+SoftwareSerial pmsSerial(D4, D3); // RX,TX
+PMS pms(pmsSerial);
+PMS::DATA data;
+
+#define PIN_RESET -1
+#define DC_JUMPER 0
+MicroOLED oled(PIN_RESET, DC_JUMPER);
+
+unsigned long previousMillis = 0;
+uint8_t sensordetect;
+
 DNSServer dnsServer;
 WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
 
 char emailParamValue[STRING_LEN];
 
-IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword); // version defind in iotbundle.h file
+IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword, VERSION); // version defind in iotbundle.h file
 // -- You can also use namespace formats e.g.: iotwebconf::TextParameter
 IotWebConfParameterGroup login = IotWebConfParameterGroup("login", "ล็อกอิน(สมัครที่เว็บก่อนนะครับ)");
 
-IotWebConfTextParameter emailParam = IotWebConfTextParameter("อีเมลล์ (ระวังห้ามใส่เว้นวรรค)", "emailParam", emailParamValue, STRING_LEN);
-
-MicroOLED oled(PIN_RESET, DC_JUMPER); // Example I2C declaration, uncomment if using I2C
-PZEM004Tv30 pzem(D3, D4);             // rx,tx pin
-
-unsigned long previousMillis = 0;
-float voltage, current, power, energy, frequency, pf;
+IotWebConfTextParameter emailParam = IotWebConfTextParameter("อีเมลล์", "emailParam", emailParamValue, STRING_LEN);
 
 uint8_t logo_bmp[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC0, 0xE0, 0xC0, 0xF0, 0xE0, 0x78, 0x38, 0x78, 0x3C, 0x1C, 0x3C, 0x1C, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1C, 0x3C, 0x1C, 0x3C, 0x78, 0x38, 0xF0, 0xE0, 0xF0, 0xC0, 0xC0, 0xC0, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x01, 0x00, 0x00, 0xF0, 0xF8, 0x70, 0x3C, 0x3C, 0x1C, 0x1E, 0x1E, 0x0E, 0x0E, 0x0E, 0x0F, 0x0F, 0x0E, 0x0E, 0x1E, 0x1E, 0x1E, 0x3C, 0x1C, 0x7C, 0x70, 0xF0, 0x70, 0x20, 0x01, 0x01, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x1C, 0x3E, 0x1E, 0x0F, 0x0F, 0x07, 0x87, 0x87, 0x07, 0x0F, 0x0F, 0x1E, 0x3E, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x1F, 0x1F, 0x3F, 0x3F, 0x1F, 0x1F, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -78,12 +81,12 @@ uint8_t sampleUpdate, updateValue = 5;
 void iotSetup()
 {
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
-    numVariables = 6;                                               // จำนวนตัวแปร
-    String keyname[numVariables] = {"v", "i", "p", "e", "f", "pf"}; // ชื่อตัวแปร
+    numVariables = 3;                                      // จำนวนตัวแปร
+    String keyname[numVariables] = {"pm1", "pm2", "pm10"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
-    const uint8_t version = 1;                     // เวอร์ชั่นโปรเจคนี้
-    iot.setTemplate("pzem004t", version);  // เลือกเทมเพลตแดชบอร์ด
+    const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
+    iot.setTemplate("pms7003", version); // เลือกเทมเพลตแดชบอร์ด
 }
 
 // timer interrupt every 1 second
@@ -111,7 +114,6 @@ void time1sec()
     {
         Serial.println("Can't connect to server -> Restart wifi");
         iotWebConf.goOffLine();
-        timer_nointernet++;
     }
     else if (timer_nointernet >= 65)
     {
@@ -125,6 +127,7 @@ void time1sec()
 void setup()
 {
     Serial.begin(115200);
+    pmsSerial.begin(9600);
     Wire.begin();
 
     // timer interrupt every 1 sec
@@ -193,9 +196,6 @@ void setup()
     Serial.println("ESPID: " + String(ESP.getChipId()));
     Serial.println("Ready.");
 
-    //  pzem.resetEnergy(); //reset energy
-    // Serial.println(ESP.getChipId());
-
     iotSetup();
 }
 
@@ -215,106 +215,37 @@ void loop()
         }
     }
 
+    //------get data from PMS7003------
+    if (pms.read(data))
+    {
+        sensordetect = 0;
+
+        display_update(); // update OLED
+    }
+
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= 1000)
     { // run every 1 second
         previousMillis = currentMillis;
-        displayValue(); // update OLED
+        sensordetect++;
 
         sampleUpdate++;
-        if (sampleUpdate >= updateValue)
+        if (sampleUpdate >= updateValue && sensordetect <= 5)
         {
             sampleUpdate = 0;
 
-            if (isnan(voltage))
+            if (isnan(data.PM_AE_UG_1_0))
                 return;
 
             //  อัพเดทค่าใหม่ในรูปแบบ array
-            float val[numVariables] = {voltage, current, power, energy, frequency, pf};
+            float val[numVariables] = {data.PM_AE_UG_1_0, data.PM_AE_UG_2_5, data.PM_AE_UG_10_0};
             iot.update(val);
         }
     }
 }
 
-void displayValue()
+void display_update()
 {
-    //------read data------
-    voltage = pzem.voltage();
-    if (!isnan(voltage))
-    { // ถ้าอ่านค่าได้
-        current = pzem.current();
-        power = pzem.power();
-        energy = pzem.energy();
-        frequency = pzem.frequency();
-        pf = pzem.pf();
-    }
-    else
-    { // ถ้าอ่านค่าไม่ได้ให้ใส่ค่า NAN(not a number)
-        current = NAN;
-        power = NAN;
-        energy = NAN;
-        frequency = NAN;
-        pf = NAN;
-    }
-
-    //------Update OLED display------
-    oled.clear(PAGE);
-    oled.setFontType(0);
-
-    // display voltage
-    oled.setCursor(3, 0);
-    oled.print(voltage, 1);
-    oled.setCursor(42, 0);
-    oled.println("V");
-
-    // display current
-    if (current < 10)
-        oled.setCursor(9, 12);
-    else
-        oled.setCursor(3, 12);
-    oled.print(current, 2);
-    oled.setCursor(42, 12);
-    oled.println("A");
-
-    // display power
-    if (power < 10)
-        oled.setCursor(26, 24);
-    else if (power < 100)
-        oled.setCursor(20, 24);
-    else if (power < 1000)
-        oled.setCursor(14, 24);
-    else if (power < 10000)
-        oled.setCursor(8, 24);
-    else
-        oled.setCursor(2, 24);
-    oled.print(power, 0);
-    oled.setCursor(42, 24);
-    oled.println("W");
-
-    // display energy
-    oled.setCursor(3, 36);
-    if (energy < 10)
-        oled.print(energy, 3);
-    else if (energy < 100)
-        oled.print(energy, 2);
-    else if (energy < 1000)
-        oled.print(energy, 1);
-    else
-    {
-        oled.setCursor(8, 36);
-        oled.print(energy, 0);
-    }
-    oled.setCursor(42, 36);
-    oled.println("kWh");
-
-    // on error
-    if (isnan(voltage))
-    {
-        oled.clear(PAGE);
-        oled.setCursor(0, 0);
-        oled.printf("-Sensor-\n\nno sensor\ndetect!");
-    }
-
     // display status
     iotwebconf::NetworkState curr_state = iotWebConf.getState();
     if (curr_state == iotwebconf::Boot)
@@ -348,7 +279,7 @@ void displayValue()
         {
             displaytime = 10;
             prev_state = curr_state;
-            noti = "-State-\n\nX  wifi\ndisconnect\ngo AP Mode";
+            noti = "-State-\n\nX wifi\ndisconnect\ngo AP Mode";
         }
     }
     else if (curr_state == iotwebconf::Connecting)
@@ -391,6 +322,31 @@ void displayValue()
         oled.print(noti);
         Serial.println(noti);
     }
+    //------Update OLED------
+    else if (sensordetect <= 5)
+    {
+        oled.clear(PAGE);
+        oled.setFontType(0);
+        oled.setCursor(0, 0);
+        oled.println("PM(ug/m3)");
+        oled.setCursor(0, 15);
+        oled.print(" 1.0 : ");
+        oled.print(data.PM_AE_UG_1_0);
+        oled.setCursor(0, 26);
+        oled.print(" 2.5 : ");
+        oled.print(data.PM_AE_UG_2_5);
+        oled.setCursor(0, 37);
+        oled.print("10.0 : ");
+        oled.print(data.PM_AE_UG_10_0);
+    }
+    // if no data from sensor
+    else
+    {
+        oled.clear(PAGE);
+        oled.setFontType(0);
+        oled.setCursor(0, 0);
+        oled.printf("-Sensor-\n\nno sensor\ndetect!");
+    }
 
     // display state
     if (curr_state == iotwebconf::NotConfigured || curr_state == iotwebconf::ApMode)
@@ -423,30 +379,19 @@ void displayValue()
 
     oled.display();
 
-    //------Serial display------
-    if (!isnan(voltage))
+    //------print on serial moniter------
+    if (sensordetect <= 5)
     {
-        Serial.print("Voltage: ");
-        Serial.print(voltage);
-        Serial.println("V");
-        Serial.print("Current: ");
-        Serial.print(current);
-        Serial.println("A");
-        Serial.print("Power: ");
-        Serial.print(power);
-        Serial.println("W");
-        Serial.print("Energy: ");
-        Serial.print(energy, 3);
-        Serial.println("kWh");
-        Serial.print("Frequency: ");
-        Serial.print(frequency, 1);
-        Serial.println("Hz");
-        Serial.print("PF: ");
-        Serial.println(pf);
+        Serial.print("PM 1.0 (ug/m3): ");
+        Serial.println(data.PM_AE_UG_1_0);
+        Serial.print("PM 2.5 (ug/m3): ");
+        Serial.println(data.PM_AE_UG_2_5);
+        Serial.print("PM 10.0 (ug/m3): ");
+        Serial.println(data.PM_AE_UG_10_0);
     }
     else
     {
-        Serial.println("No sensor detect");
+        Serial.println("no sensor detect");
     }
 }
 
@@ -459,10 +404,7 @@ void handleRoot()
         return;
     }
     String s = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
-    s += "<title>Iotkiddie AC Powermeter config</title>";
-    if (iotWebConf.getState() == iotwebconf::NotConfigured)
-        s += "<script>\nlocation.href='/config';\n</script>";
-    s += "</head><body>IoTkiddie config data";
+    s += "<title>Iotkiddie AC Powermeter config</title></head><body>IoTkiddie config data";
     s += "<ul>";
     s += "<li>Device name : ";
     s += String(iotWebConf.getThingName());
@@ -478,7 +420,7 @@ void handleRoot()
     s += IOTVERSION;
     s += "</ul>";
     s += "<button style='margin-top: 10px;' type='button' onclick=\"location.href='/reboot';\" >รีบูทอุปกรณ์</button><br><br>";
-    s += "<a href='config'>configure page แก้ไขข้อมูล wifi และ user</a>";
+    s += "<a href='config'>configure page</a> เพื่อแก้ไขข้อมูล wifi และ user";
     s += "</body></html>\n";
 
     server.send(200, "text/html", s);
@@ -510,12 +452,14 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
     Serial.println("Validating form.");
     bool valid = true;
 
-    // if (l < 3)
-    // {
-    //   emailParam.errorMessage = "Please provide at least 3 characters for this test!";
-    //   valid = false;
-    // }
-
+    /*
+      int l = webRequestWrapper->arg(stringParam.getId()).length();
+      if (l < 3)
+      {
+        stringParam.errorMessage = "Please provide at least 3 characters for this test!";
+        valid = false;
+      }
+    */
     return valid;
 }
 
