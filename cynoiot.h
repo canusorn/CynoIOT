@@ -18,8 +18,8 @@
 #define IOTVERSION "0.0.1"
 
 #ifndef DEFAULT_SERVER
-// #define DEFAULT_SERVER "cynoiot.com"
-#define DEFAULT_SERVER "192.168.0.101"
+#define DEFAULT_SERVER "cynoiot.com"
+// #define DEFAULT_SERVER "192.168.0.101"
 #endif
 
 #define RECONNECT_SERVER_TIME 60000 // in ms

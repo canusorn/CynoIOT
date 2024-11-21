@@ -27,8 +27,8 @@ Cynoiot iot;
 #define PIN_RESET -1
 #define DC_JUMPER 0
 
-const char thingName[] = "acmeter";
-const char wifiInitialApPassword[] = "iotbundle";
+const char thingName[] = "pzem004t";
+const char wifiInitialApPassword[] = "cynoiot";
 
 #define STRING_LEN 128
 #define NUMBER_LEN 32
@@ -83,7 +83,9 @@ void iotSetup()
     numVariables = 6;                                               // จำนวนตัวแปร
     String keyname[numVariables] = {"v", "i", "p", "e", "f", "pf"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
-    iot.setTemplate("testtemplate"); // เทมเพลตแดชบอร์ด
+
+    const uint8_t version = 1;                     // เวอร์ชั่นโปรเจคนี้
+    iot.setTemplate("pzem004t", version);  // เลือกเทมเพลตแดชบอร์ด
 }
 
 // timer interrupt every 1 second

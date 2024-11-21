@@ -14,7 +14,7 @@ void iotSetup()
     uint8_t numVariables = 2;
     String keyname[numVariables] = {"humid", "temp"};
     iot.setkeyname(keyname, numVariables);
-    iot.setTemplate("testtemplate", 1);
+    // iot.setTemplate("testtemplate", 1);
     iot.connect(email);
 }
 
@@ -48,7 +48,7 @@ void loop()
 
     unsigned long currentMillis = millis();
 
-    if (currentMillis - previousMillis >= 2000)
+    if (currentMillis - previousMillis >= 5000)
     {
         previousMillis = currentMillis;
 
