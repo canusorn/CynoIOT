@@ -10,15 +10,25 @@
 #include <ModbusMaster.h>
 #include <SFE_MicroOLED.h>
 #include <Wire.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h>
-#include <ESP8266HTTPUpdateServer.h>
-#include <ESP8266mDNS.h>
 #include <Ticker.h>
 #include <EEPROM.h>
 #include <cynoiot.h>
+
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
+#include <ESP8266mDNS.h>
+
+#elif defined(ESP32)
+#include <WiFi.h>
+#include <NetworkClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <HTTPUpdateServer.h>
+#endif
 
 // สร้าง object ชื่อ iot
 Cynoiot iot;
@@ -26,11 +36,23 @@ Cynoiot iot;
 SoftwareSerial PZEMSerial;
 MicroOLED oled(-1, 0);
 
+#ifdef ESP8266
+#define RSTPIN D5
+
 // ตั้งค่า pin สำหรับต่อกับ MAX485
 #define MAX485_RO D7
 #define MAX485_RE D6
 #define MAX485_DE D5
 #define MAX485_DI D0
+
+#elif defined(ESP32)
+#define RSTPIN 7
+
+#define MAX485_RO 32
+#define MAX485_RE 33
+#define MAX485_DE 25
+#define MAX485_DI 26
+#endif
 
 // Address ของ PZEM-017 : 0x01-0xF7
 static uint8_t pzemSlaveAddr = 0x01;
@@ -58,7 +80,13 @@ unsigned long startMillis1;            // to count time during initial start up 
 
 DNSServer dnsServer;
 WebServer server(80);
+
+#ifdef ESP8266
 ESP8266HTTPUpdateServer httpUpdater;
+
+#elif defined(ESP32)
+HTTPUpdateServer httpUpdater;
+#endif
 
 char emailParamValue[STRING_LEN];
 
@@ -98,6 +126,8 @@ void iotSetup()
 
     const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
     iot.setTemplate("pzem017", version); // เลือกเทมเพลตแดชบอร์ด
+
+    Serial.println("ClinetID:" + String(iot.getClientId()));
 }
 
 // timer interrupt every 1 second
@@ -142,11 +172,11 @@ void setup()
     Serial.begin(115200);
 
     // for clear eeprom jump D5 to GND
-    pinMode(D5, INPUT_PULLUP);
-    if (digitalRead(D5) == false)
+    pinMode(RSTPIN, INPUT_PULLUP);
+    if (digitalRead(RSTPIN) == false)
     {
         delay(1000);
-        if (digitalRead(D5) == false)
+        if (digitalRead(RSTPIN) == false)
         {
             oled.clear(PAGE);
             oled.setCursor(0, 0);
@@ -217,7 +247,6 @@ void setup()
     server.onNotFound([]()
                       { iotWebConf.handleNotFound(); });
 
-    Serial.println("ESPID: " + String(ESP.getChipId()));
     Serial.println("Ready.");
 
     // รอครบ 5 วินาที แล้วตั้งค่า shunt และ address
@@ -244,7 +273,10 @@ void loop()
 {
     iotWebConf.doLoop();
     server.handleClient();
+
+#ifdef ESP8266
     MDNS.update();
+#endif
 
     // คอยจัดการการเชื่อมต่อ
     if ((String)emailParamValue != "")
@@ -600,7 +632,7 @@ void handleRoot()
     s += "<li>RSSI : ";
     s += String(WiFi.RSSI()) + " dBm";
     s += "<li>ESP ID : ";
-    s += ESP.getChipId();
+    s += iot.getClientId();
     s += "<li>Version : ";
     s += IOTVERSION;
     s += "</ul>";

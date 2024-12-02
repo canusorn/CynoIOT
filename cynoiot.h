@@ -12,6 +12,7 @@
 #elif defined(ESP32)
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <HTTPUpdate.h>
 #endif
 
 #define VERSION "0" // for iotwebconfig -> don't change
@@ -48,7 +49,6 @@ private:
   uint8_t _templateVersion = 0;
 
   String getPublishTopic();
-  String getClientId();
   bool subscribe();
   void publish(String payload);
   void publish(String payload, String topic);
@@ -71,6 +71,8 @@ public:
 
   // masage from server
   String noti;
+
+  String getClientId();
 
   bool connect(String email);
 

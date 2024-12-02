@@ -192,6 +192,7 @@ String Cynoiot::getClientId()
     // DEBUGLN("ESP8266 Chip ID: " + String(ESP.getChipId()));
 
 #elif defined(ESP32)
+    uint32_t chipId = 0;
 
     for (int i = 0; i < 41; i = i + 8)
     {
@@ -311,7 +312,7 @@ void Cynoiot::pinHandle(const String &pins, const String &modes, const String &v
         pin = pins.toInt();
     }
 #else
-    int pin = pins.toInt();
+    pin = pins.toInt();
 #endif
 
     // digit pwm dac get
@@ -334,7 +335,7 @@ void Cynoiot::pinHandle(const String &pins, const String &modes, const String &v
 #ifdef ESP32
     else if (modes == "dac")
     {
-        dacWrite(pin, value.toInt());
+        dacWrite(pin, values.toInt());
     }
 #endif
 }
@@ -431,21 +432,41 @@ void Cynoiot::opdateOTA(String otafile)
 {
     DEBUGLN("opdateOTA: " + otafile);
 
+
+
+#ifdef ESP8266
     ESPhttpUpdate.onStart([]()
-                          { Serial.println("CALLBACK:  HTTP update process started"); });
+                          { Serial.println("OTA:  HTTP update process started"); });
 
     ESPhttpUpdate.onEnd([]()
-                        { Serial.println("CALLBACK:  HTTP update process finished"); });
+                        { Serial.println("OTA:  HTTP update process finished"); });
 
     ESPhttpUpdate.onProgress([](int cur, int total)
-                             { Serial.printf("CALLBACK:  HTTP update process at %d of %d bytes...\n", cur, total); });
+                             { Serial.printf("OTA:  HTTP update process at %d of %d bytes...\n", cur, total); });
 
     ESPhttpUpdate.onError([](int err)
-                          { Serial.printf("CALLBACK:  HTTP update fatal error code %d\n", err); });
+                          { Serial.printf("OTA:  HTTP update fatal error code %d\n", err); });
 
     WiFiClientSecure client;
     client.setInsecure();
     t_httpUpdate_return ret = ESPhttpUpdate.update(client, "https://cynoiot.com/api/ota/" + otafile + "/update");
+#elif defined(ESP32)
+    httpUpdate.onStart([]()
+                          { Serial.println("OTA:  HTTP update process started"); });
+
+    httpUpdate.onEnd([]()
+                        { Serial.println("OTA:  HTTP update process finished"); });
+
+    httpUpdate.onProgress([](int cur, int total)
+                             { Serial.printf("OTA:  HTTP update process at %d of %d bytes...\n", cur, total); });
+
+    httpUpdate.onError([](int err)
+                          { Serial.printf("OTA:  HTTP update fatal error code %d\n", err); });
+                          
+    NetworkClientSecure client;
+    client.setInsecure();
+    t_httpUpdate_return ret = httpUpdate.update(client, "https://cynoiot.com/api/ota/" + otafile + "/update");
+#endif
 
     // WiFiClient client;
     // t_httpUpdate_return ret = ESPhttpUpdate.update(client, "http://192.168.0.101:3000/api/ota/" + otafile + "/update");
@@ -453,7 +474,12 @@ void Cynoiot::opdateOTA(String otafile)
     switch (ret)
     {
     case HTTP_UPDATE_FAILED:
+
+    #ifdef ESP8266
         Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+    #elif defined(ESP32)
+        Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+    #endif
         break;
 
     case HTTP_UPDATE_NO_UPDATES:
