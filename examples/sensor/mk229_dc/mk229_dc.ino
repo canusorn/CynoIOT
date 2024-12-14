@@ -1,16 +1,34 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
+
+#elif defined(ESP32)
+#include <WiFi.h>
+#endif
+
 #include <cynoiot.h>
 #include <SoftwareSerial.h>
 #include <ModbusMaster.h>
 
+#ifdef ESP8266
 SoftwareSerial RS485Serial;
+#elif defined(ESP32)
+#define RS485Serial Serial1
+#endif
 
 // ตั้งค่า pin สำหรับต่อกับ MAX485
+#ifdef ESP8266
 #define MAX485_RO D7
 #define MAX485_RE D6
 #define MAX485_DE D5
 #define MAX485_DI D0
+
+#elif defined(ESP32)
+#define MAX485_RO 11
+#define MAX485_RE 9
+#define MAX485_DE 7
+#define MAX485_DI 5
+#endif
 
 ModbusMaster node;
 Cynoiot iot;
@@ -25,7 +43,12 @@ void setup()
 {
 
     Serial.begin(115200);
+
+#ifdef ESP8266
     RS485Serial.begin(9600, SWSERIAL_8N1, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
+#elif defined(ESP32)
+    RS485Serial.begin(9600, SERIAL_8N1, MAX485_RO, MAX485_DI); // serial สำหรับติดต่อกับ MAX485
+#endif
 
     Serial.println();
     Serial.print("Wifi connecting to ");
@@ -49,7 +72,7 @@ void setup()
     node.begin(1, RS485Serial);
 
     uint8_t numVariables = 4;
-    String keyname[numVariables] = {"v", "i", "p","e"};
+    String keyname[numVariables] = {"v", "i", "p", "e"};
     iot.setkeyname(keyname, numVariables);
 
     Serial.print("Connecting to server.");
@@ -70,24 +93,24 @@ void loop()
     uint32_t currentMillisPZEM = millis();
     if (currentMillisPZEM - previousMillis >= 5000) /* for every x seconds, run the codes below*/
     {
-        uint8_t result;                              /* Declare variable "result" as 8 bits */
+        uint8_t result;                                /* Declare variable "result" as 8 bits */
         result = node.readHoldingRegisters(0x0100, 8); /* read the 9 registers (information) of the PZEM-014 / 016 starting 0x0000 (voltage information) kindly refer to manual)*/
-        if (result == node.ku8MBSuccess)             /* If there is a response */
+        if (result == node.ku8MBSuccess)               /* If there is a response */
         {
             uint32_t tempdouble = 0x00000000; /* Declare variable "tempdouble" as 32 bits with initial value is 0 */
             float var[4];
 
             tempdouble = (node.getResponseBuffer(0) << 16) + node.getResponseBuffer(1); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[0] = float(tempdouble) / 10000;                                                /* Divide the value by 10 to get actual power value (as per manual) */
+            var[0] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
 
             tempdouble = (node.getResponseBuffer(2) << 16) + node.getResponseBuffer(3); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[1] = float(tempdouble) / 10000;                                                /* Divide the value by 10 to get actual power value (as per manual) */
+            var[1] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
 
             tempdouble = (node.getResponseBuffer(4) << 16) + node.getResponseBuffer(5); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[2] = float(tempdouble) / 10000;                                                /* Divide the value by 10 to get actual power value (as per manual) */
+            var[2] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
 
             tempdouble = (node.getResponseBuffer(6) << 16) + node.getResponseBuffer(7); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[3] = float(tempdouble) / 1000;                                                /* Divide the value by 10 to get actual power value (as per manual) */
+            var[3] = float(tempdouble) / 1000;                                          /* Divide the value by 10 to get actual power value (as per manual) */
 
             Serial.println(String(var[0], 2) + " V");
             Serial.println(String(var[1], 2) + " A");

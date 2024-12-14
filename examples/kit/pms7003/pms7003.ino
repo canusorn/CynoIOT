@@ -50,7 +50,6 @@ PMS::DATA data;
 MicroOLED oled(PIN_RESET, DC_JUMPER);
 
 unsigned long previousMillis = 0;
-uint8_t sensordetect;
 
 DNSServer dnsServer;
 WebServer server(80);
@@ -77,6 +76,7 @@ String noti;
 uint16_t timer_nointernet;
 uint8_t numVariables;
 uint8_t sampleUpdate, updateValue = 5;
+uint8_t sensorNotDetect = updateValue;
 
 void iotSetup()
 {
@@ -87,6 +87,8 @@ void iotSetup()
 
     const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
     iot.setTemplate("pms7003", version); // เลือกเทมเพลตแดชบอร์ด
+
+    Serial.println("ClinetID:" + String(iot.getClientId()));
 }
 
 // timer interrupt every 1 second
@@ -193,7 +195,6 @@ void setup()
     server.onNotFound([]()
                       { iotWebConf.handleNotFound(); });
 
-    Serial.println("ESPID: " + String(ESP.getChipId()));
     Serial.println("Ready.");
 
     iotSetup();
@@ -218,7 +219,7 @@ void loop()
     //------get data from PMS7003------
     if (pms.read(data))
     {
-        sensordetect = 0;
+        sensorNotDetect = 0;
 
         display_update(); // update OLED
     }
@@ -227,10 +228,11 @@ void loop()
     if (currentMillis - previousMillis >= 1000)
     { // run every 1 second
         previousMillis = currentMillis;
-        sensordetect++;
+        if (sensorNotDetect < updateValue)
+            sensorNotDetect++;
 
         sampleUpdate++;
-        if (sampleUpdate >= updateValue && sensordetect <= 5)
+        if (sampleUpdate >= updateValue && sensorNotDetect < updateValue)
         {
             sampleUpdate = 0;
 
@@ -323,7 +325,7 @@ void display_update()
         Serial.println(noti);
     }
     //------Update OLED------
-    else if (sensordetect <= 5)
+    else if (sensorNotDetect <= 5)
     {
         oled.clear(PAGE);
         oled.setFontType(0);
@@ -380,7 +382,7 @@ void display_update()
     oled.display();
 
     //------print on serial moniter------
-    if (sensordetect <= 5)
+    if (sensorNotDetect <= 5)
     {
         Serial.print("PM 1.0 (ug/m3): ");
         Serial.println(data.PM_AE_UG_1_0);

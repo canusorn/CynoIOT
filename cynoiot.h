@@ -16,11 +16,11 @@
 #endif
 
 #define VERSION "0" // for iotwebconfig -> don't change
-#define IOTVERSION "0.0.1"
+#define IOTVERSION "0.0.2"
 
 #ifndef DEFAULT_SERVER
-#define DEFAULT_SERVER "cynoiot.com"
-// #define DEFAULT_SERVER "192.168.0.101"
+// #define DEFAULT_SERVER "cynoiot.com"
+#define DEFAULT_SERVER "192.168.0.101"
 #endif
 
 #define RECONNECT_SERVER_TIME 60000 // in ms
@@ -55,7 +55,7 @@ private:
   void parsePinsString(const String &input);
   void pinHandle(const String &pins, const String &modes, const String &values);
   void checkSubscription();
-  void opdateOTA(String otafile);
+  void updateOTA(String otafile);
 #ifdef ESP8266
   int getPinNumber(String pinId);
   int Readpin[9];

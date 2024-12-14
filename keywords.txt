@@ -1,6 +1,8 @@
 #######################################
 # Methods and Functions (KEYWORD2)
 #######################################
+Cynoiot KEYWORD1
+
 connect	KEYWORD2
 handle	KEYWORD2
 setkeyname	KEYWORD2

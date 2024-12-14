@@ -353,18 +353,18 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     }
     else if (topic.startsWith("/" + _clientid + "/io"))
     {
-        DEBUGLN("Control:  - " + payload);
+        DEBUGLN("Control: " + payload);
         cynoiotInstance.parsePinsString(payload);
     }
     else if (topic.startsWith("/" + _clientid + "/init"))
     {
-        DEBUGLN("Init:  - " + payload);
+        DEBUGLN("Init: " + payload);
         cynoiotInstance.parsePinsString(payload);
     }
-    else if (topic.startsWith("/" + _clientid + "/ota"))
+    else if (topic.startsWith("/" + _clientid + "/ota/start"))
     {
-        DEBUGLN("OTA update to :  - " + payload);
-        cynoiotInstance.opdateOTA(payload);
+        DEBUGLN("OTA update to : " + payload);
+        cynoiotInstance.updateOTA(payload);
     }
     else
     {
@@ -428,58 +428,66 @@ void Cynoiot::interrupt1sec()
     this->daytimestamp++;
 }
 
-void Cynoiot::opdateOTA(String otafile)
+void Cynoiot::updateOTA(String otafile)
 {
-    DEBUGLN("opdateOTA: " + otafile);
-
-
+    DEBUGLN("updateOTA: " + otafile);
 
 #ifdef ESP8266
-    ESPhttpUpdate.onStart([]()
-                          { Serial.println("OTA:  HTTP update process started"); });
+    ESPhttpUpdate.onStart([this]()
+                          { 
+                            Serial.println("OTA: HTTP update process started");
+                            this->publish("OTA started", "/" + getClientId() + "/ota/status"); });
 
-    ESPhttpUpdate.onEnd([]()
-                        { Serial.println("OTA:  HTTP update process finished"); });
+    ESPhttpUpdate.onEnd([this]()
+                        { Serial.println("OTA: HTTP update process finished"); });
 
     ESPhttpUpdate.onProgress([](int cur, int total)
-                             { Serial.printf("OTA:  HTTP update process at %d of %d bytes...\n", cur, total); });
+                             { Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur, total); });
 
-    ESPhttpUpdate.onError([](int err)
-                          { Serial.printf("OTA:  HTTP update fatal error code %d\n", err); });
+    ESPhttpUpdate.onError([this](int err)
+                          {
+                              Serial.printf("OTA: HTTP update fatal error code %d\n", err);
+                              this->publish("OTA error " + String(err), "/" + getClientId() + "/ota/status"); });
 
     WiFiClientSecure client;
     client.setInsecure();
     t_httpUpdate_return ret = ESPhttpUpdate.update(client, "https://cynoiot.com/api/ota/" + otafile + "/update");
-#elif defined(ESP32)
-    httpUpdate.onStart([]()
-                          { Serial.println("OTA:  HTTP update process started"); });
 
-    httpUpdate.onEnd([]()
-                        { Serial.println("OTA:  HTTP update process finished"); });
+    // WiFiClient client;
+    // t_httpUpdate_return ret = ESPhttpUpdate.update(client, "http://192.168.0.101:3000/api/ota/" + otafile + "/update");
+
+#elif defined(ESP32)
+    httpUpdate.onStart([this]()
+                       { 
+                        Serial.println("OTA: HTTP update process started"); 
+                            this->publish("OTA started", "/" + getClientId() + "/ota/status"); });
+
+    httpUpdate.onEnd([this]()
+                     { Serial.println("OTA: HTTP update process finished"); });
 
     httpUpdate.onProgress([](int cur, int total)
-                             { Serial.printf("OTA:  HTTP update process at %d of %d bytes...\n", cur, total); });
+                          { Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur, total); });
 
-    httpUpdate.onError([](int err)
-                          { Serial.printf("OTA:  HTTP update fatal error code %d\n", err); });
-                          
+    httpUpdate.onError([this](int err)
+                       { 
+                        Serial.printf("OTA: HTTP update fatal error code %d\n", err); 
+                              this->publish("OTA error " + String(err), "/" + getClientId() + "/ota/status"); });
+
     NetworkClientSecure client;
     client.setInsecure();
     t_httpUpdate_return ret = httpUpdate.update(client, "https://cynoiot.com/api/ota/" + otafile + "/update");
 #endif
 
-    // WiFiClient client;
-    // t_httpUpdate_return ret = ESPhttpUpdate.update(client, "http://192.168.0.101:3000/api/ota/" + otafile + "/update");
-
     switch (ret)
     {
     case HTTP_UPDATE_FAILED:
 
-    #ifdef ESP8266
+#ifdef ESP8266
         Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
-    #elif defined(ESP32)
+
+#elif defined(ESP32)
         Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-    #endif
+#endif
         break;
 
     case HTTP_UPDATE_NO_UPDATES:

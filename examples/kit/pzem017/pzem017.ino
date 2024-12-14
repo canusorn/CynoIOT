@@ -6,7 +6,6 @@
      B             B
 */
 
-#include <SoftwareSerial.h>
 #include <ModbusMaster.h>
 #include <SFE_MicroOLED.h>
 #include <Wire.h>
@@ -17,6 +16,7 @@
 #include <cynoiot.h>
 
 #ifdef ESP8266
+#include <SoftwareSerial.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
@@ -33,7 +33,12 @@
 // สร้าง object ชื่อ iot
 Cynoiot iot;
 
+#ifdef ESP8266
 SoftwareSerial PZEMSerial;
+#elif defined(ESP32)
+#define PZEMSerial Serial1
+#endif
+
 MicroOLED oled(-1, 0);
 
 #ifdef ESP8266
@@ -48,10 +53,19 @@ MicroOLED oled(-1, 0);
 #elif defined(ESP32)
 #define RSTPIN 7
 
-#define MAX485_RO 32
-#define MAX485_RE 33
-#define MAX485_DE 25
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+#define MAX485_RO 11
+#define MAX485_RE 9
+#define MAX485_DE 7
+#define MAX485_DI 5
+
+#else
+#define MAX485_RO 23
+#define MAX485_RE 19
+#define MAX485_DE 18
 #define MAX485_DI 26
+#endif
+
 #endif
 
 // Address ของ PZEM-017 : 0x01-0xF7
@@ -187,7 +201,11 @@ void setup()
         }
     }
 
+#ifdef ESP8266
     PZEMSerial.begin(9600, SWSERIAL_8N2, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
+#elif defined(ESP32)
+    PZEMSerial.begin(9600, SERIAL_8N2, MAX485_RO, MAX485_DI); // serial สำหรับติดต่อกับ MAX485
+#endif
 
     // timer interrupt every 1 sec
     timestamp.attach(1, time1sec);
@@ -263,7 +281,7 @@ void setup()
         oled.display();
     }
     setShunt(pzemSlaveAddr);            // ตั้งค่า shunt
-    changeAddress(0xF8, pzemSlaveAddr); // ตั้งค่า address 0x01 ซื่งเป็นค่า default ของตัว PZEM-017
+    changeAddress(0x01, pzemSlaveAddr); // ตั้งค่า address 0x01 ซื่งเป็นค่า default ของตัว PZEM-017
     // resetEnergy();                                   // รีเซ็ตค่า Energy[Wh] (หน่วยใช้ไฟสะสม)
 
     iotSetup();
