@@ -107,9 +107,6 @@ void Cynoiot::handle()
 
     if (needOTA.length())
     {
-
-        //     DEBUGLN("OTA update to : " + needOTA);
-        // delay(1000);
         client.disconnect();
         updateOTA(needOTA);
         needOTA = "";
