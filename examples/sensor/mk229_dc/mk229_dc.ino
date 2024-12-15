@@ -81,13 +81,7 @@ void setup()
 
 void loop()
 {
-
     iot.handle();
-
-    if (!iot.status())
-    {
-        iot.connect(email);
-    }
 
     // อ่านค่าจาก PZEM-017
     uint32_t currentMillisPZEM = millis();

@@ -55,12 +55,7 @@ void setup()
 void loop()
 {
     iot.handle();
-
-    if (!iot.status())
-    {
-        iot.connect(email);
-    }
-delay(100);
+    
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= 2000)
     {

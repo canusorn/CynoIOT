@@ -47,13 +47,7 @@ void loop()
 {
     iot.handle();
 
-    if (!iot.status())
-    {
-        iot.connect(email);
-    }
-
     unsigned long currentMillis = millis();
-
     if (currentMillis - previousMillis >= 5000)
     {
         previousMillis = currentMillis;

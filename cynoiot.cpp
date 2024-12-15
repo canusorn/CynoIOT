@@ -92,6 +92,11 @@ bool Cynoiot::connect(const char email[], const char server[])
 
 void Cynoiot::handle()
 {
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        return false;
+    }
+
     client.loop();
 
     if (!status())

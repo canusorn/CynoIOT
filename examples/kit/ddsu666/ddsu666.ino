@@ -209,17 +209,10 @@ void loop()
 {
     iotWebConf.doLoop();
     server.handleClient();
+    iot.handle();
+#ifdef ESP8266
     MDNS.update();
-
-    // คอยจัดการการเชื่อมต่อ
-    if ((String)emailParamValue != "")
-    {
-        iot.handle();
-        if (!iot.status())
-        {
-            iot.connect((String)emailParamValue);
-        }
-    }
+#endif
 
     uint32_t currentMillisPZEM = millis();
     if (currentMillisPZEM - previousMillis >= 5000) /* for every x seconds, run the codes below*/
@@ -322,7 +315,6 @@ float hexToFloat(uint32_t hex_value)
     u.i = hex_value;
     return u.f;
 }
-
 
 void handleRoot()
 {

@@ -62,13 +62,7 @@ void setup()
 
 void loop()
 {
-
     iot.handle();
-
-    if (!iot.status())
-    {
-        iot.connect(email);
-    }
 
     uint32_t currentMillisPZEM = millis();
     if (currentMillisPZEM - previousMillis >= 5000) /* for every x seconds, run the codes below*/

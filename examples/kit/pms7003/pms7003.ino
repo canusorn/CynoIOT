@@ -204,17 +204,10 @@ void loop()
 {
     iotWebConf.doLoop();
     server.handleClient();
+    iot.handle();
+#ifdef ESP8266
     MDNS.update();
-
-    // คอยจัดการการเชื่อมต่อ
-    if ((String)emailParamValue != "")
-    {
-        iot.handle();
-        if (!iot.status())
-        {
-            iot.connect((String)emailParamValue);
-        }
-    }
+#endif
 
     //------get data from PMS7003------
     if (pms.read(data))

@@ -291,20 +291,10 @@ void loop()
 {
     iotWebConf.doLoop();
     server.handleClient();
-
+    iot.handle();
 #ifdef ESP8266
     MDNS.update();
 #endif
-
-    // คอยจัดการการเชื่อมต่อ
-    if ((String)emailParamValue != "")
-    {
-        iot.handle();
-        if (!iot.status())
-        {
-            iot.connect((String)emailParamValue);
-        }
-    }
 
     currentMillisPZEM = millis();
     // อ่านค่าจาก PZEM-017

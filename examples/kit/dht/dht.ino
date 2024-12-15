@@ -77,7 +77,7 @@ uint8_t sampleUpdate, updateValue = 5;
 void iotSetup()
 {
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
-    numVariables = 2;                                 // จำนวนตัวแปร
+    numVariables = 2;                          // จำนวนตัวแปร
     String keyname[numVariables] = {"t", "h"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
@@ -203,19 +203,12 @@ void setup()
 
 void loop()
 {
-    // คอยจัดการการเชื่อมต่อ
-    if ((String)emailParamValue != "")
-    {
-        iot.handle();
-        if (!iot.status())
-        {
-            iot.connect((String)emailParamValue);
-        }
-    }
-
+    iot.handle();
     iotWebConf.doLoop();
     server.handleClient();
+#ifdef ESP8266
     MDNS.update();
+#endif
 
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= 1000)
