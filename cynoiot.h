@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <MQTT.h>
+#include <EEPROM.h>
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>

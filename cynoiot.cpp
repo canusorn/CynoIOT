@@ -77,6 +77,25 @@ bool Cynoiot::connect(const char email[], const char server[])
 
         if (this->_template != "")
             templatePublish();
+
+        // ota status checking
+        EEPROM.begin(512);
+        int retrievedValue = EEPROM.read(511);
+        // Serial.println("EEPROM: " + String(retrievedValue));
+        if (retrievedValue != 0)
+        {
+            if (retrievedValue == 1)
+            {
+                publish("OTA success", "/" + getClientId() + "/ota/status");
+            }
+            else if (retrievedValue == 2)
+            {
+                publish("OTA failed", "/" + getClientId() + "/ota/status");
+            }
+
+            EEPROM.write(511, 0); // reset status
+            EEPROM.commit();
+        }
     }
 
 #ifdef CYNOIOT_DEBUG
@@ -94,7 +113,7 @@ void Cynoiot::handle()
 {
     if (WiFi.status() != WL_CONNECTED)
     {
-        return false;
+        return;
     }
 
     client.loop();
@@ -459,18 +478,24 @@ void Cynoiot::updateOTA(String otafile)
 {
     DEBUGLN("updateOTA: " + otafile);
 
+    EEPROM.begin(512);
+
 #ifdef ESP8266
     ESPhttpUpdate.onStart([]()
                           { Serial.println("OTA: HTTP update process started"); });
 
     ESPhttpUpdate.onEnd([]()
-                        { Serial.println("OTA: HTTP update process finished"); });
+                        { Serial.println("OTA: HTTP update process finished");
+                        EEPROM.write(511, 1);  // 1 is update success
+                    EEPROM.commit(); });
 
     ESPhttpUpdate.onProgress([](int cur, int total)
                              { Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur, total); });
 
     ESPhttpUpdate.onError([](int err)
-                          { Serial.printf("OTA: HTTP update fatal error code %d\n", err); });
+                          { Serial.printf("OTA: HTTP update fatal error code %d\n", err); 
+                          EEPROM.write(511, 2);  // 2 is failed
+                            EEPROM.commit(); });
 
     // WiFiClientSecure clientOTA;
     // clientOTA.setInsecure();
@@ -488,13 +513,17 @@ void Cynoiot::updateOTA(String otafile)
                        { Serial.println("OTA: HTTP update process started"); });
 
     httpUpdate.onEnd([]()
-                     { Serial.println("OTA: HTTP update process finished"); });
+                     {  Serial.println("OTA: HTTP update process finished"); 
+                        EEPROM.write(511, 1);  // 1 is update success
+                        EEPROM.commit(); });
 
     httpUpdate.onProgress([](int cur, int total)
                           { Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur, total); });
 
     httpUpdate.onError([](int err)
-                       { Serial.printf("OTA: HTTP update fatal error code %d\n", err); });
+                       {    Serial.printf("OTA: HTTP update fatal error code %d\n", err); 
+                            EEPROM.write(511, 2);  // 2 is failed
+                            EEPROM.commit(); });
 
     NetworkClientSecure client;
     client.setInsecure();
