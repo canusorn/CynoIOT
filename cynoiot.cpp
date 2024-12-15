@@ -4,10 +4,15 @@ WiFiClientSecure net;
 // WiFiClient net;
 MQTTClient client(512);
 
+// net = new WiFiClientSecure;
+// client = new MQTTClient(512);
+
 Cynoiot cynoiotInstance;
 
 uint32_t previousTime;
 uint8_t pub2SubTime;
+
+String needOTA = "";
 
 Cynoiot::Cynoiot()
 {
@@ -98,6 +103,16 @@ void Cynoiot::handle()
         previousTime = currentTime;
 
         checkSubscription();
+    }
+
+    if (needOTA.length())
+    {
+
+        //     DEBUGLN("OTA update to : " + needOTA);
+        // delay(1000);
+        client.disconnect();
+        updateOTA(needOTA);
+        needOTA = "";
     }
 }
 
@@ -363,8 +378,9 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     }
     else if (topic.startsWith("/" + _clientid + "/ota/start"))
     {
-        DEBUGLN("OTA update to : " + payload);
-        cynoiotInstance.updateOTA(payload);
+        // DEBUGLN("OTA update to : " + payload);
+        needOTA = payload;
+        // cynoiotInstance.updateOTA(payload);
     }
     else
     {
@@ -449,12 +465,16 @@ void Cynoiot::updateOTA(String otafile)
                               Serial.printf("OTA: HTTP update fatal error code %d\n", err);
                               this->publish("OTA error " + String(err), "/" + getClientId() + "/ota/status"); });
 
-    WiFiClientSecure client;
-    client.setInsecure();
-    t_httpUpdate_return ret = ESPhttpUpdate.update(client, "https://cynoiot.com/api/ota/" + otafile + "/update");
+    // WiFiClientSecure clientOTA;
+    // clientOTA.setInsecure();
+    // t_httpUpdate_return ret = ESPhttpUpdate.update(clientOTA, "https://cynoiot.com/api/ota/" + otafile + "/update");
 
-    // WiFiClient client;
-    // t_httpUpdate_return ret = ESPhttpUpdate.update(client, "http://192.168.0.101:3000/api/ota/" + otafile + "/update");
+    std::unique_ptr<BearSSL::WiFiClientSecure> clientOTA(new BearSSL::WiFiClientSecure);
+    clientOTA->setInsecure(); // Disable certificate validation
+    t_httpUpdate_return ret = ESPhttpUpdate.update(*clientOTA, "https://cynoiot.com/api/ota/" + otafile + "/update");
+
+    // WiFiClient clientOTA;
+    // t_httpUpdate_return ret = ESPhttpUpdate.update(clientOTA, "http://192.168.0.101:3000/api/ota/" + otafile + "/update");
 
 #elif defined(ESP32)
     httpUpdate.onStart([this]()
