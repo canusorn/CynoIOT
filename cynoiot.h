@@ -22,9 +22,10 @@
 #ifndef DEFAULT_SERVER
 #define DEFAULT_SERVER "cynoiot.com"
 // #define DEFAULT_SERVER "192.168.0.101"
+// #define DEFAULT_SERVER "192.168.1.191"
 #endif
 
-#define RECONNECT_SERVER_TIME 60000 // in ms
+#define RECONNECT_SERVER_TIME 30000 // in ms
 
 #ifndef MAX_PUBLISH_TIME
 #define MAX_PUBLISH_TIME 500 // in ms
@@ -37,7 +38,7 @@ class Cynoiot
 {
 
 private:
-  String _email;
+  String _email = "";
   const char _secret[14] = {0x63, 0x79, 0x6E, 0x6F, 0x69, 0x6F, 0x74, 0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0x00};
   String _var[32];
   uint8_t _numElements = 0;

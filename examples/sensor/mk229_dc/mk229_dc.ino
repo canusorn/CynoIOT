@@ -71,6 +71,8 @@ void setup()
     node.postTransmission(postTransmission);
     node.begin(1, RS485Serial);
 
+    // changeAddress(2);
+
     uint8_t numVariables = 4;
     String keyname[numVariables] = {"v", "i", "p", "e"};
     iot.setkeyname(keyname, numVariables);
@@ -139,14 +141,23 @@ void postTransmission() /* Reception program when triggered*/
     digitalWrite(MAX485_DE, 0); /* put DE Pin to low*/
 }
 
-float hexToFloat(uint32_t hex_value)
+// change address but not test yet
+void changeAddress(uint8_t NewslaveAddr)
 {
-    union
-    {
-        uint32_t i;
-        float f;
-    } u;
+    uint8_t result;
 
-    u.i = hex_value;
-    return u.f;
+    uint16_t writeData = (NewslaveAddr << 8) + 0x06;
+
+    result = node.writeMultipleRegisters(0x0004, writeData);
+
+    // Check the result of the Modbus operation
+    if (result == node.ku8MBSuccess)
+    {
+        Serial.println("Write Success!");
+    }
+    else
+    {
+        Serial.print("Write Failed. Error: ");
+        Serial.println(result, HEX);
+    }
 }

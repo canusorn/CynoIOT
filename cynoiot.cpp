@@ -20,10 +20,6 @@ Cynoiot::Cynoiot()
 
 bool Cynoiot::connect(String email)
 {
-    if (_email.length() == 0)
-    {
-        _email = email;
-    }
     uint8_t ArrayLength = email.length() + 1; // The +1 is for the 0x00h Terminator
     char email_c[ArrayLength];
     email.toCharArray(email_c, ArrayLength);
@@ -36,6 +32,11 @@ bool Cynoiot::connect(const char email[])
 }
 bool Cynoiot::connect(const char email[], const char server[])
 {
+    if (_email.length() == 0)
+    {
+        _email = email;
+    }
+
     if (WiFi.status() != WL_CONNECTED)
     {
         return false;
@@ -118,11 +119,6 @@ void Cynoiot::handle()
 
     client.loop();
 
-    if (!status())
-    {
-        connect(_email);
-    }
-
     // if subscriped flag
     if (!this->_Subscribed && status() && this->_connected)
     {
@@ -143,6 +139,11 @@ void Cynoiot::handle()
         client.disconnect();
         updateOTA(needOTA);
         needOTA = "";
+    }
+
+    if (!status())
+    {
+        connect(_email);
     }
 }
 
