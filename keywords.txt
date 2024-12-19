@@ -9,3 +9,4 @@ setkeyname	KEYWORD2
 update	KEYWORD2
 connected	KEYWORD2
 status	KEYWORD2
+debug	KEYWORD2

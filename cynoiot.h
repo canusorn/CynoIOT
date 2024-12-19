@@ -77,6 +77,7 @@ public:
 
   String getClientId();
 
+  void debug(String msg);
   bool connect(String email);
 
   bool connect(const char email[]);

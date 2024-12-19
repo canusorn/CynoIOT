@@ -555,3 +555,8 @@ void Cynoiot::updateOTA(String otafile)
     // reconnect if ota failed
     ESP.restart();
 }
+
+
+void Cynoiot::debug(String msg){
+    publish(msg, "/" + getClientId() + "/debug");
+}
