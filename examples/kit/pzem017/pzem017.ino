@@ -104,11 +104,42 @@ HTTPUpdateServer httpUpdater;
 
 char emailParamValue[STRING_LEN];
 
-IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword, VERSION); // version defind in iotbundle.h file
+IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword); // version defind in iotbundle.h file
 // -- You can also use namespace formats e.g.: iotwebconf::TextParameter
 IotWebConfParameterGroup login = IotWebConfParameterGroup("login", "ล็อกอิน(สมัครที่เว็บก่อนนะครับ)");
 
 IotWebConfTextParameter emailParam = IotWebConfTextParameter("อีเมลล์ (ระวังห้ามใส่เว้นวรรค)", "emailParam", emailParamValue, STRING_LEN);
+
+
+    // Static HTML stored in flash memory
+    const char htmlTemplate[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>CynoIoT config page</title>
+    <script>
+    if (%STATE% == 0) {
+        location.href='/config';
+    }
+    </script>
+</head>
+<body>
+    CynoIoT config data
+    <ul>
+        <li>Device name: %THING_NAME%</li>
+        <li>อีเมลล์: %EMAIL%</li>
+        <li>WIFI SSID: %SSID%</li>
+        <li>RSSI: %RSSI% dBm</li>
+        <li>ESP ID: %ESP_ID%</li>
+        <li>Version: %VERSION%</li>
+    </ul>
+    <button style='margin-top: 10px;' type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button><br><br>
+    <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
+</body>
+</html>
+)rawliteral";
 
 // -- Method declarations.
 void handleRoot();
@@ -625,28 +656,16 @@ void handleRoot()
         // -- Captive portal request were already served.
         return;
     }
-    String s = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
-    s += "<title>Iotkiddie AC Powermeter config</title>";
-    if (iotWebConf.getState() == iotwebconf::NotConfigured)
-        s += "<script>\nlocation.href='/config';\n</script>";
-    s += "</head><body>IoTkiddie config data";
-    s += "<ul>";
-    s += "<li>Device name : ";
-    s += String(iotWebConf.getThingName());
-    s += "<li>อีเมลล์ : ";
-    s += emailParamValue;
-    s += "<li>WIFI SSID : ";
-    s += String(iotWebConf.getSSID());
-    s += "<li>RSSI : ";
-    s += String(WiFi.RSSI()) + " dBm";
-    s += "<li>ESP ID : ";
-    s += iot.getClientId();
-    s += "<li>Version : ";
-    s += IOTVERSION;
-    s += "</ul>";
-    s += "<button style='margin-top: 10px;' type='button' onclick=\"location.href='/reboot';\" >รีบูทอุปกรณ์</button><br><br>";
-    s += "<a href='config'>configure page แก้ไขข้อมูล wifi และ user</a>";
-    s += "</body></html>\n";
+
+    String s = FPSTR(htmlTemplate);
+    s.replace("%STATE%", String(iotWebConf.getState()));          // Replace state placeholder
+    s.replace("%THING_NAME%", String(iotWebConf.getThingName())); // Replace device name
+    s.replace("%EMAIL%", String(emailParamValue));                // Replace email
+    s.replace("%SSID%", String(iotWebConf.getSSID()));            // Replace SSID
+    s.replace("%RSSI%", String(WiFi.RSSI()));                     // Replace RSSI
+    s.replace("%ESP_ID%", String(iot.getClientId()));             // Replace ESP ID
+    s.replace("%VERSION%", String(IOTVERSION));                   // Replace version
+
 
     server.send(200, "text/html", s);
 }

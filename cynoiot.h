@@ -16,7 +16,6 @@
 #include <HTTPUpdate.h>
 #endif
 
-#define VERSION "0" // for iotwebconfig -> don't change
 #define IOTVERSION "0.0.2"
 
 #ifndef DEFAULT_SERVER
