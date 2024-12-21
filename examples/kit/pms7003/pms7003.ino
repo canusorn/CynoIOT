@@ -34,8 +34,8 @@ const char wifiInitialApPassword[] = "iotbundle";
 // timer interrupt
 Ticker timestamp;
 
-    // Static HTML stored in flash memory
-    const char htmlTemplate[] PROGMEM = R"rawliteral(
+// Static HTML stored in flash memory
+const char htmlTemplate[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -352,7 +352,7 @@ void display_update()
         Serial.println(noti);
     }
     //------Update OLED------
-    else if (sensorNotDetect <= 5)
+    else if (sensorNotDetect < updateValue)
     {
         oled.clear(PAGE);
         oled.setFontType(0);
@@ -441,7 +441,7 @@ void handleRoot()
     s.replace("%RSSI%", String(WiFi.RSSI()));                     // Replace RSSI
     s.replace("%ESP_ID%", String(iot.getClientId()));             // Replace ESP ID
     s.replace("%VERSION%", String(IOTVERSION));                   // Replace version
-  
+
     server.send(200, "text/html", s);
 }
 
