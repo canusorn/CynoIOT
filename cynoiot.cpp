@@ -390,11 +390,11 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 {
     String _topic = cynoiotInstance.getPublishTopic();
     String _clientid = cynoiotInstance.getClientId();
+    pub2SubTime = 0;
 
     if (topic == _topic)
     {
-        pub2SubTime = 0;
-        DEBUGLN("Done publishing");
+        // DEBUGLN("Done publishing");
         return;
     }
     else if (topic.startsWith("/" + _clientid + "/io"))
@@ -556,7 +556,7 @@ void Cynoiot::updateOTA(String otafile)
     ESP.restart();
 }
 
-
-void Cynoiot::debug(String msg){
+void Cynoiot::debug(String msg)
+{
     publish(msg, "/" + getClientId() + "/debug");
 }
