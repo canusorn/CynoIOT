@@ -33,6 +33,9 @@ SoftwareSerial RS485Serial;
 ModbusMaster node;
 Cynoiot iot;
 
+// Address  0x01-0xF7
+static uint8_t slaveAddr = 0x01;
+
 const char ssid[] = "G6PD";
 const char pass[] = "570610193";
 const char email[] = "anusorn1998@gmail.com";
@@ -69,7 +72,7 @@ void setup()
 
     node.preTransmission(preTransmission); // Callbacks allow us to configure the RS485 transceiver correctly
     node.postTransmission(postTransmission);
-    node.begin(1, RS485Serial);
+    node.begin(slaveAddr, RS485Serial);
 
     // changeAddress(2);
 
