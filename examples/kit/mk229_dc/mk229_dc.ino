@@ -53,7 +53,7 @@ Cynoiot iot;
 // Address ของ PZEM-017 : 0x01-0xF7
 static uint8_t slaveAddr = 0x01;
 
-const char thingName[] = "mk229dc";
+const char thingName[] = "mk229";
 const char wifiInitialApPassword[] = "iotbundle";
 
 #define STRING_LEN 128
@@ -142,7 +142,7 @@ void iotSetup()
     iot.setkeyname(keyname, numVariables);
 
     const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
-    iot.setTemplate("mk229dc", version); // เลือกเทมเพลตแดชบอร์ด
+    iot.setTemplate("mk229", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
