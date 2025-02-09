@@ -2,8 +2,11 @@
 
 WiFiClientSecure net;
 // WiFiClient net;
+#ifdef ESP8266
 MQTTClient client(512);
-
+#elif defined(ESP32)
+MQTTClient client(1024);
+#endif
 // net = new WiFiClientSecure;
 // client = new MQTTClient(512);
 
@@ -394,7 +397,7 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
     if (topic == _topic)
     {
-        // DEBUGLN("Done publishing");
+        DEBUGLN("Done updating");
         return;
     }
     else if (topic.startsWith("/" + _clientid + "/io"))

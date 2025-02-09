@@ -1,59 +1,32 @@
-/*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
-#ifdef ESP8266
-#include <SoftwareSerial.h>
+/*
+   -PMS7003-
+   5V - VCC
+   GND - GND
+   D4  - TX
+   D3  - RX(not use in this code)
+*/
+
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
-#include <ESP8266mDNS.h>
-
-#elif defined(ESP32)
-#include <WiFi.h>
-#include <NetworkClient.h>
-#include <WebServer.h>
-#include <ESPmDNS.h>
-#include <HTTPUpdateServer.h>
-#endif
-
-#include <ModbusMaster.h>
-#include <SFE_MicroOLED.h>
-#include <Wire.h>
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h>
+#include <ESP8266HTTPUpdateServer.h>
+#include <ESP8266mDNS.h>
 #include <Ticker.h>
+#include <Wire.h>
+#include <SFE_MicroOLED.h>
+#include <DHT.h>
+#include <PMS.h>
+#include <SoftwareSerial.h>
 #include <EEPROM.h>
 #include <cynoiot.h>
 
-#ifdef ESP8266
-SoftwareSerial RS485Serial;
-#elif defined(ESP32)
-#define RS485Serial Serial1
-#endif
-
-MicroOLED oled(-1, 0);
-
-// ตั้งค่า pin สำหรับต่อกับ MAX485
-#ifdef ESP8266
-#define RSTPIN D5
-#define MAX485_RO D7
-#define MAX485_RE D6
-#define MAX485_DE D5
-#define MAX485_DI D0
-
-#elif defined(ESP32)
-#define RSTPIN 6
-#define MAX485_RO 11
-#define MAX485_RE 9
-#define MAX485_DE 7
-#define MAX485_DI 5
-#endif
-
-ModbusMaster node;
+// สร้าง object ชื่อ iot
 Cynoiot iot;
 
-// Address ของ PZEM-017 : 0x01-0xF7
-static uint8_t slaveAddr = 0x01;
-
-const char thingName[] = "mk229";
+const char thingName[] = "pms7003";
 const char wifiInitialApPassword[] = "iotbundle";
 
 #define STRING_LEN 128
@@ -61,26 +34,6 @@ const char wifiInitialApPassword[] = "iotbundle";
 
 // timer interrupt
 Ticker timestamp;
-
-unsigned long previousMillis;
-
-DNSServer dnsServer;
-WebServer server(80);
-
-#ifdef ESP8266
-ESP8266HTTPUpdateServer httpUpdater;
-
-#elif defined(ESP32)
-HTTPUpdateServer httpUpdater;
-#endif
-
-char emailParamValue[STRING_LEN];
-
-IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword); // version defind in iotbundle.h file
-// -- You can also use namespace formats e.g.: iotwebconf::TextParameter
-IotWebConfParameterGroup login = IotWebConfParameterGroup("login", "ล็อกอิน(สมัครที่เว็บก่อนนะครับ)");
-
-IotWebConfTextParameter emailParam = IotWebConfTextParameter("อีเมลล์ (ระวังห้ามใส่เว้นวรรค)", "emailParam", emailParamValue, STRING_LEN);
 
 // Static HTML stored in flash memory
 const char htmlTemplate[] PROGMEM = R"rawliteral(
@@ -112,12 +65,41 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
+#define DHTPIN D7
+// Uncomment whatever type you're using!
+// #define DHTTYPE DHT11 // DHT 11
+#define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
+// #define DHTTYPE DHT21   // DHT 21 (AM2301)
+DHT dht(DHTPIN, DHTTYPE);
+
 // -- Method declarations.
 void handleRoot();
 // -- Callback methods.
 void wifiConnected();
 void configSaved();
 bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
+
+SoftwareSerial pmsSerial(D4, D3); // RX,TX
+PMS pms(pmsSerial);
+PMS::DATA data;
+
+#define PIN_RESET -1
+#define DC_JUMPER 0
+MicroOLED oled(PIN_RESET, DC_JUMPER);
+
+unsigned long previousMillis = 0;
+
+DNSServer dnsServer;
+WebServer server(80);
+ESP8266HTTPUpdateServer httpUpdater;
+
+char emailParamValue[STRING_LEN];
+
+IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword); // version defind in iotbundle.h file
+// -- You can also use namespace formats e.g.: iotwebconf::TextParameter
+IotWebConfParameterGroup login = IotWebConfParameterGroup("login", "ล็อกอิน(สมัครที่เว็บก่อนนะครับ)");
+
+IotWebConfTextParameter emailParam = IotWebConfTextParameter("อีเมลล์", "emailParam", emailParamValue, STRING_LEN);
 
 uint8_t logo_bmp[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC0, 0xE0, 0xC0, 0xF0, 0xE0, 0x78, 0x38, 0x78, 0x3C, 0x1C, 0x3C, 0x1C, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1C, 0x3C, 0x1C, 0x3C, 0x78, 0x38, 0xF0, 0xE0, 0xF0, 0xC0, 0xC0, 0xC0, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x01, 0x00, 0x00, 0xF0, 0xF8, 0x70, 0x3C, 0x3C, 0x1C, 0x1E, 0x1E, 0x0E, 0x0E, 0x0E, 0x0F, 0x0F, 0x0E, 0x0E, 0x1E, 0x1E, 0x1E, 0x3C, 0x1C, 0x7C, 0x70, 0xF0, 0x70, 0x20, 0x01, 0x01, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x1C, 0x3E, 0x1E, 0x0F, 0x0F, 0x07, 0x87, 0x87, 0x07, 0x0F, 0x0F, 0x1E, 0x3E, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x1F, 0x1F, 0x3F, 0x3F, 0x1F, 0x1F, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -131,18 +113,19 @@ uint8_t displaytime;
 String noti;
 uint16_t timer_nointernet;
 uint8_t numVariables;
-
-float Voltage, Current, Power, Energy;
+uint8_t sampleUpdate, updateValue = 5;
+uint8_t sensorNotDetect = updateValue;
+float humid, temp;
 
 void iotSetup()
 {
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
-    numVariables = 4;                                    // จำนวนตัวแปร
-    String keyname[numVariables] = {"v", "i", "p", "e"}; // ชื่อตัวแปร
+    numVariables = 5;                                                       // จำนวนตัวแปร
+    String keyname[numVariables] = {"pm1", "pm2", "pm10", "temp", "humid"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
-    const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
-    iot.setTemplate("mk229", version); // เลือกเทมเพลตแดชบอร์ด
+    const uint8_t version = 1; // เวอร์ชั่นโปรเจคนี้
+    // iot.setTemplate("pms7003", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
@@ -172,7 +155,6 @@ void time1sec()
     {
         Serial.println("Can't connect to server -> Restart wifi");
         iotWebConf.goOffLine();
-        timer_nointernet++;
     }
     else if (timer_nointernet >= 65)
     {
@@ -185,41 +167,20 @@ void time1sec()
 
 void setup()
 {
-
     Serial.begin(115200);
+    pmsSerial.begin(9600);
+    Wire.begin();
+    dht.begin();
 
-    // for clear eeprom jump D5 to GND
-    pinMode(RSTPIN, INPUT_PULLUP);
-    if (digitalRead(RSTPIN) == false)
-    {
-        delay(1000);
-        if (digitalRead(RSTPIN) == false)
-        {
-            oled.clear(PAGE);
-            oled.setCursor(0, 0);
-            oled.print("Clear All data\n rebooting");
-            oled.display();
-            delay(1000);
-            clearEEPROM();
-        }
-    }
-
-#ifdef ESP8266
-    RS485Serial.begin(9600, SWSERIAL_8N1, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
-#elif defined(ESP32)
-    RS485Serial.begin(9600, SERIAL_8N1, MAX485_RO, MAX485_DI); // serial สำหรับติดต่อกับ MAX485
-#endif
+    digitalWrite(D6, HIGH);
+    digitalWrite(D8, LOW);
+    pinMode(D6, OUTPUT);
+    pinMode(D8, OUTPUT);
 
     // timer interrupt every 1 sec
     timestamp.attach(1, time1sec);
 
-    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    digitalWrite(MAX485_RE, 0); /* Arduino create output signal for pin RE as LOW (no output)*/
-    digitalWrite(MAX485_DE, 0); /* Arduino create output signal for pin DE as LOW (no output)*/
-
     //------Display LOGO at start------
-    Wire.begin();
     oled.begin();
     oled.clear(PAGE);
     oled.clear(ALL);
@@ -229,9 +190,21 @@ void setup()
     oled.print(" IoTbundle");
     oled.display();
 
-    node.preTransmission(preTransmission); // Callbacks allow us to configure the RS485 transceiver correctly
-    node.postTransmission(postTransmission);
-    node.begin(slaveAddr, RS485Serial);
+    // for clear eeprom jump D5 to GND
+    pinMode(D5, INPUT_PULLUP);
+    if (digitalRead(D5) == false)
+    {
+        delay(1000);
+        if (digitalRead(D5) == false)
+        {
+            oled.clear(PAGE);
+            oled.setCursor(0, 0);
+            oled.print("Clear All data\n rebooting");
+            oled.display();
+            delay(1000);
+            clearEEPROM();
+        }
+    }
 
     login.addItem(&emailParam);
 
@@ -281,105 +254,59 @@ void loop()
     MDNS.update();
 #endif
 
-    // อ่านค่าจาก PZEM-017
-    uint32_t currentMillisPZEM = millis();
-    if (currentMillisPZEM - previousMillis >= 5000) /* for every x seconds, run the codes below*/
+    //------get data from PMS7003------
+    if (pms.read(data))
     {
-        uint8_t result;                                /* Declare variable "result" as 8 bits */
-        result = node.readHoldingRegisters(0x0100, 16); /* read the 9 registers (information) of the PZEM-014 / 016 starting 0x0000 (voltage information) kindly refer to manual)*/
-        if (result == node.ku8MBSuccess)               /* If there is a response */
-        {
-            uint32_t tempdouble = 0x00000000; /* Declare variable "tempdouble" as 32 bits with initial value is 0 */
-            float var[4];
+        sensorNotDetect = 0;
 
-            tempdouble = (node.getResponseBuffer(0) << 16) + node.getResponseBuffer(1); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[0] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
-            Voltage = var[0];
+        display_update(); // update OLED
+    }
 
-            tempdouble = (node.getResponseBuffer(2) << 16) + node.getResponseBuffer(3); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[1] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
-            Current = var[1];
-
-            tempdouble = (node.getResponseBuffer(4) << 16) + node.getResponseBuffer(5); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[2] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
-            Power = var[2];
-
-            tempdouble = (node.getResponseBuffer(14) << 16) + node.getResponseBuffer(15); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[3] = float(tempdouble) / 1000;                                          /* Divide the value by 10 to get actual power value (as per manual) */
-            Energy = var[3];
-
-            Serial.println(String(var[0], 2) + " V");
-            Serial.println(String(var[1], 2) + " A");
-            Serial.println(String(var[2], 2) + " W");
-            Serial.println(String(var[3], 3) + " kWh");
-            Serial.println("------------");
-
-            iot.update(var);
-        }
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= 1000)
+    { // run every 1 second
+        previousMillis = currentMillis;
+        if (sensorNotDetect < updateValue)
+            sensorNotDetect++;
         else
         {
-            Serial.println("error");
-            Voltage = NAN;
+            display_update(); // update OLED
         }
 
-        // แสดงค่าบน OLED
-        display_update();
-        
-        previousMillis = currentMillisPZEM; /* Set the starting point again for next counting time */
+        humid = dht.readHumidity();
+        temp = dht.readTemperature();
+        Serial.println("Humidity: " + String(humid) + "%  Temperature: " + String(temp) + "°C ");
+
+        sampleUpdate++;
+        if (sampleUpdate >= updateValue && sensorNotDetect < updateValue)
+        {
+            sampleUpdate = 0;
+
+            if (isnan(data.PM_AE_UG_1_0))
+                return;
+            //  อัพเดทค่าใหม่ในรูปแบบ array
+            if (isnan(humid))
+            {
+                numVariables = 3;                                                       // จำนวนตัวแปร
+                String keyname[numVariables] = {"pm1", "pm2", "pm10", "temp", "humid"}; // ชื่อตัวแปร
+                iot.setkeyname(keyname, numVariables);
+                float val[numVariables] = {data.PM_AE_UG_1_0, data.PM_AE_UG_2_5, data.PM_AE_UG_10_0};
+                iot.update(val);
+            }
+            else
+            {
+                numVariables = 5;                                                       // จำนวนตัวแปร
+                String keyname[numVariables] = {"pm1", "pm2", "pm10", "temp", "humid"}; // ชื่อตัวแปร
+                iot.setkeyname(keyname, numVariables);
+                float val[numVariables] = {data.PM_AE_UG_1_0, data.PM_AE_UG_2_5, data.PM_AE_UG_10_0, temp, humid};
+                iot.update(val);
+            }
+        }
     }
 }
 
-// ---- ฟังก์ชันแสดงผลฝ่านจอ OLED ----
 void display_update()
 {
-    //------Update OLED------
-    oled.clear(PAGE);
-    oled.setFontType(0);
-    oled.setCursor(0, 0);
-    oled.print(Voltage);
-    oled.println(" V");
-    oled.setCursor(0, 12);
-    oled.print(Current);
-    oled.println(" A");
-    oled.setCursor(0, 24);
-    oled.print(Power);
-    oled.println(" W");
-    oled.setCursor(0, 36);
-
-    if (Energy < 9.999)
-    {
-        oled.print(Energy, 3);
-        oled.println(" kWh");
-    }
-    else if (Energy < 99.999)
-    {
-        oled.print(Energy, 2);
-        oled.println(" kWh");
-    }
-    else if (Energy < 999.999)
-    {
-        oled.print(Energy, 1);
-        oled.println(" kWh");
-    }
-    else if (Energy < 9999.999)
-    {
-        oled.print(Energy, 0);
-        oled.println(" kWh");
-    }
-    else
-    { // ifnan
-        oled.print(Energy, 0);
-        oled.println(" Wh");
-    }
-
-    // on error
-    if (isnan(Voltage))
-    {
-        oled.clear(PAGE);
-        oled.setCursor(0, 0);
-        oled.printf("-Sensor-\n\nno sensor\ndetect!");
-    }
-
     // display status
     iotwebconf::NetworkState curr_state = iotWebConf.getState();
     if (curr_state == iotwebconf::Boot)
@@ -413,7 +340,7 @@ void display_update()
         {
             displaytime = 10;
             prev_state = curr_state;
-            noti = "-State-\n\nX  wifi\ndisconnect\ngo AP Mode";
+            noti = "-State-\n\nX wifi\ndisconnect\ngo AP Mode";
         }
     }
     else if (curr_state == iotwebconf::Connecting)
@@ -456,6 +383,31 @@ void display_update()
         oled.print(noti);
         Serial.println(noti);
     }
+    //------Update OLED------
+    else if (sensorNotDetect < updateValue)
+    {
+        oled.clear(PAGE);
+        oled.setFontType(0);
+        oled.setCursor(0, 0);
+        oled.println("PM(ug/m3)");
+        oled.setCursor(0, 15);
+        oled.print(" 1.0 : ");
+        oled.print(data.PM_AE_UG_1_0);
+        oled.setCursor(0, 26);
+        oled.print(" 2.5 : ");
+        oled.print(data.PM_AE_UG_2_5);
+        oled.setCursor(0, 37);
+        oled.print("10.0 : ");
+        oled.print(data.PM_AE_UG_10_0);
+    }
+    // if no data from sensor
+    else
+    {
+        oled.clear(PAGE);
+        oled.setFontType(0);
+        oled.setCursor(0, 0);
+        oled.printf("-Sensor-\n\nno sensor\ndetect!");
+    }
 
     // display state
     if (curr_state == iotwebconf::NotConfigured || curr_state == iotwebconf::ApMode)
@@ -487,42 +439,20 @@ void display_update()
         oled.drawIcon(56, 0, 8, 8, wifi_off, sizeof(wifi_off), true);
 
     oled.display();
-}
 
-void preTransmission() /* transmission program when triggered*/
-{
-
-    digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
-    digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/
-    delay(1);                   // When both RE and DE Pin are high, converter is allow to transmit communication
-}
-
-void postTransmission() /* Reception program when triggered*/
-{
-
-    delay(3);                   // When both RE and DE Pin are low, converter is allow to receive communication
-    digitalWrite(MAX485_RE, 0); /* put RE Pin to low*/
-    digitalWrite(MAX485_DE, 0); /* put DE Pin to low*/
-}
-
-// change address but not test yet
-void changeAddress(uint8_t NewslaveAddr)
-{
-    uint8_t result;
-
-    uint16_t writeData = (NewslaveAddr << 8) + 0x06;
-
-    result = node.writeMultipleRegisters(0x0004, writeData);
-
-    // Check the result of the Modbus operation
-    if (result == node.ku8MBSuccess)
+    //------print on serial moniter------
+    if (sensorNotDetect <= 5)
     {
-        Serial.println("Write Success!");
+        Serial.print("PM 1.0 (ug/m3): ");
+        Serial.println(data.PM_AE_UG_1_0);
+        Serial.print("PM 2.5 (ug/m3): ");
+        Serial.println(data.PM_AE_UG_2_5);
+        Serial.print("PM 10.0 (ug/m3): ");
+        Serial.println(data.PM_AE_UG_10_0);
     }
     else
     {
-        Serial.print("Write Failed. Error: ");
-        Serial.println(result, HEX);
+        Serial.println("no sensor detect");
     }
 }
 
@@ -573,12 +503,14 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
     Serial.println("Validating form.");
     bool valid = true;
 
-    // if (l < 3)
-    // {
-    //   emailParam.errorMessage = "Please provide at least 3 characters for this test!";
-    //   valid = false;
-    // }
-
+    /*
+      int l = webRequestWrapper->arg(stringParam.getId()).length();
+      if (l < 3)
+      {
+        stringParam.errorMessage = "Please provide at least 3 characters for this test!";
+        valid = false;
+      }
+    */
     return valid;
 }
 

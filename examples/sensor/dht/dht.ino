@@ -57,7 +57,7 @@ void loop()
     iot.handle();
     
     unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= 2000)
+    if (currentMillis - previousMillis >= 5000)
     {
         previousMillis = currentMillis;
 

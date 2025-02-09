@@ -1,9 +1,9 @@
 /*
-    การต่อสาย
-    VCC            5V
-    GND            GND
-     A             A
-     B             B
+    การต่อสาย esp32 s2
+    5C            5V
+    GND          GND
+    18            A
+    21            B
 */
 
 #include <ModbusMaster.h>
@@ -54,10 +54,10 @@ MicroOLED oled(-1, 0);
 #define RSTPIN 7
 
 #ifdef CONFIG_IDF_TARGET_ESP32S2
-#define MAX485_RO 11
+#define MAX485_RO 18
 #define MAX485_RE 9
 #define MAX485_DE 7
-#define MAX485_DI 5
+#define MAX485_DI 21
 
 #else
 #define MAX485_RO 23
@@ -248,7 +248,11 @@ void setup()
     digitalWrite(MAX485_DE, 0); /* Arduino create output signal for pin DE as LOW (no output)*/
 
     //------Display LOGO at start------
+#ifdef ESP8266
     Wire.begin();
+#elif defined(ESP32)
+    Wire.begin(33,35,50000);
+#endif
     oled.begin();
     oled.clear(PAGE);
     oled.clear(ALL);
@@ -312,7 +316,7 @@ void setup()
         oled.display();
     }
     setShunt(pzemSlaveAddr);            // ตั้งค่า shunt
-    changeAddress(0x01, pzemSlaveAddr); // ตั้งค่า address 0x01 ซื่งเป็นค่า default ของตัว PZEM-017
+    // changeAddress(0x01, pzemSlaveAddr); // ตั้งค่า address 0x01 ซื่งเป็นค่า default ของตัว PZEM-017
     // resetEnergy();                                   // รีเซ็ตค่า Energy[Wh] (หน่วยใช้ไฟสะสม)
 
     iotSetup();
