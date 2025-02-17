@@ -65,11 +65,11 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-#define DHTPIN D7
+#define DHTPIN D6
 // Uncomment whatever type you're using!
-// #define DHTTYPE DHT11 // DHT 11
-#define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
-// #define DHTTYPE DHT21   // DHT 21 (AM2301)
+#define DHTTYPE DHT11 // DHT 11
+// #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
+//  #define DHTTYPE DHT21   // DHT 21 (AM2301)
 DHT dht(DHTPIN, DHTTYPE);
 
 // -- Method declarations.
@@ -172,10 +172,17 @@ void setup()
     Wire.begin();
     dht.begin();
 
-    digitalWrite(D6, HIGH);
+    // for dht11
+    digitalWrite(D7, HIGH);
     digitalWrite(D8, LOW);
-    pinMode(D6, OUTPUT);
+    pinMode(D7, OUTPUT);
     pinMode(D8, OUTPUT);
+
+    // for dht22
+    //    digitalWrite(D6, HIGH);
+    //    digitalWrite(D8, LOW);
+    //    pinMode(D6, OUTPUT);
+    //    pinMode(D8, OUTPUT);
 
     // timer interrupt every 1 sec
     timestamp.attach(1, time1sec);
@@ -275,7 +282,7 @@ void loop()
 
         humid = dht.readHumidity();
         temp = dht.readTemperature();
-        Serial.println("Humidity: " + String(humid) + "%  Temperature: " + String(temp) + "°C ");
+        5 Serial.println("Humidity: " + String(humid) + "%  Temperature: " + String(temp) + "°C ");
 
         sampleUpdate++;
         if (sampleUpdate >= updateValue && sensorNotDetect < updateValue)
@@ -389,16 +396,22 @@ void display_update()
         oled.clear(PAGE);
         oled.setFontType(0);
         oled.setCursor(0, 0);
-        oled.println("PM(ug/m3)");
-        oled.setCursor(0, 15);
-        oled.print(" 1.0 : ");
-        oled.print(data.PM_AE_UG_1_0);
-        oled.setCursor(0, 26);
-        oled.print(" 2.5 : ");
-        oled.print(data.PM_AE_UG_2_5);
-        oled.setCursor(0, 37);
-        oled.print("10.0 : ");
-        oled.print(data.PM_AE_UG_10_0);
+        oled.print("1.0: ");
+        oled.println(data.PM_AE_UG_1_0);
+        oled.setCursor(0, 10);
+        oled.print("2.5: ");
+        oled.println(data.PM_AE_UG_2_5);
+        oled.setCursor(0, 20);
+        oled.print(" 10: ");
+        oled.println(data.PM_AE_UG_10_0);
+        oled.setCursor(0, 31);
+        oled.print("T : ");
+        oled.print(temp, 1);
+        oled.println(" C");
+        oled.setCursor(0, 41);
+        oled.print("H : ");
+        oled.print(humid, 0);
+        oled.print("   %");
     }
     // if no data from sensor
     else
