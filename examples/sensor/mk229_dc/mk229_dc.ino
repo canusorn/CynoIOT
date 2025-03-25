@@ -93,7 +93,7 @@ void loop()
     if (currentMillisPZEM - previousMillis >= 5000) /* for every x seconds, run the codes below*/
     {
         uint8_t result;                                /* Declare variable "result" as 8 bits */
-        result = node.readHoldingRegisters(0x0100, 16); /* read the 9 registers (information) of the PZEM-014 / 016 starting 0x0000 (voltage information) kindly refer to manual)*/
+        result = node.readHoldingRegisters(0x0100, 21); /* read the 9 registers (information) of the PZEM-014 / 016 starting 0x0000 (voltage information) kindly refer to manual)*/
         if (result == node.ku8MBSuccess)               /* If there is a response */
         {
             uint32_t tempdouble = 0x00000000; /* Declare variable "tempdouble" as 32 bits with initial value is 0 */
@@ -101,16 +101,28 @@ void loop()
 
             tempdouble = (node.getResponseBuffer(0) << 16) + node.getResponseBuffer(1); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
             var[0] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
+            Voltage = var[0];
 
             tempdouble = (node.getResponseBuffer(2) << 16) + node.getResponseBuffer(3); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
             var[1] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
+            Current = var[1];
 
             tempdouble = (node.getResponseBuffer(4) << 16) + node.getResponseBuffer(5); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
             var[2] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
+            Power = var[2];
 
-            tempdouble = (node.getResponseBuffer(14) << 16) + node.getResponseBuffer(15); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
+            tempdouble = (node.getResponseBuffer(0xE) << 16) + node.getResponseBuffer(0xF); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
             var[3] = float(tempdouble) / 1000;                                          /* Divide the value by 10 to get actual power value (as per manual) */
+            Energy = var[3];
 
+            tempdouble =  node.getResponseBuffer(0x14); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
+            if(tempdouble){
+              var[1]*=-1.0;
+              var[2]*=-1.0;
+              Current = var[1];
+              Power = var[2];
+            }
+            
             Serial.println(String(var[0], 2) + " V");
             Serial.println(String(var[1], 2) + " A");
             Serial.println(String(var[2], 2) + " W");
