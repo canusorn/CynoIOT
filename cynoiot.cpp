@@ -288,21 +288,10 @@ int Cynoiot::getPinNumber(String pinId)
 
 void Cynoiot::parsePinsString(const String &input)
 {
-    // Define the maximum number of elements
-#ifdef ESP8266
-    const int maxElements = 9;
-#elif defined(ESP32)
-    const int maxElements = 30;
-#endif
-
-    // Arrays to hold the parsed values
-    String pins[maxElements];
-    String modes[maxElements];
-    String values[maxElements];
-
-    int pinIndex = 0;
-    int modeIndex = 0;
-    int valueIndex = 0;
+    // Use vectors for dynamic memory allocation
+    // std::vector<String> pins;
+    // std::vector<String> modes;
+    // std::vector<String> values;
 
     // Split the input string by commas
     int startPos = 0;
@@ -382,7 +371,7 @@ void Cynoiot::pinHandle(const String &pins, const String &modes, const String &v
         analogWrite(pin, values.toInt());
     }
 #ifdef ESP32
-    else if (modes == "dac")
+    else if (modes == "DAC")
     {
         dacWrite(pin, values.toInt());
     }
