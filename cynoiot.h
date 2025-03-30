@@ -33,6 +33,9 @@
 #define CYNOIOT_DEBUG
 #define PORT 7458
 
+// Define callback function type
+typedef void (*EventCallbackFunction)(String event, String value);
+
 class Cynoiot
 {
 
@@ -49,6 +52,7 @@ private:
   String _template = "";
   uint32_t daytimestamp;
   uint8_t _templateVersion = 0;
+  EventCallbackFunction _eventCallback = NULL; // Store the callback function
 
   String getPublishTopic();
   bool subscribe();
@@ -93,6 +97,12 @@ public:
 
   void setTemplate(String templateName);
   void setTemplate(String templateName, uint8_t version);
+
+  // Set the event callback function
+  void setEventCallback(EventCallbackFunction callback);
+  
+  // Call the event callback function
+  void triggerEvent(String event, String value);
 
   void interrupt1sec();
 };

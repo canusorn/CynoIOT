@@ -15,6 +15,8 @@ Cynoiot cynoiotInstance;
 uint32_t previousTime;
 uint8_t pub2SubTime;
 
+String event, value;
+
 String needOTA = "";
 
 Cynoiot::Cynoiot()
@@ -121,6 +123,12 @@ void Cynoiot::handle()
     }
 
     client.loop();
+
+    if(event.length() && value.length()){
+        triggerEvent(event, value);
+        event = "";
+        value = "";
+    }
 
     // if subscriped flag
     if (!this->_Subscribed && status() && this->_connected)
@@ -394,16 +402,32 @@ void Cynoiot::messageReceived(String &topic, String &payload)
         DEBUGLN("Control: " + payload);
         cynoiotInstance.parsePinsString(payload);
     }
-    else if (topic.startsWith("/" + _clientid + "/init"))
-    {
-        DEBUGLN("Init: " + payload);
-        cynoiotInstance.parsePinsString(payload);
-    }
+    // else if (topic.startsWith("/" + _clientid + "/init"))
+    // {
+    //     DEBUGLN("Init: " + payload);
+    //     cynoiotInstance.parsePinsString(payload);
+    // }
     else if (topic.startsWith("/" + _clientid + "/ota/start"))
     {
         // DEBUGLN("OTA update to : " + payload);
         needOTA = payload;
         // cynoiotInstance.updateOTA(payload);
+    }
+    else if (topic.startsWith("/" + _clientid + "/event"))
+    {
+        if (payload.startsWith("Event:"))
+        {
+            int firstColon = payload.indexOf(':');
+            int secondColon = payload.indexOf(':', firstColon + 1);
+
+            if (firstColon != -1 && secondColon != -1)
+            {
+                event = payload.substring(firstColon + 1, secondColon);
+                value = payload.substring(secondColon + 1);
+                // cynoiotInstance.triggerEvent(event, value); // Trigger the callback function with event and value
+                return;
+            }
+        }
     }
     else
     {
@@ -551,4 +575,16 @@ void Cynoiot::updateOTA(String otafile)
 void Cynoiot::debug(String msg)
 {
     publish(msg, "/" + getClientId() + "/debug");
+}
+
+// Add these methods to your implementation file
+
+void Cynoiot::setEventCallback(EventCallbackFunction callback) {
+  _eventCallback = callback;
+}
+
+void Cynoiot::triggerEvent(String event, String value) {
+  if (_eventCallback != NULL) {
+    _eventCallback(event, value);
+  }
 }
