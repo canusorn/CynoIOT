@@ -71,6 +71,7 @@ private:
   static void messageReceived(String &topic, String &payload);
 
   void templatePublish();
+  void checkUpdateTimestamps();
 
 public:
   Cynoiot();
@@ -104,6 +105,7 @@ public:
   // Call the event callback function
   void triggerEvent(String event, String value);
   
+  void eventUpdate(String event, String value);
   void eventUpdate(String event, int value);
 
   uint32_t getTime();

@@ -23,11 +23,20 @@ String needOTA = "";
 String lastMsgPublish = "";
 
 uint32_t daytimestamp;
-
+uint16_t nexttimeupdate;
 // Callback function for the ticker
 void everySecondCallback()
 {
     daytimestamp++;
+
+    if (nexttimeupdate)
+    {
+        nexttimeupdate--;
+    }
+    else
+    {
+        nexttimeupdate = random(3600, 7200);
+    }
 }
 
 Cynoiot::Cynoiot()
@@ -160,6 +169,7 @@ void Cynoiot::handle()
         previousTime = currentTime;
 
         checkSubscription();
+        checkUpdateTimestamps();
     }
 
     if (needOTA.length())
@@ -172,6 +182,16 @@ void Cynoiot::handle()
     if (!status())
     {
         connect(_email);
+    }
+}
+
+void Cynoiot::checkUpdateTimestamps()
+{
+    if (nexttimeupdate % 40 == 0 && nexttimeupdate <= 200)
+    {
+        String payload = "";
+        String topic = "/" + getClientId() + "/gettimestamps";
+        publish(payload, topic);
     }
 }
 
@@ -442,6 +462,11 @@ void Cynoiot::messageReceived(String &topic, String &payload)
         needOTA = payload;
         // cynoiotInstance.updateOTA(payload);
     }
+    else if (topic.startsWith("/" + _clientid + "/timestamps"))
+    {
+        daytimestamp = payload.toInt();
+        nexttimeupdate = random(3600, 7200);
+    }
     else if (topic.startsWith("/" + _clientid + "/event"))
     {
         if (payload.startsWith("Event:"))
@@ -622,11 +647,8 @@ void Cynoiot::eventUpdate(String event, String value)
     {
         value_int = 1;
     }
-    else if (value_int == 0 && value != "0")
-    {
-    }
-    else
-    {
+    else if (value_int != 0 || value == "0")
+    { 
         value_int = 0;
     }
 
