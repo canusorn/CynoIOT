@@ -9,7 +9,7 @@
 
 #define LED 15
 
-const char ssid[] = "G6PD";
+const char ssid[] = "G6PD_2.4G";
 const char pass[] = "570610193";
 const char email[] = "anusorn1998@gmail.com";
 
@@ -35,14 +35,14 @@ void iotSetup()
     uint8_t numVariables = 2;
     String keyname[numVariables] = {"humid", "temp"};
     iot.setkeyname(keyname, numVariables);
-    // iot.setTemplate("testtemplate", 1);
+    
     iot.connect(email);
 }
 
 void setup()
 {
     pinMode(LED, OUTPUT);
-    
+
     Serial.begin(115200);
     Serial.println();
     Serial.print("Wifi connecting to ");

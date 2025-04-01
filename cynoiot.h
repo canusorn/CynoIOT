@@ -5,6 +5,7 @@
 #include <MQTT.h>
 #include <EEPROM.h>
 
+
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
@@ -50,7 +51,6 @@ private:
   String _topic;
   bool _Subscribed = false;
   String _template = "";
-  uint32_t daytimestamp;
   uint8_t _templateVersion = 0;
   EventCallbackFunction _eventCallback = NULL; // Store the callback function
 
@@ -103,10 +103,10 @@ public:
   
   // Call the event callback function
   void triggerEvent(String event, String value);
-
-  void interrupt1sec();
   
   void eventUpdate(String event, int value);
+
+  uint32_t getTime();
 };
 
 // for set debug mode

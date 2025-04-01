@@ -1,4 +1,5 @@
 #include "cynoiot.h"
+#include <Ticker.h>
 
 WiFiClientSecure net;
 // WiFiClient net;
@@ -11,6 +12,7 @@ MQTTClient client(1024);
 // client = new MQTTClient(512);
 
 Cynoiot cynoiotInstance;
+Ticker everySecond; // Add Ticker object for 1-second interval
 
 uint32_t previousTime;
 uint8_t pub2SubTime;
@@ -19,6 +21,14 @@ String event, value;
 
 String needOTA = "";
 String lastMsgPublish = "";
+
+uint32_t daytimestamp;
+
+// Callback function for the ticker
+void everySecondCallback()
+{
+    daytimestamp++;
+}
 
 Cynoiot::Cynoiot()
 {
@@ -47,6 +57,11 @@ bool Cynoiot::connect(const char email[], const char server[])
     {
         return false;
     }
+
+    // Detach any existing timer before attaching a new one to prevent multiple callbacks
+    everySecond.detach();
+    // Initialize ticker to call everySecondCallback every 1 second
+    everySecond.attach(1, everySecondCallback);
 
     // client.begin(server, net);
     client.begin(server, PORT, net);
@@ -407,7 +422,7 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
     if (lastMsgPublish == payload)
     {
-        lastMsgPublish="";
+        lastMsgPublish = "";
         return;
     }
 
@@ -497,12 +512,6 @@ void Cynoiot::templatePublish()
     topic.toCharArray(topic_c, ArrayLength);
 
     client.publish(topic_c, payload_c);
-}
-
-void Cynoiot::interrupt1sec()
-{
-    // today timestamp update
-    this->daytimestamp++;
 }
 
 void Cynoiot::updateOTA(String otafile)
@@ -606,9 +615,32 @@ void Cynoiot::triggerEvent(String event, String value)
     }
 }
 
+void Cynoiot::eventUpdate(String event, String value)
+{
+    int value_int = value.toInt();
+    if (value == "on" || value == "ON" || value == "HIGH" || value == "high" || value == "1")
+    {
+        value_int = 1;
+    }
+    else if (value_int == 0 && value != "0")
+    {
+    }
+    else
+    {
+        value_int = 0;
+    }
+
+    eventUpdate(event, value_int);
+}
+
 void Cynoiot::eventUpdate(String event, int value)
 {
     String eventStr = "Event:" + event + ":" + String(value);
     String topic = "/" + getClientId() + "/event";
     publish(eventStr, topic);
+}
+
+uint32_t Cynoiot::getTime()
+{
+    return daytimestamp;
 }
