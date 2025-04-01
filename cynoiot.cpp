@@ -666,3 +666,30 @@ uint32_t Cynoiot::getTime()
 {
     return daytimestamp;
 }
+
+void Cynoiot::printTimeDetails() {
+    // Calculate days since Sunday (0-6)
+    uint32_t daysSinceSunday = (daytimestamp / 86400) % 7;
+    
+    // Calculate hours, minutes, seconds
+    uint32_t secondsToday = daytimestamp % 86400;
+    uint8_t hours = secondsToday / 3600;
+    uint8_t minutes = (secondsToday % 3600) / 60;
+    uint8_t seconds = secondsToday % 60;
+
+    // Array of day names
+    const char* days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+    // Print formatted time details
+    Serial.print("Day: ");
+    Serial.print(days[daysSinceSunday]);
+    Serial.print(" | Time: ");
+    if(hours < 10) Serial.print("0");
+    Serial.print(hours);
+    Serial.print(":");
+    if(minutes < 10) Serial.print("0");
+    Serial.print(minutes);
+    Serial.print(":");
+    if(seconds < 10) Serial.print("0");
+    Serial.println(seconds);
+}

@@ -109,6 +109,8 @@ public:
   void eventUpdate(String event, int value);
 
   uint32_t getTime();
+
+  void printTimeDetails();
 };
 
 // for set debug mode
