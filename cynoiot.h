@@ -105,6 +105,8 @@ public:
   void triggerEvent(String event, String value);
 
   void interrupt1sec();
+  
+  void eventUpdate(String event, int value);
 };
 
 // for set debug mode

@@ -7,6 +7,8 @@
 
 #include <cynoiot.h>
 
+#define LED 15
+
 const char ssid[] = "G6PD";
 const char pass[] = "570610193";
 const char email[] = "anusorn1998@gmail.com";
@@ -14,10 +16,18 @@ const char email[] = "anusorn1998@gmail.com";
 Cynoiot iot;
 
 unsigned long previousMillis = 0;
+bool ledState = 0;
 
-void handleEvent(String event, String value) {
+void handleEvent(String event, String value)
+{
     Serial.println("Event: " + event);
     Serial.println("Value: " + value);
+
+    if (event == "led")     // led event
+    {
+        ledState = value.toInt();     // แปลงค่า value เป็น int แล้วเก็บไว้ใน ledState
+        digitalWrite(LED, ledState);  // เปิด/ปิด LED จากค่า value
+    }
 }
 
 void iotSetup()
@@ -31,6 +41,8 @@ void iotSetup()
 
 void setup()
 {
+    pinMode(LED, OUTPUT);
+    
     Serial.begin(115200);
     Serial.println();
     Serial.print("Wifi connecting to ");
@@ -60,5 +72,9 @@ void loop()
 
         float val[2] = {random(70, 80), random(20, 30)};
         iot.update(val);
+
+        ledState = !ledState;                  // สลับสถานะ LED
+        digitalWrite(LED, ledState);           // เปิด/ปิด LED
+        iot.eventUpdate("led", ledState);      // อัพเดท event ไปยัง server
     }
 }

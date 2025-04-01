@@ -124,7 +124,8 @@ void Cynoiot::handle()
 
     client.loop();
 
-    if(event.length() && value.length()){
+    if (event.length() && value.length())
+    {
         triggerEvent(event, value);
         event = "";
         value = "";
@@ -579,12 +580,22 @@ void Cynoiot::debug(String msg)
 
 // Add these methods to your implementation file
 
-void Cynoiot::setEventCallback(EventCallbackFunction callback) {
-  _eventCallback = callback;
+void Cynoiot::setEventCallback(EventCallbackFunction callback)
+{
+    _eventCallback = callback;
 }
 
-void Cynoiot::triggerEvent(String event, String value) {
-  if (_eventCallback != NULL) {
-    _eventCallback(event, value);
-  }
+void Cynoiot::triggerEvent(String event, String value)
+{
+    if (_eventCallback != NULL)
+    {
+        _eventCallback(event, value);
+    }
+}
+
+void Cynoiot::eventUpdate(String event, int value)
+{
+    String eventStr = "Event:" + event + ":" + String(value);
+    String topic = "/" + getClientId() + "/event";
+    publish(eventStr, topic);
 }

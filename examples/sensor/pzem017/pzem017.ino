@@ -24,10 +24,11 @@ float PZEMPower = 0;
 float PZEMEnergy = 0;
 
 unsigned long previousMillis = 0;
+uint8_t numVariables;
 
 void iotSetup()
 {
-  uint8_t numVariables = 4;
+  numVariables = 4;
   String keyname[numVariables];
   keyname[0] = "v";
   keyname[1] = "i";
