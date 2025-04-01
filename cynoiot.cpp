@@ -18,6 +18,7 @@ uint8_t pub2SubTime;
 String event, value;
 
 String needOTA = "";
+String lastMsgPublish = "";
 
 Cynoiot::Cynoiot()
 {
@@ -229,6 +230,11 @@ void Cynoiot::publish(String payload, String topic)
     char topic_c[ArrayLength];
     topic.toCharArray(topic_c, ArrayLength);
 
+    if (topic != getPublishTopic())
+    {
+        lastMsgPublish = payload;
+    }
+
     client.publish(topic_c, payload_c);
 
     pub2SubTime++;
@@ -398,7 +404,14 @@ void Cynoiot::messageReceived(String &topic, String &payload)
         DEBUGLN("Done updating");
         return;
     }
-    else if (topic.startsWith("/" + _clientid + "/io"))
+
+    if (lastMsgPublish == payload)
+    {
+        lastMsgPublish="";
+        return;
+    }
+
+    if (topic.startsWith("/" + _clientid + "/io"))
     {
         DEBUGLN("Control: " + payload);
         cynoiotInstance.parsePinsString(payload);
