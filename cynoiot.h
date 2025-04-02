@@ -108,6 +108,9 @@ public:
   void eventUpdate(String event, String value);
   void eventUpdate(String event, int value);
 
+  void gpioUpdate(int pin, String value);
+  void gpioUpdate(int pin, int value);
+
   uint32_t getTime();
 
   void printTimeDetails();
