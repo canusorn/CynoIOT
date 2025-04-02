@@ -696,13 +696,12 @@ uint32_t Cynoiot::getTime()
 void Cynoiot::printTimeDetails()
 {
     // Calculate days since Sunday (0-6)
-    uint32_t daysSinceSunday = (daytimestamp / 86400) % 7;
+    uint32_t daysSinceSunday = getDayofWeek();
 
     // Calculate hours, minutes, seconds
-    uint32_t secondsToday = daytimestamp % 86400;
-    uint8_t hours = secondsToday / 3600;
-    uint8_t minutes = (secondsToday % 3600) / 60;
-    uint8_t seconds = secondsToday % 60;
+    uint8_t hours = getHour();
+    uint8_t minutes = getMinute();
+    uint8_t seconds = getSecond();
 
     // Array of day names
     const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -722,4 +721,17 @@ void Cynoiot::printTimeDetails()
     if (seconds < 10)
         Serial.print("0");
     Serial.println(seconds);
+}
+
+uint8_t Cynoiot::getDayofWeek(){
+    return (daytimestamp / 86400) % 7;
+}
+uint8_t Cynoiot::getHour(){
+    return (daytimestamp % 86400) / 3600;
+}
+uint8_t Cynoiot::getMinute(){
+    return ((daytimestamp % 86400) % 3600) / 60;
+}
+uint8_t Cynoiot::getSecond(){
+    return ((daytimestamp % 86400) % 3600) % 60;
 }

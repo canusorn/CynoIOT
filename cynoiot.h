@@ -112,6 +112,10 @@ public:
   void gpioUpdate(int pin, int value);
 
   uint32_t getTime();
+  uint8_t getDayofWeek();
+  uint8_t getHour();
+  uint8_t getMinute();
+  uint8_t getSecond();
 
   void printTimeDetails();
 };
