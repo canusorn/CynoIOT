@@ -9,6 +9,5 @@ setkeyname	KEYWORD2
 update	KEYWORD2
 connected	KEYWORD2
 status	KEYWORD2
-interrupt1sec	KEYWORD2
 setTemplate  KEYWORD2
 debug	KEYWORD2

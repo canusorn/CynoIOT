@@ -133,7 +133,6 @@ void iotSetup()
 // timer interrupt every 1 second
 void time1sec()
 {
-    iot.interrupt1sec();
 
     // if can't connect to network
     if (iotWebConf.getState() == iotwebconf::OnLine)

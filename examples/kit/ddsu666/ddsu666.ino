@@ -120,7 +120,6 @@ void iotSetup()
 
 void time1sec()
 {
-    iot.interrupt1sec();
 
     // if can't connect to network
     if (iotWebConf.getState() == iotwebconf::OnLine)
