@@ -172,7 +172,7 @@ void checkTimers()
                         }
                     }
                 }
-                else if (repeat == "d")
+                else if (repeat == "e")
                 {
                     DEBUGLN("timer trig");
 
