@@ -35,7 +35,7 @@ uint16_t nexttimeupdate;
 
 void checkTimers()
 {
-    bool inReadData = 1;
+    bool timerReadData = 1;
 
     if (timerStr.length())
     {
@@ -113,7 +113,7 @@ void checkTimers()
                                 }
                                 else
                                 {
-                                    inReadData = 0;
+                                    timerReadData = 0;
                                 }
                             }
                             else if (mode == "p")
@@ -124,7 +124,7 @@ void checkTimers()
                                 }
                                 else
                                 {
-                                    inReadData = 0;
+                                    timerReadData = 0;
                                 }
                             }
 #ifdef ESP32
@@ -136,22 +136,122 @@ void checkTimers()
                                 }
                                 else
                                 {
-                                    inReadData = 0;
+                                    timerReadData = 0;
                                 }
                             }
 #endif
                         }
                         else if (actionType == "e")
                         {
-                            cynoiotInstance.triggerEvent(target, value);
+                            event = target;
+                            value = value;
                         }
                     }
                 }
                 else if (repeat == "d")
                 {
+
+                    if (actionType == "g")
+                    {
+                        if (mode == "d")
+                        {
+                            if (gpio.length() == 0)
+                            {
+                                gpio = String(target + "digit" + value);
+                            }
+                            else
+                            {
+                                timerReadData = 0;
+                            }
+                        }
+                        else if (mode == "p")
+                        {
+                            if (gpio.length() == 0)
+                            {
+                                gpio = String(target + "pwm" + value);
+                            }
+                            else
+                            {
+                                timerReadData = 0;
+                            }
+                        }
+#ifdef ESP32
+                        else if (mode == "a")
+                        {
+                            if (gpio.length() == 0)
+                            {
+                                gpio = String(target + "DAC" + value);
+                            }
+                            else
+                            {
+                                timerReadData = 0;
+                            }
+                        }
+#endif
+                    }
+                    else if (actionType == "e")
+                    {
+                        event = target;
+                        value = value;
+                    }
                 }
                 else if (repeat == "o")
                 {
+                    if (actionType == "g")
+                    {
+                        if (mode == "d")
+                        {
+                            if (gpio.length() == 0)
+                            {
+                                gpio = String(target + "digit" + value);
+                            }
+                            else
+                            {
+                                timerReadData = 0;
+                            }
+                        }
+                        else if (mode == "p")
+                        {
+                            if (gpio.length() == 0)
+                            {
+                                gpio = String(target + "pwm" + value);
+                            }
+                            else
+                            {
+                                timerReadData = 0;
+                            }
+                        }
+#ifdef ESP32
+                        else if (mode == "a")
+                        {
+                            if (gpio.length() == 0)
+                            {
+                                gpio = String(target + "DAC" + value);
+                            }
+                            else
+                            {
+                                timerReadData = 0;
+                            }
+                        }
+#endif
+                    }
+                    else if (actionType == "e")
+                    {
+                        event = target;
+                        value = value;
+                    }
+
+                    if (timerReadData)
+                    {
+                        timerReadData = 0;
+                        timerList[_numTimer] = "";
+
+                        // shift timer list
+                        for (int i = _numTimer; i < MAXTIMER - 1; i++)
+                        {
+                            timerList[i] = timerList[i + 1];
+                        }
+                    }
                 }
 
                 // Process the timer action
@@ -173,7 +273,7 @@ void checkTimers()
 
     if (_numTimer >= MAXTIMER)
         _numTimer = -1;
-    else if (_numTimer >= 0 && inReadData)
+    else if (_numTimer >= 0 && timerReadData)
         _numTimer++;
 }
 
