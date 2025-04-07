@@ -7,7 +7,7 @@
 
 #include <cynoiot.h>
 
-const char ssid[] = "G6PD";
+const char ssid[] = "G6PD_2.4G";
 const char pass[] = "570610193";
 const char email[] = "anusorn1998@gmail.com";
 

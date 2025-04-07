@@ -33,8 +33,31 @@ uint8_t _numTimer;
 uint32_t weektimestamp;
 uint16_t nexttimeupdate;
 
+// global
+uint32_t getDaytimestamps()
+{
+    return weektimestamp % 86400;
+}
+uint8_t getDayofWeek()
+{
+    return (weektimestamp / 86400) % 7;
+}
+uint8_t getHour()
+{
+    return (weektimestamp % 86400) / 3600;
+}
+uint8_t getMinute()
+{
+    return ((weektimestamp % 86400) % 3600) / 60;
+}
+uint8_t getSecond()
+{
+    return ((weektimestamp % 86400) % 3600) % 60;
+}
+
 void checkTimers()
 {
+
     bool timerReadData = 1;
 
     if (timerStr.length())
@@ -95,8 +118,9 @@ void checkTimers()
             String value = timerList[_numTimer].substring(fifthColon + 1, sixthColon);
             String daysOfWeek = timerList[_numTimer].substring(sixthColon + 1);
 
+            DEBUGLN("check timer " + timestamp + " compare to " + String(getDaytimestamps()));
             // Check if this timer matches current timestamp
-            if (timestamp.toInt() == cynoiotInstance.getDaytimestamps())
+            if (timestamp.toInt() == getDaytimestamps())
             {
                 if (repeat == "w" && daysOfWeek.length())
                 {
@@ -150,6 +174,7 @@ void checkTimers()
                 }
                 else if (repeat == "d")
                 {
+                    DEBUGLN("timer trig");
 
                     if (actionType == "g")
                     {
@@ -253,16 +278,6 @@ void checkTimers()
                         }
                     }
                 }
-
-                // Process the timer action
-                // if (actionType == "g")
-                // {
-                //     cynoiotInstance.pinHandle(target, "digit", value);
-                // }
-                // else if (actionType == "e")
-                // {
-                //     cynoiotInstance.triggerEvent(target, value);
-                // }
             }
         }
     }
@@ -422,7 +437,6 @@ void Cynoiot::handle()
 
         checkSubscription();
         checkUpdateTimestamps();
-        checkTimers();
 
         handleTimestamp();
 
@@ -691,6 +705,9 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     String _clientid = cynoiotInstance.getClientId();
     pub2SubTime = 0;
 
+    DEBUG("Received topic: " + topic);
+    DEBUGLN("\tReceived payload: " + payload);
+
     if (topic == _topic)
     {
         DEBUGLN("Done updating");
@@ -722,6 +739,7 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     else if (topic.startsWith("/" + _clientid + "/timestamps"))
     {
         weektimestamp = payload.toInt();
+        DEBUGLN("Timestamps: " + String(weektimestamp));
 
         // Detach any existing timer before attaching a new one to prevent multiple callbacks
         everySecond.detach();
@@ -729,6 +747,8 @@ void Cynoiot::messageReceived(String &topic, String &payload)
         everySecond.attach(1, everySecondCallback);
 
         nexttimeupdate = random(3600, 7200);
+
+        _numTimer = 0;
     }
     else if (topic.startsWith("/" + _clientid + "/event"))
     {
@@ -748,6 +768,7 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     }
     else if (topic.startsWith("/" + _clientid + "/timer"))
     {
+        DEBUGLN("Timer :" + payload);
         timerStr = payload;
     }
     else
@@ -988,26 +1009,29 @@ void Cynoiot::printTimeDetails()
     Serial.println(seconds);
 }
 
-uint8_t Cynoiot::getDaytimestamps()
+
+// in cynoiot class
+uint32_t Cynoiot::getDaytimestamps()
 {
-    return weektimestamp % 86400;
+    return getDaytimestamps();
 }
 uint8_t Cynoiot::getDayofWeek()
 {
-    return (weektimestamp / 86400) % 7;
+    return getDayofWeek();
 }
 uint8_t Cynoiot::getHour()
 {
-    return (weektimestamp % 86400) / 3600;
+    return getHour();
 }
 uint8_t Cynoiot::getMinute()
 {
-    return ((weektimestamp % 86400) % 3600) / 60;
+    return getMinute();
 }
 uint8_t Cynoiot::getSecond()
 {
-    return ((weektimestamp % 86400) % 3600) % 60;
+    return getSecond();
 }
+
 
 void Cynoiot::handleTimestamp()
 {
