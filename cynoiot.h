@@ -17,7 +17,7 @@
 #include <HTTPUpdate.h>
 #endif
 
-#define IOTVERSION "0.0.2"
+#define IOTVERSION "0.0.3"
 
 #ifndef DEFAULT_SERVER
 #define DEFAULT_SERVER "cynoiot.com"
@@ -113,7 +113,7 @@ public:
   void gpioUpdate(int pin, int value);
 
   uint32_t getTime();
-  uint8_t getDaytimestamps();
+  uint32_t getDaytimestamps();
   uint8_t getDayofWeek();
   uint8_t getHour();
   uint8_t getMinute();
