@@ -62,6 +62,7 @@ private:
   void pinHandle(const String &pins, const String &modes, const String &values);
   void checkSubscription();
   void updateOTA(String otafile);
+  void handleTimestamp();
 #ifdef ESP8266
   int getPinNumber(String pinId);
   int Readpin[9];
@@ -112,6 +113,7 @@ public:
   void gpioUpdate(int pin, int value);
 
   uint32_t getTime();
+  uint8_t getDaytimestamps();
   uint8_t getDayofWeek();
   uint8_t getHour();
   uint8_t getMinute();

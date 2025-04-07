@@ -17,25 +17,173 @@ Ticker everySecond; // Add Ticker object for 1-second interval
 uint32_t previousTime;
 uint8_t pub2SubTime;
 
-String event, value;
+String event, value, gpio;
 
 String needOTA = "";
 String lastMsgPublish = "";
 
-uint32_t daytimestamp;
-uint16_t nexttimeupdate;
-// Callback function for the ticker
-void everySecondCallback()
-{
-    daytimestamp++;
+#ifdef ESP8266
+#define MAXTIMER 20
+#elif defined(ESP32)
+#define MAXTIMER 40
+#endif
+String timerStr, timerList[MAXTIMER];
+uint8_t _numTimer;
 
-    if (nexttimeupdate)
+uint32_t weektimestamp;
+uint16_t nexttimeupdate;
+
+void checkTimers()
+{
+    bool inReadData = 1;
+
+    if (timerStr.length())
     {
-        nexttimeupdate--;
+        // Reset all timer list entries
+        for (int i = 0; i < MAXTIMER; i++)
+        {
+            timerList[i] = "";
+        }
+
+        // Split timer string by commas
+        int timerIndex = 0;
+        int startPos = 0;
+        int endPos = timerStr.indexOf(',');
+
+        // Process all timer entries except the last one
+        while (endPos != -1 && timerIndex < MAXTIMER)
+        {
+            timerList[timerIndex++] = timerStr.substring(startPos, endPos);
+            startPos = endPos + 1;
+            endPos = timerStr.indexOf(',', startPos);
+        }
+
+        // Process the last timer entry if there's space
+        if (timerIndex < MAXTIMER && startPos < timerStr.length())
+        {
+            timerList[timerIndex] = timerStr.substring(startPos);
+        }
+
+        // Clear the original timer string after processing
+        timerStr = "";
+        _numTimer = 0;
+    }
+
+    if (_numTimer == -1)
+        return;
+
+    if (timerList[_numTimer].length())
+    {
+        //  timestamp : repeat : action type : io/event : mode : value : days of week
+        // Extract timer components using colons as delimiters
+        int firstColon = timerList[_numTimer].indexOf(':');
+        int secondColon = timerList[_numTimer].indexOf(':', firstColon + 1);
+        int thirdColon = timerList[_numTimer].indexOf(':', secondColon + 1);
+        int fourthColon = timerList[_numTimer].indexOf(':', thirdColon + 1);
+        int fifthColon = timerList[_numTimer].indexOf(':', fourthColon + 1);
+        int sixthColon = timerList[_numTimer].indexOf(':', fifthColon + 1);
+
+        if (firstColon != -1 && secondColon != -1 && thirdColon != -1 && fourthColon != -1 &&
+            fifthColon != -1)
+        {
+
+            String timestamp = timerList[_numTimer].substring(0, firstColon);
+            String repeat = timerList[_numTimer].substring(firstColon + 1, secondColon);
+            String actionType = timerList[_numTimer].substring(secondColon + 1, thirdColon);
+            String target = timerList[_numTimer].substring(thirdColon + 1, fourthColon);
+            String mode = timerList[_numTimer].substring(fourthColon + 1, fifthColon);
+            String value = timerList[_numTimer].substring(fifthColon + 1, sixthColon);
+            String daysOfWeek = timerList[_numTimer].substring(sixthColon + 1);
+
+            // Check if this timer matches current timestamp
+            if (timestamp.toInt() == cynoiotInstance.getDaytimestamps())
+            {
+                if (repeat == "w" && daysOfWeek.length())
+                {
+                    String thisdayOfWeek = String(cynoiotInstance.getDayofWeek());
+                    if (daysOfWeek.indexOf(thisdayOfWeek) != -1)
+                    {
+                        if (actionType == "g")
+                        {
+                            if (mode == "d")
+                            {
+                                if (gpio.length() == 0)
+                                {
+                                    gpio = String(target + "digit" + value);
+                                }
+                                else
+                                {
+                                    inReadData = 0;
+                                }
+                            }
+                            else if (mode == "p")
+                            {
+                                if (gpio.length() == 0)
+                                {
+                                    gpio = String(target + "pwm" + value);
+                                }
+                                else
+                                {
+                                    inReadData = 0;
+                                }
+                            }
+#ifdef ESP32
+                            else if (mode == "a")
+                            {
+                                if (gpio.length() == 0)
+                                {
+                                    gpio = String(target + "DAC" + value);
+                                }
+                                else
+                                {
+                                    inReadData = 0;
+                                }
+                            }
+#endif
+                        }
+                        else if (actionType == "e")
+                        {
+                            cynoiotInstance.triggerEvent(target, value);
+                        }
+                    }
+                }
+                else if (repeat == "d")
+                {
+                }
+                else if (repeat == "o")
+                {
+                }
+
+                // Process the timer action
+                // if (actionType == "g")
+                // {
+                //     cynoiotInstance.pinHandle(target, "digit", value);
+                // }
+                // else if (actionType == "e")
+                // {
+                //     cynoiotInstance.triggerEvent(target, value);
+                // }
+            }
+        }
     }
     else
     {
-        nexttimeupdate = random(3600, 7200);
+        _numTimer = -1;
+    }
+
+    if (_numTimer >= MAXTIMER)
+        _numTimer = -1;
+    else if (_numTimer >= 0 && inReadData)
+        _numTimer++;
+}
+
+// Callback function for the ticker
+void everySecondCallback()
+{
+    weektimestamp++;
+    if (weektimestamp >= 604801)
+    {
+        weektimestamp = 0;
     }
 }
 
@@ -66,11 +214,6 @@ bool Cynoiot::connect(const char email[], const char server[])
     {
         return false;
     }
-
-    // Detach any existing timer before attaching a new one to prevent multiple callbacks
-    everySecond.detach();
-    // Initialize ticker to call everySecondCallback every 1 second
-    everySecond.attach(1, everySecondCallback);
 
     // client.begin(server, net);
     client.begin(server, PORT, net);
@@ -142,6 +285,7 @@ bool Cynoiot::connect(const char email[], const char server[])
 
 void Cynoiot::handle()
 {
+
     if (WiFi.status() != WL_CONNECTED)
     {
         return;
@@ -155,6 +299,14 @@ void Cynoiot::handle()
         event = "";
         value = "";
     }
+
+    if (gpio.length())
+    {
+        parsePinsString(gpio);
+        gpio = "";
+    }
+
+    checkTimers();
 
     // if subscriped flag
     if (!this->_Subscribed && status() && this->_connected)
@@ -170,6 +322,11 @@ void Cynoiot::handle()
 
         checkSubscription();
         checkUpdateTimestamps();
+        checkTimers();
+
+        handleTimestamp();
+
+        _numTimer = 0; // timer ready to read
     }
 
     if (needOTA.length())
@@ -449,7 +606,7 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     if (topic.startsWith("/" + _clientid + "/io"))
     {
         DEBUGLN("Control: " + payload);
-        cynoiotInstance.parsePinsString(payload);
+        gpio = payload;
     }
     // else if (topic.startsWith("/" + _clientid + "/init"))
     // {
@@ -464,7 +621,13 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     }
     else if (topic.startsWith("/" + _clientid + "/timestamps"))
     {
-        daytimestamp = payload.toInt();
+        weektimestamp = payload.toInt();
+
+        // Detach any existing timer before attaching a new one to prevent multiple callbacks
+        everySecond.detach();
+        // Initialize ticker to call everySecondCallback every 1 second
+        everySecond.attach(1, everySecondCallback);
+
         nexttimeupdate = random(3600, 7200);
     }
     else if (topic.startsWith("/" + _clientid + "/event"))
@@ -482,6 +645,10 @@ void Cynoiot::messageReceived(String &topic, String &payload)
                 return;
             }
         }
+    }
+    else if (topic.startsWith("/" + _clientid + "/timer"))
+    {
+        timerStr = payload;
     }
     else
     {
@@ -625,8 +792,6 @@ void Cynoiot::debug(String msg)
     publish(msg, "/" + getClientId() + "/debug");
 }
 
-// Add these methods to your implementation file
-
 void Cynoiot::setEventCallback(EventCallbackFunction callback)
 {
     _eventCallback = callback;
@@ -690,7 +855,7 @@ void Cynoiot::gpioUpdate(int pin, int value)
 
 uint32_t Cynoiot::getTime()
 {
-    return daytimestamp;
+    return weektimestamp;
 }
 
 void Cynoiot::printTimeDetails()
@@ -723,15 +888,36 @@ void Cynoiot::printTimeDetails()
     Serial.println(seconds);
 }
 
-uint8_t Cynoiot::getDayofWeek(){
-    return (daytimestamp / 86400) % 7;
+uint8_t Cynoiot::getDaytimestamps()
+{
+    return weektimestamp % 86400;
 }
-uint8_t Cynoiot::getHour(){
-    return (daytimestamp % 86400) / 3600;
+uint8_t Cynoiot::getDayofWeek()
+{
+    return (weektimestamp / 86400) % 7;
 }
-uint8_t Cynoiot::getMinute(){
-    return ((daytimestamp % 86400) % 3600) / 60;
+uint8_t Cynoiot::getHour()
+{
+    return (weektimestamp % 86400) / 3600;
 }
-uint8_t Cynoiot::getSecond(){
-    return ((daytimestamp % 86400) % 3600) % 60;
+uint8_t Cynoiot::getMinute()
+{
+    return ((weektimestamp % 86400) % 3600) / 60;
+}
+uint8_t Cynoiot::getSecond()
+{
+    return ((weektimestamp % 86400) % 3600) % 60;
+}
+
+void Cynoiot::handleTimestamp()
+{
+    // handle update timestamp
+    if (nexttimeupdate)
+    {
+        nexttimeupdate--;
+    }
+    else
+    {
+        nexttimeupdate = random(3600, 7200);
+    }
 }
