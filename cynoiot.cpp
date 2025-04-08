@@ -118,12 +118,13 @@ void checkTimers()
             String value = timerList[_numTimer].substring(fifthColon + 1, sixthColon);
             String daysOfWeek = timerList[_numTimer].substring(sixthColon + 1);
 
-            DEBUGLN("check timer " + timestamp + " compare to " + String(getDaytimestamps()));
+            // DEBUGLN("check timer " + timestamp + " compare to " + String(getDaytimestamps()));
             // Check if this timer matches current timestamp
             if (timestamp.toInt() == getDaytimestamps())
             {
                 if (repeat == "w" && daysOfWeek.length())
                 {
+                    DEBUGLN("timer trig weekly");
                     String thisdayOfWeek = String(cynoiotInstance.getDayofWeek());
                     if (daysOfWeek.indexOf(thisdayOfWeek) != -1)
                     {
@@ -174,15 +175,17 @@ void checkTimers()
                 }
                 else if (repeat == "e")
                 {
-                    DEBUGLN("timer trig");
 
                     if (actionType == "g")
                     {
                         if (mode == "d")
                         {
+                            DEBUGLN("Timer trig digital Pin " + target + " value " + value);
                             if (gpio.length() == 0)
                             {
-                                gpio = String(target + "digit" + value);
+                                DEBUGLN("timer trig output");
+                                gpio = String(target + ":digit:" + value);
+                                cynoiotInstance.gpioUpdate(gpio.toInt(), value.toInt());
                             }
                             else
                             {
@@ -191,9 +194,10 @@ void checkTimers()
                         }
                         else if (mode == "p")
                         {
+                            DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
                             if (gpio.length() == 0)
                             {
-                                gpio = String(target + "pwm" + value);
+                                gpio = String(target + ":pwm:" + value);
                             }
                             else
                             {
@@ -203,9 +207,10 @@ void checkTimers()
 #ifdef ESP32
                         else if (mode == "a")
                         {
+                            DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
                             if (gpio.length() == 0)
                             {
-                                gpio = String(target + "DAC" + value);
+                                gpio = String(target + ":DAC:" + value);
                             }
                             else
                             {
@@ -216,6 +221,7 @@ void checkTimers()
                     }
                     else if (actionType == "e")
                     {
+                        DEBUGLN("Timer trig Event Pin " + target + " value " + value);
                         event = target;
                         value = value;
                     }
@@ -226,9 +232,10 @@ void checkTimers()
                     {
                         if (mode == "d")
                         {
+                            DEBUGLN("Timer trig digital Pin " + target + " value " + value);
                             if (gpio.length() == 0)
                             {
-                                gpio = String(target + "digit" + value);
+                                gpio = String(target + ":digit:" + value);
                             }
                             else
                             {
@@ -237,9 +244,10 @@ void checkTimers()
                         }
                         else if (mode == "p")
                         {
+                            DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
                             if (gpio.length() == 0)
                             {
-                                gpio = String(target + "pwm" + value);
+                                gpio = String(target + ":pwm:" + value);
                             }
                             else
                             {
@@ -249,9 +257,10 @@ void checkTimers()
 #ifdef ESP32
                         else if (mode == "a")
                         {
+                            DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
                             if (gpio.length() == 0)
                             {
-                                gpio = String(target + "DAC" + value);
+                                gpio = String(target + ":DAC:" + value);
                             }
                             else
                             {
@@ -262,6 +271,7 @@ void checkTimers()
                     }
                     else if (actionType == "e")
                     {
+                        DEBUGLN("Timer trig Event Pin " + target + " value " + value);
                         event = target;
                         value = value;
                     }
@@ -609,11 +619,6 @@ int Cynoiot::getPinNumber(String pinId)
 
 void Cynoiot::parsePinsString(const String &input)
 {
-    // Use vectors for dynamic memory allocation
-    // std::vector<String> pins;
-    // std::vector<String> modes;
-    // std::vector<String> values;
-
     // Split the input string by commas
     int startPos = 0;
     int endPos = input.indexOf(',');
@@ -626,10 +631,6 @@ void Cynoiot::parsePinsString(const String &input)
 
         if (firstColon != -1 && secondColon != -1)
         {
-            // pins[pinIndex++] = segment.substring(0, firstColon);
-            // modes[modeIndex++] = segment.substring(firstColon + 1, secondColon);
-            // values[valueIndex++] = segment.substring(secondColon + 1);
-
             pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
         }
 
@@ -705,8 +706,8 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     String _clientid = cynoiotInstance.getClientId();
     pub2SubTime = 0;
 
-    DEBUG("Received topic: " + topic);
-    DEBUGLN("\tReceived payload: " + payload);
+    // DEBUG("Received topic: " + topic);
+    // DEBUGLN("\tReceived payload: " + payload);
 
     if (topic == _topic)
     {
@@ -1009,7 +1010,6 @@ void Cynoiot::printTimeDetails()
     Serial.println(seconds);
 }
 
-
 // in cynoiot class
 uint32_t Cynoiot::getDaytimestamps()
 {
@@ -1031,7 +1031,6 @@ uint8_t Cynoiot::getSecond()
 {
     return getSecond();
 }
-
 
 void Cynoiot::handleTimestamp()
 {

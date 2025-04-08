@@ -17,7 +17,7 @@
 #include <HTTPUpdate.h>
 #endif
 
-#define IOTVERSION "0.0.3"
+#define IOTVERSION "1.0.3"
 
 #ifndef DEFAULT_SERVER
 #define DEFAULT_SERVER "cynoiot.com"

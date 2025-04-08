@@ -11,3 +11,14 @@ connected	KEYWORD2
 status	KEYWORD2
 setTemplate  KEYWORD2
 debug	KEYWORD2
+setEventCallback	KEYWORD2
+triggerEvent	KEYWORD2
+eventUpdate	KEYWORD2
+gpioUpdate	KEYWORD2
+getTime	KEYWORD2
+getDaytimestamps	KEYWORD2
+getDayofWeek	KEYWORD2
+getHour	KEYWORD2
+getMinute	KEYWORD2
+getSecond	KEYWORD2
+printTimeDetails    KEYWORD2
