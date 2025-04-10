@@ -421,6 +421,7 @@ void Cynoiot::handle()
     if (event.length() && value.length())
     {
         triggerEvent(event, value);
+        eventUpdate(event, value);
         event = "";
         value = "";
     }
@@ -428,6 +429,7 @@ void Cynoiot::handle()
     if (gpio.length())
     {
         parsePinsString(gpio);
+
         gpio = "";
     }
 
@@ -615,6 +617,45 @@ int Cynoiot::getPinNumber(String pinId)
         return D8; // GPIO 15
     return -1;     // Invalid pin identifier
 }
+
+// Convert GPIO number to D pin format
+String Cynoiot::getDpin(int pin)
+{
+    String pinStr;
+    switch (pin)
+    {
+    case 16:
+        pinStr = "D0";
+        break;
+    case 5:
+        pinStr = "D1";
+        break;
+    case 4:
+        pinStr = "D2";
+        break;
+    case 0:
+        pinStr = "D3";
+        break;
+    case 2:
+        pinStr = "D4";
+        break;
+    case 14:
+        pinStr = "D5";
+        break;
+    case 12:
+        pinStr = "D6";
+        break;
+    case 13:
+        pinStr = "D7";
+        break;
+    case 15:
+        pinStr = "D8";
+        break;
+    default:
+        pinStr = String(pin);
+    }
+    return pinStr;
+}
 #endif
 
 void Cynoiot::parsePinsString(const String &input)
@@ -631,7 +672,11 @@ void Cynoiot::parsePinsString(const String &input)
 
         if (firstColon != -1 && secondColon != -1)
         {
-            pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
+            if (segment.substring(0, firstColon) != "Event")
+            {
+                pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
+                gpioUpdate(getPinNumber(segment.substring(0, firstColon)), segment.substring(secondColon + 1).toInt());
+            }
         }
 
         startPos = endPos + 1;
@@ -645,17 +690,18 @@ void Cynoiot::parsePinsString(const String &input)
 
     if (firstColon != -1 && secondColon != -1)
     {
-        // pins[pinIndex++] = segment.substring(0, firstColon);
-        // modes[modeIndex++] = segment.substring(firstColon + 1, secondColon);
-        // values[valueIndex++] = segment.substring(secondColon + 1);
-
-        pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
+        if (segment.substring(0, firstColon) != "Event")
+        {
+            pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
+            gpioUpdate(getPinNumber(segment.substring(0, firstColon)), segment.substring(secondColon + 1).toInt());
+        }
     }
 }
 
 void Cynoiot::pinHandle(const String &pins, const String &modes, const String &values)
 {
-    DEBUGLN("saved control gpio : " + pins + " " + modes + " " + values);
+    // DEBUGLN("Control gpio : " + pins);
+    // DEBUGLN("pin int : " + String(pins.toInt()));
 
     int pin;
 #ifdef ESP8266
@@ -721,9 +767,9 @@ void Cynoiot::messageReceived(String &topic, String &payload)
         return;
     }
 
-    if (topic.startsWith("/" + _clientid + "/io"))
+    if (topic == "/" + _clientid + "/io")
     {
-        DEBUGLN("Control: " + payload);
+        // DEBUGLN("Control: " + payload);
         gpio = payload;
     }
     // else if (topic.startsWith("/" + _clientid + "/init"))
@@ -751,7 +797,7 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
         _numTimer = 0;
     }
-    else if (topic.startsWith("/" + _clientid + "/event"))
+    else if (topic == "/" + _clientid + "/event")
     {
         if (payload.startsWith("Event:"))
         {
@@ -769,7 +815,7 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     }
     else if (topic.startsWith("/" + _clientid + "/timer"))
     {
-        DEBUGLN("Timer :" + payload);
+        DEBUGLN("Update new timer : " + payload);
         timerStr = payload;
     }
     else
@@ -951,6 +997,7 @@ void Cynoiot::eventUpdate(String event, int value)
 
 void Cynoiot::gpioUpdate(int pin, String value)
 {
+    DEBUGLN("gpioUpdate: " + String(pin) + " " + value);
     int value_int = value.toInt();
     if (value == "on" || value == "ON" || value == "HIGH" || value == "high" || value == "1")
     {
@@ -970,7 +1017,20 @@ void Cynoiot::gpioUpdate(int pin, String value)
 
 void Cynoiot::gpioUpdate(int pin, int value)
 {
+#ifdef ESP8266
+String pinStr = getDpin(pin);
+String payload = pinStr + ":act:" + String(value);
+#else
     String payload = String(pin) + ":act:" + String(value);
+#endif
+
+    String topic = "/" + getClientId() + "/ioact";
+    publish(payload, topic);
+}
+
+void Cynoiot::gpioUpdate(String pin, int value)
+{
+    String payload = pin + ":act:" + String(value);
     String topic = "/" + getClientId() + "/ioact";
     publish(payload, topic);
 }

@@ -65,10 +65,10 @@ private:
   void handleTimestamp();
 #ifdef ESP8266
   int getPinNumber(String pinId);
-  int Readpin[9];
+  String getDpin(int pin);
 #elif defined(ESP32)
-  int Readpin[30];
 #endif
+
   static void messageReceived(String &topic, String &payload);
 
   void templatePublish();
@@ -111,6 +111,7 @@ public:
 
   void gpioUpdate(int pin, String value);
   void gpioUpdate(int pin, int value);
+  void gpioUpdate(String pin, int value);
 
   uint32_t getTime();
   uint32_t getDaytimestamps();
