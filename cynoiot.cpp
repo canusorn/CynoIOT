@@ -669,13 +669,22 @@ void Cynoiot::parsePinsString(const String &input)
         String segment = input.substring(startPos, endPos);
         int firstColon = segment.indexOf(':');
         int secondColon = segment.indexOf(':', firstColon + 1);
+        int thirdColon = segment.indexOf(':', secondColon + 1);
 
         if (firstColon != -1 && secondColon != -1)
         {
             if (segment.substring(0, firstColon) != "Event")
             {
-                pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
-                gpioUpdate(getPinNumber(segment.substring(0, firstColon)), segment.substring(secondColon + 1).toInt());
+                pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1, thirdColon));
+#ifdef ESP8266
+                gpioUpdate(getPinNumber(segment.substring(0, firstColon)), segment.substring(secondColon + 1, thirdColon).toInt());
+#else
+                gpioUpdate(segment.substring(0, firstColon).toInt(), segment.substring(secondColon + 1, thirdColon).toInt());
+#endif
+            }
+            else if (segment.substring(0, firstColon) == "Event")
+            {
+                triggerEvent(segment.substring(thirdColon + 1), segment.substring(secondColon + 1, thirdColon));
             }
         }
 
@@ -687,13 +696,22 @@ void Cynoiot::parsePinsString(const String &input)
     String segment = input.substring(startPos);
     int firstColon = segment.indexOf(':');
     int secondColon = segment.indexOf(':', firstColon + 1);
+    int thirdColon = segment.indexOf(':', secondColon + 1);
 
     if (firstColon != -1 && secondColon != -1)
     {
         if (segment.substring(0, firstColon) != "Event")
         {
-            pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1));
-            gpioUpdate(getPinNumber(segment.substring(0, firstColon)), segment.substring(secondColon + 1).toInt());
+            pinHandle(segment.substring(0, firstColon), segment.substring(firstColon + 1, secondColon), segment.substring(secondColon + 1, thirdColon));
+#ifdef ESP8266
+            gpioUpdate(getPinNumber(segment.substring(0, firstColon)), segment.substring(secondColon + 1, thirdColon).toInt());
+#else
+            gpioUpdate(segment.substring(0, firstColon).toInt(), segment.substring(secondColon + 1, thirdColon).toInt());
+#endif
+        }
+        else if (segment.substring(0, firstColon) == "Event")
+        {
+            triggerEvent(segment.substring(thirdColon + 1), segment.substring(secondColon + 1, thirdColon));
         }
     }
 }
@@ -1018,8 +1036,8 @@ void Cynoiot::gpioUpdate(int pin, String value)
 void Cynoiot::gpioUpdate(int pin, int value)
 {
 #ifdef ESP8266
-String pinStr = getDpin(pin);
-String payload = pinStr + ":act:" + String(value);
+    String pinStr = getDpin(pin);
+    String payload = pinStr + ":act:" + String(value);
 #else
     String payload = String(pin) + ":act:" + String(value);
 #endif
