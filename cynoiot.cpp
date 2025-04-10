@@ -945,7 +945,7 @@ void Cynoiot::eventUpdate(String event, String value)
 void Cynoiot::eventUpdate(String event, int value)
 {
     String eventStr = "Event:" + event + ":" + String(value);
-    String topic = "/" + getClientId() + "/event";
+    String topic = "/" + getClientId() + "/eventact";
     publish(eventStr, topic);
 }
 
@@ -971,7 +971,7 @@ void Cynoiot::gpioUpdate(int pin, String value)
 void Cynoiot::gpioUpdate(int pin, int value)
 {
     String payload = String(pin) + ":act:" + String(value);
-    String topic = "/" + getClientId() + "/io";
+    String topic = "/" + getClientId() + "/ioact";
     publish(payload, topic);
 }
 
