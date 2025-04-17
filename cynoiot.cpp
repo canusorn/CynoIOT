@@ -998,7 +998,7 @@ void Cynoiot::eventUpdate(String event, String value)
     {
         value_int = 1;
     }
-    else if (value_int != 0 || value == "0")
+    else if (value == "off" || value == "OFF" || value == "LOW" || value == "low" || value == "0")
     {
         value_int = 0;
     }
@@ -1015,17 +1015,13 @@ void Cynoiot::eventUpdate(String event, int value)
 
 void Cynoiot::gpioUpdate(int pin, String value)
 {
-    DEBUGLN("gpioUpdate: " + String(pin) + " " + value);
+    // DEBUGLN("gpioUpdate: " + String(pin) + " " + value);
     int value_int = value.toInt();
     if (value == "on" || value == "ON" || value == "HIGH" || value == "high" || value == "1")
     {
         value_int = 1;
     }
-    else if (value_int == 0 && value != "0")
-    {
-        value_int = value.toInt();
-    }
-    else
+    else if (value == "off" || value == "OFF" || value == "LOW" || value == "low" || value == "0")
     {
         value_int = 0;
     }
