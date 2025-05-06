@@ -168,8 +168,9 @@ void checkTimers()
                         }
                         else if (actionType == "e")
                         {
+                            DEBUGLN("Timer(Weekly) trig Event " + target + " value " + value);
                             event = target;
-                            value = value;
+                            ::value = value;
                         }
                     }
                 }
@@ -221,9 +222,9 @@ void checkTimers()
                     }
                     else if (actionType == "e")
                     {
-                        DEBUGLN("Timer trig Event Pin " + target + " value " + value);
+                        DEBUGLN("Timer trig Event " + target + " value " + value);
                         event = target;
-                        value = value;
+                        ::value = value;
                     }
                 }
                 else if (repeat == "o")
@@ -271,9 +272,9 @@ void checkTimers()
                     }
                     else if (actionType == "e")
                     {
-                        DEBUGLN("Timer trig Event Pin " + target + " value " + value);
+                        DEBUGLN("Timer trig Event " + target + " value " + value);
                         event = target;
-                        value = value;
+                        ::value = value;
                     }
 
                     if (timerReadData)
@@ -418,8 +419,10 @@ void Cynoiot::handle()
 
     client.loop();
 
+    
     if (event.length() && value.length())
     {
+        DEBUGLN("Event flag found " + event + " value " + value);
         triggerEvent(event, value);
         eventUpdate(event, value);
         event = "";
@@ -684,6 +687,7 @@ void Cynoiot::parsePinsString(const String &input)
             }
             else if (segment.substring(0, firstColon) == "Event")
             {
+                // DEBUGLN("Event run" + segment.substring(thirdColon + 1) + " " + segment.substring(secondColon + 1, thirdColon));
                 triggerEvent(segment.substring(thirdColon + 1), segment.substring(secondColon + 1, thirdColon));
             }
         }
@@ -711,6 +715,7 @@ void Cynoiot::parsePinsString(const String &input)
         }
         else if (segment.substring(0, firstColon) == "Event")
         {
+            // DEBUGLN("Event run" + segment.substring(thirdColon + 1) + " " + segment.substring(secondColon + 1, thirdColon));
             triggerEvent(segment.substring(thirdColon + 1), segment.substring(secondColon + 1, thirdColon));
         }
     }
