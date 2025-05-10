@@ -411,15 +411,9 @@ bool Cynoiot::connect(const char email[], const char server[])
 
 void Cynoiot::handle()
 {
-
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        return;
-    }
-
-    client.loop();
-
     
+    checkTimers();
+
     if (event.length() && value.length())
     {
         DEBUGLN("Event flag found " + event + " value " + value);
@@ -436,14 +430,6 @@ void Cynoiot::handle()
         gpio = "";
     }
 
-    checkTimers();
-
-    // if subscriped flag
-    if (!this->_Subscribed && status() && this->_connected)
-    {
-        this->_Subscribed = subscribe();
-    }
-
     // run every 1 second
     uint32_t currentTime = millis();
     if (currentTime - previousTime >= 1000)
@@ -457,6 +443,21 @@ void Cynoiot::handle()
 
         _numTimer = 0; // timer ready to read
     }
+
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        return;
+    }
+
+    client.loop();
+
+
+    // if subscriped flag
+    if (!this->_Subscribed && status() && this->_connected)
+    {
+        this->_Subscribed = subscribe();
+    }
+
 
     if (needOTA.length())
     {
