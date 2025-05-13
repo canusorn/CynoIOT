@@ -307,6 +307,8 @@ void checkTimers()
 void everySecondCallback()
 {
     weektimestamp++;
+    _numTimer = 0; // timer ready to read
+
     if (weektimestamp >= 604801)
     {
         weektimestamp = 0;
@@ -430,6 +432,13 @@ void Cynoiot::handle()
         gpio = "";
     }
 
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        return;
+    }
+
+    client.loop();
+
     // run every 1 second
     uint32_t currentTime = millis();
     if (currentTime - previousTime >= 1000)
@@ -440,17 +449,7 @@ void Cynoiot::handle()
         checkUpdateTimestamps();
 
         handleTimestamp();
-
-        _numTimer = 0; // timer ready to read
     }
-
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        return;
-    }
-
-    client.loop();
-
 
     // if subscriped flag
     if (!this->_Subscribed && status() && this->_connected)
