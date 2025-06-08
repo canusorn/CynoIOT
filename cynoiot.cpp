@@ -17,7 +17,8 @@ Ticker everySecond; // Add Ticker object for 1-second interval
 uint32_t previousTime;
 uint8_t pub2SubTime;
 
-String event, value, gpio;
+const uint8_t bufferIO = 10;
+String event[bufferIO], value[bufferIO], gpio[bufferIO];
 
 String needOTA = "";
 String lastMsgPublish = "";
@@ -28,7 +29,7 @@ String lastMsgPublish = "";
 #define MAXTIMER 40
 #endif
 String timerStr, timerList[MAXTIMER];
-uint8_t _numTimer;
+// uint8_t _numTimer;
 
 uint32_t weektimestamp;
 uint16_t nexttimeupdate;
@@ -58,7 +59,7 @@ uint8_t getSecond()
 void checkTimers()
 {
 
-    bool timerReadData = 1;
+    // bool timerReadData = 1;
 
     if (timerStr.length())
     {
@@ -89,197 +90,210 @@ void checkTimers()
 
         // Clear the original timer string after processing
         timerStr = "";
-        _numTimer = 0;
+        // _numTimer = 0;
     }
 
-    if (_numTimer == -1)
-        return;
+    // if (_numTimer == -1)
+    //     return;
 
-    if (timerList[_numTimer].length())
+    uint8_t eventIndex, gpioIndex;
+
+    for (uint _numTimer = 0; _numTimer < MAXTIMER; _numTimer++)
     {
-        //  timestamp : repeat : action type : io/event : mode : value : days of week
-        // Extract timer components using colons as delimiters
-        int firstColon = timerList[_numTimer].indexOf(':');
-        int secondColon = timerList[_numTimer].indexOf(':', firstColon + 1);
-        int thirdColon = timerList[_numTimer].indexOf(':', secondColon + 1);
-        int fourthColon = timerList[_numTimer].indexOf(':', thirdColon + 1);
-        int fifthColon = timerList[_numTimer].indexOf(':', fourthColon + 1);
-        int sixthColon = timerList[_numTimer].indexOf(':', fifthColon + 1);
-
-        if (firstColon != -1 && secondColon != -1 && thirdColon != -1 && fourthColon != -1 &&
-            fifthColon != -1)
+        if (timerList[_numTimer].length())
         {
 
-            String timestamp = timerList[_numTimer].substring(0, firstColon);
-            String repeat = timerList[_numTimer].substring(firstColon + 1, secondColon);
-            String actionType = timerList[_numTimer].substring(secondColon + 1, thirdColon);
-            String target = timerList[_numTimer].substring(thirdColon + 1, fourthColon);
-            String mode = timerList[_numTimer].substring(fourthColon + 1, fifthColon);
-            String value = timerList[_numTimer].substring(fifthColon + 1, sixthColon);
-            String daysOfWeek = timerList[_numTimer].substring(sixthColon + 1);
-
-            // DEBUGLN("check timer " + timestamp + " compare to " + String(getDaytimestamps()));
-            // Check if this timer matches current timestamp
-            if (timestamp.toInt() == getDaytimestamps())
+            while (event[eventIndex].length() != 0)
             {
-                if (repeat == "w" && daysOfWeek.length())
+                eventIndex++;
+            }
+
+            while (gpio[gpioIndex].length() != 0)
+            {
+                gpioIndex++;
+            }
+
+            //  timestamp : repeat : action type : io/event : mode : value : days of week
+            // Extract timer components using colons as delimiters
+            int firstColon = timerList[_numTimer].indexOf(':');
+            int secondColon = timerList[_numTimer].indexOf(':', firstColon + 1);
+            int thirdColon = timerList[_numTimer].indexOf(':', secondColon + 1);
+            int fourthColon = timerList[_numTimer].indexOf(':', thirdColon + 1);
+            int fifthColon = timerList[_numTimer].indexOf(':', fourthColon + 1);
+            int sixthColon = timerList[_numTimer].indexOf(':', fifthColon + 1);
+
+            if (firstColon != -1 && secondColon != -1 && thirdColon != -1 && fourthColon != -1 &&
+                fifthColon != -1)
+            {
+
+                String timestamp = timerList[_numTimer].substring(0, firstColon);
+                String repeat = timerList[_numTimer].substring(firstColon + 1, secondColon);
+                String actionType = timerList[_numTimer].substring(secondColon + 1, thirdColon);
+                String target = timerList[_numTimer].substring(thirdColon + 1, fourthColon);
+                String mode = timerList[_numTimer].substring(fourthColon + 1, fifthColon);
+                String value = timerList[_numTimer].substring(fifthColon + 1, sixthColon);
+                String daysOfWeek = timerList[_numTimer].substring(sixthColon + 1);
+
+                // DEBUGLN("check timer " + timestamp + " compare to " + String(getDaytimestamps()));
+                // Check if this timer matches current timestamp
+                if (timestamp.toInt() == getDaytimestamps())
                 {
-                    DEBUGLN("timer trig weekly");
-                    String thisdayOfWeek = String(cynoiotInstance.getDayofWeek());
-                    if (daysOfWeek.indexOf(thisdayOfWeek) != -1)
+                    if (repeat == "w" && daysOfWeek.length())
                     {
+                        DEBUGLN("timer trig weekly");
+                        String thisdayOfWeek = String(cynoiotInstance.getDayofWeek());
+                        if (daysOfWeek.indexOf(thisdayOfWeek) != -1)
+                        {
+                            if (actionType == "g")
+                            {
+                                if (mode == "d")
+                                {
+                                    if (gpio[gpioIndex].length() == 0)
+                                    {
+                                        gpio[gpioIndex] = String(target + "digit" + value);
+                                    }
+                                    // else
+                                    // {
+                                    //     timerReadData = 0;
+                                    // }
+                                }
+                                else if (mode == "p")
+                                {
+                                    if (gpio[gpioIndex].length() == 0)
+                                    {
+                                        gpio[gpioIndex] = String(target + "pwm" + value);
+                                    }
+                                    // else
+                                    // {
+                                    //     timerReadData = 0;
+                                    // }
+                                }
+#ifdef ESP32
+                                else if (mode == "a")
+                                {
+                                    if (gpio[gpioIndex].length() == 0)
+                                    {
+                                        gpio[gpioIndex] = String(target + "DAC" + value);
+                                    }
+                                    // else
+                                    // {
+                                    //     timerReadData = 0;
+                                    // }
+                                }
+#endif
+                            }
+                            else if (actionType == "e")
+                            {
+                                DEBUGLN("Timer(Weekly) trig Event " + target + " value " + value);
+                                event[eventIndex] = target;
+                                ::value[eventIndex] = value;
+                            }
+                        }
+                    }
+                    else if (repeat == "e")
+                    {
+
                         if (actionType == "g")
                         {
                             if (mode == "d")
                             {
-                                if (gpio.length() == 0)
+                                DEBUGLN("Timer trig digital Pin " + target + " value " + value);
+                                if (gpio[gpioIndex].length() == 0)
                                 {
-                                    gpio = String(target + "digit" + value);
+                                    gpio[gpioIndex] = String(target + ":digit:" + value);
                                 }
-                                else
-                                {
-                                    timerReadData = 0;
-                                }
+                                // else
+                                // {
+                                //     timerReadData = 0;
+                                // }
                             }
                             else if (mode == "p")
                             {
-                                if (gpio.length() == 0)
+                                DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
+                                if (gpio[gpioIndex].length() == 0)
                                 {
-                                    gpio = String(target + "pwm" + value);
+                                    gpio[gpioIndex] = String(target + ":pwm:" + value);
                                 }
-                                else
-                                {
-                                    timerReadData = 0;
-                                }
+                                // else
+                                // {
+                                //     timerReadData = 0;
+                                // }
                             }
 #ifdef ESP32
                             else if (mode == "a")
                             {
-                                if (gpio.length() == 0)
+                                DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
+                                if (gpio[gpioIndex].length() == 0)
                                 {
-                                    gpio = String(target + "DAC" + value);
+                                    gpio[gpioIndex] = String(target + ":DAC:" + value);
                                 }
-                                else
-                                {
-                                    timerReadData = 0;
-                                }
+                                // else
+                                // {
+                                //     timerReadData = 0;
+                                // }
                             }
 #endif
                         }
                         else if (actionType == "e")
                         {
-                            DEBUGLN("Timer(Weekly) trig Event " + target + " value " + value);
-                            event = target;
-                            ::value = value;
+                            DEBUGLN("Timer trig Event " + target + " value " + value);
+                            event[eventIndex] = target;
+                            ::value[eventIndex] = value;
                         }
                     }
-                }
-                else if (repeat == "e")
-                {
-
-                    if (actionType == "g")
+                    else if (repeat == "o")
                     {
-                        if (mode == "d")
+                        if (actionType == "g")
                         {
-                            DEBUGLN("Timer trig digital Pin " + target + " value " + value);
-                            if (gpio.length() == 0)
+                            if (mode == "d")
                             {
-                                DEBUGLN("timer trig output");
-                                gpio = String(target + ":digit:" + value);
-                                cynoiotInstance.gpioUpdate(gpio.toInt(), value.toInt());
+                                DEBUGLN("Timer trig digital Pin " + target + " value " + value);
+                                if (gpio[gpioIndex].length() == 0)
+                                {
+                                    gpio[gpioIndex] = String(target + ":digit:" + value);
+                                }
+                                // else
+                                // {
+                                //     timerReadData = 0;
+                                // }
                             }
-                            else
+                            else if (mode == "p")
                             {
-                                timerReadData = 0;
+                                DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
+                                if (gpio[gpioIndex].length() == 0)
+                                {
+                                    gpio[gpioIndex] = String(target + ":pwm:" + value);
+                                }
+                                // else
+                                // {
+                                //     timerReadData = 0;
+                                // }
                             }
-                        }
-                        else if (mode == "p")
-                        {
-                            DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
-                            if (gpio.length() == 0)
-                            {
-                                gpio = String(target + ":pwm:" + value);
-                            }
-                            else
-                            {
-                                timerReadData = 0;
-                            }
-                        }
 #ifdef ESP32
-                        else if (mode == "a")
-                        {
-                            DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
-                            if (gpio.length() == 0)
+                            else if (mode == "a")
                             {
-                                gpio = String(target + ":DAC:" + value);
+                                DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
+                                if (gpio[gpioIndex].length() == 0)
+                                {
+                                    gpio[gpioIndex] = String(target + ":DAC:" + value);
+                                }
+                                // else
+                                // {
+                                //     timerReadData = 0;
+                                // }
                             }
-                            else
-                            {
-                                timerReadData = 0;
-                            }
-                        }
 #endif
-                    }
-                    else if (actionType == "e")
-                    {
-                        DEBUGLN("Timer trig Event " + target + " value " + value);
-                        event = target;
-                        ::value = value;
-                    }
-                }
-                else if (repeat == "o")
-                {
-                    if (actionType == "g")
-                    {
-                        if (mode == "d")
-                        {
-                            DEBUGLN("Timer trig digital Pin " + target + " value " + value);
-                            if (gpio.length() == 0)
-                            {
-                                gpio = String(target + ":digit:" + value);
-                            }
-                            else
-                            {
-                                timerReadData = 0;
-                            }
                         }
-                        else if (mode == "p")
+                        else if (actionType == "e")
                         {
-                            DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
-                            if (gpio.length() == 0)
-                            {
-                                gpio = String(target + ":pwm:" + value);
-                            }
-                            else
-                            {
-                                timerReadData = 0;
-                            }
+                            DEBUGLN("Timer trig Event " + target + " value " + value);
+                            event[eventIndex] = target;
+                            ::value[eventIndex] = value;
                         }
-#ifdef ESP32
-                        else if (mode == "a")
-                        {
-                            DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
-                            if (gpio.length() == 0)
-                            {
-                                gpio = String(target + ":DAC:" + value);
-                            }
-                            else
-                            {
-                                timerReadData = 0;
-                            }
-                        }
-#endif
-                    }
-                    else if (actionType == "e")
-                    {
-                        DEBUGLN("Timer trig Event " + target + " value " + value);
-                        event = target;
-                        ::value = value;
-                    }
 
-                    if (timerReadData)
-                    {
-                        timerReadData = 0;
+                        // if (timerReadData)
+                        // {
+                        // timerReadData = 0;
                         timerList[_numTimer] = "";
 
                         // shift timer list
@@ -287,32 +301,37 @@ void checkTimers()
                         {
                             timerList[i] = timerList[i + 1];
                         }
+                        // }
                     }
                 }
             }
         }
     }
-    else
-    {
-        _numTimer = -1;
-    }
+    // else
+    // {
+    //     _numTimer = -1;
+    // }
 
-    if (_numTimer >= MAXTIMER)
-        _numTimer = -1;
-    else if (_numTimer >= 0 && timerReadData)
-        _numTimer++;
+    // if (_numTimer >= MAXTIMER)
+    //     _numTimer = -1;
+    // else if (_numTimer >= 0 && timerReadData)
+    //     _numTimer++;
 }
 
 // Callback function for the ticker
 void everySecondCallback()
 {
     weektimestamp++;
-    _numTimer = 0; // timer ready to read
+    // _numTimer = 0; // timer ready to read
 
     if (weektimestamp >= 604801)
     {
         weektimestamp = 0;
     }
+
+    checkTimers();
+    // cynoiotInstance.printTimeDetails();
+    // DEBUGLN("Timer now : " + String(weektimestamp));
 }
 
 Cynoiot::Cynoiot()
@@ -413,23 +432,24 @@ bool Cynoiot::connect(const char email[], const char server[])
 
 void Cynoiot::handle()
 {
-    
-    checkTimers();
 
-    if (event.length() && value.length())
+    for (uint8_t i = 0; i < bufferIO; i++)
     {
-        DEBUGLN("Event flag found " + event + " value " + value);
-        triggerEvent(event, value);
-        eventUpdate(event, value);
-        event = "";
-        value = "";
-    }
+        if (event[i].length() && value[i].length())
+        {
+            DEBUGLN("Event flag found " + event[i] + " value " + value[i]);
+            triggerEvent(event[i], value[i]);
+            eventUpdate(event[i], value[i]);
+            event[i] = "";
+            value[i] = "";
+        }
 
-    if (gpio.length())
-    {
-        parsePinsString(gpio);
+        if (gpio[i].length())
+        {
+            parsePinsString(gpio[i]);
 
-        gpio = "";
+            gpio[i] = "";
+        }
     }
 
     if (WiFi.status() != WL_CONNECTED)
@@ -449,6 +469,9 @@ void Cynoiot::handle()
         checkUpdateTimestamps();
 
         handleTimestamp();
+
+        // printTimeDetails();
+        // DEBUGLN((String)((weektimestamp % 86400) / 3600) + ":" + (String)(((weektimestamp % 86400) % 3600) / 60) + ":" + (String)(((weektimestamp % 86400) % 3600) % 60));
     }
 
     // if subscriped flag
@@ -456,7 +479,6 @@ void Cynoiot::handle()
     {
         this->_Subscribed = subscribe();
     }
-
 
     if (needOTA.length())
     {
@@ -475,6 +497,7 @@ void Cynoiot::checkUpdateTimestamps()
 {
     if (nexttimeupdate % 40 == 0 && nexttimeupdate <= 200)
     {
+        DEBUGLN("request update timestamps");
         String payload = "";
         String topic = "/" + getClientId() + "/gettimestamps";
         publish(payload, topic);
@@ -792,8 +815,14 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
     if (topic == "/" + _clientid + "/io")
     {
+        uint8_t gpioIndex;
+        while (gpio[gpioIndex].length() != 0)
+        {
+            gpioIndex++;
+        }
+
         // DEBUGLN("Control: " + payload);
-        gpio = payload;
+        gpio[gpioIndex] = payload;
     }
     // else if (topic.startsWith("/" + _clientid + "/init"))
     // {
@@ -818,7 +847,7 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
         nexttimeupdate = random(3600, 7200);
 
-        _numTimer = 0;
+        // _numTimer = 0;
     }
     else if (topic == "/" + _clientid + "/event")
     {
@@ -829,8 +858,14 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
             if (firstColon != -1 && secondColon != -1)
             {
-                event = payload.substring(firstColon + 1, secondColon);
-                value = payload.substring(secondColon + 1);
+                uint8_t eventIndex;
+                while (event[eventIndex].length() != 0)
+                {
+                    eventIndex++;
+                }
+
+                event[eventIndex] = payload.substring(firstColon + 1, secondColon);
+                value[eventIndex] = payload.substring(secondColon + 1);
                 // cynoiotInstance.triggerEvent(event, value); // Trigger the callback function with event and value
                 return;
             }
@@ -1063,6 +1098,11 @@ void Cynoiot::printTimeDetails()
 {
     // Calculate days since Sunday (0-6)
     uint32_t daysSinceSunday = getDayofWeek();
+
+    if (daysSinceSunday == 0)
+    {
+        return;
+    }
 
     // Calculate hours, minutes, seconds
     uint8_t hours = getHour();
