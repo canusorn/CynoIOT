@@ -396,8 +396,8 @@ bool Cynoiot::connect(const char email[], const char server[])
         DEBUGLN("\nServer Connected!");
         this->_Subscribed = false;
 
-        if (this->_template != "")
-            templatePublish();
+        // if (this->_template != "")
+        templatePublish();
 
         // ota status checking
         EEPROM.begin(512);
@@ -919,17 +919,24 @@ void Cynoiot::setTemplate(String templateName, uint8_t version)
 
 void Cynoiot::templatePublish()
 {
-    String templateVersion = this->_template + "," + String(_templateVersion);
-    uint8_t ArrayLength = this->_template.length() + 1; // The +1 is for the 0x00h Terminator
-    char payload_c[ArrayLength];
-    this->_template.toCharArray(payload_c, ArrayLength);
-
     String topic = "/" + getClientId() + "/template/name";
-    ArrayLength = topic.length() + 1; // The +1 is for the 0x00h Terminator
+    uint8_t ArrayLength = topic.length() + 1; // The +1 is for the 0x00h Terminator
     char topic_c[ArrayLength];
     topic.toCharArray(topic_c, ArrayLength);
 
-    client.publish(topic_c, payload_c);
+    if (this->_template != "")
+    {
+        String templateVersion = this->_template + "," + String(_templateVersion);
+        ArrayLength = templateVersion.length() + 1; // The +1 is for the 0x00h Terminator
+        char payload_c[ArrayLength];
+        templateVersion.toCharArray(payload_c, ArrayLength);
+        client.publish(topic_c, payload_c);
+    }
+    else
+    {
+        const char payload[2] = "0";
+        client.publish(topic_c, payload);
+    }
 }
 
 void Cynoiot::updateOTA(String otafile)
