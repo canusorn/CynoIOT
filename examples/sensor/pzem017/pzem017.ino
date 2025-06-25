@@ -1,7 +1,14 @@
-// 18 > A
-// 21 > B
+// PZEM-017 DC Energy Meter Example
+// Compatible with ESP8266 and ESP32
 
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#include <SoftwareSerial.h>
+
+#elif defined(ESP32)
 #include <WiFi.h>
+#endif
+
 #include <ModbusMaster.h>
 #include <cynoiot.h>
 
@@ -17,6 +24,29 @@ static uint8_t pzemSlaveAddr = 0x01;
 // ตั้งค่า shunt -->> 0x0000-100A, 0x0001-50A, 0x0002-200A, 0x0003-300A
 static uint16_t NewshuntAddr = 0x0002;
 
+// ตั้งค่า pin สำหรับต่อกับ MAX485
+#ifdef ESP8266
+#define MAX485_RO D7  // RX
+#define MAX485_RE D6
+#define MAX485_DE D5
+#define MAX485_DI D0  // TX
+SoftwareSerial PZEMSerial;
+
+#elif defined(ESP32)
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+#define MAX485_RO 18  // RX
+#define MAX485_RE 9
+#define MAX485_DE 7
+#define MAX485_DI 21  // TX
+#else
+#define MAX485_RO 23  // RX
+#define MAX485_RE 19
+#define MAX485_DE 18
+#define MAX485_DI 26  // TX
+#endif
+#define PZEMSerial Serial1
+#endif
+
 ModbusMaster node;
 float PZEMVoltage = 0;
 float PZEMCurrent = 0;
@@ -24,7 +54,28 @@ float PZEMPower = 0;
 float PZEMEnergy = 0;
 
 unsigned long previousMillis = 0;
+unsigned long startMillis1;  // to count time during initial start up
 uint8_t numVariables;
+
+void preTransmission()
+{
+  if (millis() - startMillis1 > 5000) // Wait for 5 seconds as ESP Serial cause start up code crash
+  {
+    digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
+    digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/
+    delay(1);                   // When both RE and DE Pin are high, converter is allow to transmit communication
+  }
+}
+
+void postTransmission()
+{
+  if (millis() - startMillis1 > 5000) // Wait for 5 seconds as ESP Serial cause start up code crash
+  {
+    delay(3);                   // When both RE and DE Pin are low, converter is allow to receive communication
+    digitalWrite(MAX485_RE, 0); /* put RE Pin to low*/
+    digitalWrite(MAX485_DE, 0); /* put DE Pin to low*/
+  }
+}
 
 void iotSetup()
 {
@@ -42,8 +93,21 @@ void iotSetup()
 
 void setup()
 {
+  startMillis1 = millis();
   Serial.begin(115200);
-  Serial1.begin(9600, SERIAL_8N2, 18, 21);
+  
+  // Setup RS485 control pins
+  pinMode(MAX485_RE, OUTPUT);
+  pinMode(MAX485_DE, OUTPUT);
+  digitalWrite(MAX485_RE, 0);
+  digitalWrite(MAX485_DE, 0);
+  
+  // Initialize PZEM serial communication
+#ifdef ESP8266
+  PZEMSerial.begin(9600, SWSERIAL_8N2, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
+#elif defined(ESP32)
+  PZEMSerial.begin(9600, SERIAL_8N2, MAX485_RO, MAX485_DI); // serial สำหรับติดต่อกับ MAX485
+#endif
 
   Serial.println();
   Serial.print("Wifi connecting to ");
@@ -57,8 +121,16 @@ void setup()
   Serial.print("\nWiFi connected, IP address: ");
   Serial.println(WiFi.localIP());
 
+  // Setup ModbusMaster callbacks and begin
+  node.preTransmission(preTransmission);
+  node.postTransmission(postTransmission);
+  node.begin(pzemSlaveAddr, PZEMSerial);
+  
+  // Wait a moment before setting shunt
+  delay(1000);
+  Serial.print("Setting PZEM 017 shunt... ");
   setShunt(pzemSlaveAddr);
-  node.begin(pzemSlaveAddr, Serial1);
+  Serial.println("done");
 
   iotSetup();
 }
@@ -83,15 +155,20 @@ void loop()
       PZEMPower = tempdouble / 10.0;                                                        // Divide the value by 10 to get actual power value (as per manual)
       tempdouble = (node.getResponseBuffer(0x0005) << 16) + node.getResponseBuffer(0x0004); // get the energy value. Energy value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit
       PZEMEnergy = tempdouble;
-      Serial.print(PZEMVoltage, 1); // Print Voltage value on Serial Monitor with 1 decimal*/
-      Serial.print("V   ");
+      PZEMEnergy /= 1000; // Convert to kWh
+      
+      Serial.print("Vdc : ");
+      Serial.print(PZEMVoltage, 1);
+      Serial.print(" V   ");
+      Serial.print("Idc : ");
       Serial.print(PZEMCurrent, 3);
-      Serial.print("A   ");
+      Serial.print(" A   ");
+      Serial.print("Power : ");
       Serial.print(PZEMPower, 1);
-      Serial.print("W  ");
-      Serial.print(PZEMEnergy, 0);
-      Serial.print("Wh  ");
-      Serial.println();
+      Serial.print(" W   ");
+      Serial.print("Energy : ");
+      Serial.print(PZEMEnergy, 3);
+      Serial.println(" kWh");
 
       float val[numVariables] = {PZEMVoltage, PZEMCurrent, PZEMPower, PZEMEnergy};
       iot.update(val);
@@ -101,8 +178,7 @@ void loop()
       Serial.println("Failed to read modbus");
     }
   }
-
-} // Loop Ends
+}
 
 void setShunt(uint8_t slaveAddr)
 {
@@ -117,20 +193,25 @@ void setShunt(uint8_t slaveAddr)
   u16CRC = crc16_update(u16CRC, highByte(NewshuntAddr));
   u16CRC = crc16_update(u16CRC, lowByte(NewshuntAddr));
 
-  Serial.println("Change shunt address");
-  Serial1.write(slaveAddr); // these whole process code sequence refer to manual
-  Serial1.write(SlaveParameter);
-  Serial1.write(highByte(registerAddress));
-  Serial1.write(lowByte(registerAddress));
-  Serial1.write(highByte(NewshuntAddr));
-  Serial1.write(lowByte(NewshuntAddr));
-  Serial1.write(lowByte(u16CRC));
-  Serial1.write(highByte(u16CRC));
+  preTransmission(); /* trigger transmission mode*/
+  
+  PZEMSerial.write(slaveAddr); // these whole process code sequence refer to manual
+  PZEMSerial.write(SlaveParameter);
+  PZEMSerial.write(highByte(registerAddress));
+  PZEMSerial.write(lowByte(registerAddress));
+  PZEMSerial.write(highByte(NewshuntAddr));
+  PZEMSerial.write(lowByte(NewshuntAddr));
+  PZEMSerial.write(lowByte(u16CRC));
+  PZEMSerial.write(highByte(u16CRC));
   delay(10);
+  
+  postTransmission(); /* trigger reception mode*/
   delay(100);
-  while (Serial1.available())
+  
+  while (PZEMSerial.available())
   {
-    Serial.print(char(Serial1.read()), HEX); // Prints the response and display on Serial Monitor (Serial)
+    Serial.print(char(PZEMSerial.read()), HEX); // Prints the response and display on Serial Monitor (Serial)
     Serial.print(" ");
   }
-} // setShunt Ends
+  Serial.println();
+}

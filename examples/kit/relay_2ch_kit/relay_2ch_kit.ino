@@ -18,11 +18,14 @@ Cynoiot iot;  // สร้างอ็อบเจ็กต์ CynoIOT
 
 unsigned long previousMillis = 0;  // ตัวแปรเก็บเวลาล่าสุดที่ส่งข้อมูล
 
+#define RELAY1 D1
+#define RELAY2 D2
+
 // ฟังก์ชันตั้งค่าการเชื่อมต่อกับ CynoIOT
 void iotSetup()
 {
     uint8_t numVariables = 2;  // กำหนดจำนวนตัวแปรที่จะส่งไปยังเซิร์ฟเวอร์
-    String keyname[numVariables] = {"humid", "temp"};  // กำหนดชื่อตัวแปรเป็นความชื้นและอุณหภูมิ
+    String keyname[numVariables] = {"charger", "fridge"};  // กำหนดชื่อตัวแปรเป็นความชื้นและอุณหภูมิ
     iot.setkeyname(keyname, numVariables);  // ตั้งค่าชื่อตัวแปรให้กับ CynoIOT
     
     iot.connect(email);  // เชื่อมต่อกับเซิร์ฟเวอร์ด้วยอีเมล
@@ -54,11 +57,11 @@ void loop()
     iot.handle();  // จัดการการเชื่อมต่อกับ CynoIOT
 
     unsigned long currentMillis = millis();  // อ่านเวลาปัจจุบันในหน่วยมิลลิวินาที
-    if (currentMillis - previousMillis >= 5000)  // ตรวจสอบว่าผ่านไป 5 วินาทีหรือยัง
+    if (currentMillis - previousMillis >= 60000)  // ตรวจสอบว่าผ่านไป 60 วินาทีหรือยัง
     {
         previousMillis = currentMillis;  // บันทึกเวลาปัจจุบัน
 
-        float val[2] = {random(70, 80), random(20, 30)};  // สร้างค่าสุ่มสำหรับความชื้น (70-80) และอุณหภูมิ (20-30)
+        float val[2] = {digitalRead(RELAY1), digitalRead(RELAY2)};  // สร้างค่าสุ่มสำหรับความชื้น (70-80) และอุณหภูมิ (20-30)
         iot.update(val);  // ส่งข้อมูลไปยังเซิร์ฟเวอร์
     }
 }
