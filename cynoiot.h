@@ -46,7 +46,7 @@ private:
   String _var[32];
   uint8_t _numElements = 0;
   bool _connected = false;
-  const uint8_t _noSubTime = 30;
+  const uint8_t _noSubTime = 10;
   uint32_t _lastReConnect, _lastPublish;
   String _topic;
   bool _Subscribed = false;
