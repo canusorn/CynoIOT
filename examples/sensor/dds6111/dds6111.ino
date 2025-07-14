@@ -1,16 +1,46 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
-#include <cynoiot.h>
 #include <SoftwareSerial.h>
+
+#elif defined(ESP32)
+#include <WiFi.h>
+#endif
+
+#include <cynoiot.h>
 #include <ModbusMaster.h>
 
+#ifdef ESP8266
 SoftwareSerial RS485Serial;
+#elif defined(ESP32)
+#define RS485Serial Serial1
+#endif
 
 // ตั้งค่า pin สำหรับต่อกับ MAX485
-#define MAX485_RO D7
+#ifdef ESP8266
+#define MAX485_RO D7 // RX
 #define MAX485_RE D6
 #define MAX485_DE D5
-#define MAX485_DI D0
+#define MAX485_DI D0 // TX
+
+#elif defined(ESP32)
+#define RSTPIN 7
+
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+#define MAX485_RO 18
+#define MAX485_RE 9
+#define MAX485_DE 9
+#define MAX485_DI 21
+
+#else
+#define MAX485_RO 23
+#define MAX485_RE 9
+#define MAX485_DE 9
+#define MAX485_DI 26
+#endif
+
+#endif
 
 ModbusMaster node;
 Cynoiot iot;
@@ -19,13 +49,19 @@ const char ssid[] = "G6PD";
 const char pass[] = "570610193";
 const char email[] = "anusorn1998@gmail.com";
 
+#define ADDRESS 1
+
 unsigned long previousMillis;
 
 void setup()
 {
-
     Serial.begin(115200);
+
+#ifdef ESP8266
     RS485Serial.begin(9600, SWSERIAL_8N1, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
+#elif defined(ESP32)
+    RS485Serial.begin(9600, SERIAL_8N1, MAX485_RO, MAX485_DI); // serial สำหรับติดต่อกับ MAX485
+#endif
 
     Serial.println();
     Serial.print("Wifi connecting to ");
@@ -46,11 +82,14 @@ void setup()
 
     node.preTransmission(preTransmission); // Callbacks allow us to configure the RS485 transceiver correctly
     node.postTransmission(postTransmission);
-    node.begin(12, RS485Serial);
+    node.begin(ADDRESS, RS485Serial);
 
     uint8_t numVariables = 8;
     String keyname[numVariables] = {"volt", "curr", "power", "pf", "e1", "e2", "e3", "freq"};
     iot.setkeyname(keyname, numVariables);
+
+    const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
+    iot.setTemplate("dds6111", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.print("Connecting to server.");
     iot.connect(email);
@@ -66,7 +105,8 @@ void loop()
     {
         uint8_t result;                               /* Declare variable "result" as 8 bits */
         result = node.readInputRegisters(0x0000, 16); /* read the 9 registers (information) of the PZEM-014 / 016 starting 0x0000 (voltage information) kindly refer to manual)*/
-        if (result == node.ku8MBSuccess)              /* If there is a response */
+        disConnect();
+        if (result == node.ku8MBSuccess) /* If there is a response */
         {
             uint32_t tempdouble = 0x00000000; /* Declare variable "tempdouble" as 32 bits with initial value is 0 */
             uint32_t var[8];
@@ -102,18 +142,18 @@ void loop()
             varfloat[1] = hexToFloat(var[1]);
             varfloat[2] = hexToFloat(var[2]);
             varfloat[3] = hexToFloat(var[3]);
-            varfloat[4] = hexToFloat(var[4]);
-            varfloat[5] = hexToFloat(var[5]);
-            varfloat[6] = hexToFloat(var[6]);
+            varfloat[4] = hexToFloat(var[4]) / 1000.0; // convert to kWh
+            varfloat[5] = hexToFloat(var[5]) / 1000.0; // convert to kWh
+            varfloat[6] = hexToFloat(var[6]) / 1000.0; // convert to kWh
             varfloat[7] = hexToFloat(var[7]);
 
             Serial.println("0x" + String(var[0], HEX) + "\t" + String(varfloat[0], 6) + " v");
             Serial.println("0x" + String(var[1], HEX) + "\t" + String(varfloat[1], 6) + " a");
             Serial.println("0x" + String(var[2], HEX) + "\t" + String(varfloat[2], 6) + " w");
             Serial.println("0x" + String(var[3], HEX) + "\t" + String(varfloat[3], 6) + " pf");
-            Serial.println("0x" + String(var[4], HEX) + "\t" + String(varfloat[4], 6) + " Wh");
-            Serial.println("0x" + String(var[5], HEX) + "\t" + String(varfloat[5], 6) + " Wh");
-            Serial.println("0x" + String(var[6], HEX) + "\t" + String(varfloat[6], 6) + " Wh");
+            Serial.println("0x" + String(var[4], HEX) + "\t" + String(varfloat[4], 6) + " kWh");
+            Serial.println("0x" + String(var[5], HEX) + "\t" + String(varfloat[5], 6) + " kWh");
+            Serial.println("0x" + String(var[6], HEX) + "\t" + String(varfloat[6], 6) + " kWh");
             Serial.println("0x" + String(var[7], HEX) + "\t" + String(varfloat[7], 6) + " Hz");
             Serial.println("------------");
 
@@ -154,4 +194,10 @@ float hexToFloat(uint32_t hex_value)
 
     u.i = hex_value;
     return u.f;
+}
+
+void disConnect()
+{
+    pinMode(MAX485_RE, INPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, INPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
 }

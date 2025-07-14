@@ -18,6 +18,12 @@ const char email[] = "anusorn1998@gmail.com";
 
 Cynoiot iot;
 
+#ifdef ESP8266
+SoftwareSerial PZEMSerial;
+#elif defined(ESP32)
+#define PZEMSerial Serial1
+#endif
+
 // Address ของ PZEM-017 : 0x01-0xF7
 static uint8_t pzemSlaveAddr = 0x01;
 
@@ -26,25 +32,27 @@ static uint16_t NewshuntAddr = 0x0002;
 
 // ตั้งค่า pin สำหรับต่อกับ MAX485
 #ifdef ESP8266
-#define MAX485_RO D7  // RX
+#define MAX485_RO D7 // RX
 #define MAX485_RE D6
 #define MAX485_DE D5
-#define MAX485_DI D0  // TX
-SoftwareSerial PZEMSerial;
+#define MAX485_DI D0 // TX
 
 #elif defined(ESP32)
+#define RSTPIN 7
+
 #ifdef CONFIG_IDF_TARGET_ESP32S2
-#define MAX485_RO 18  // RX
+#define MAX485_RO 18
 #define MAX485_RE 9
-#define MAX485_DE 7
-#define MAX485_DI 21  // TX
+#define MAX485_DE 9
+#define MAX485_DI 21
+
 #else
-#define MAX485_RO 23  // RX
-#define MAX485_RE 19
-#define MAX485_DE 18
-#define MAX485_DI 26  // TX
+#define MAX485_RO 23
+#define MAX485_RE 9
+#define MAX485_DE 9
+#define MAX485_DI 26
 #endif
-#define PZEMSerial Serial1
+
 #endif
 
 ModbusMaster node;
@@ -54,7 +62,7 @@ float PZEMPower = 0;
 float PZEMEnergy = 0;
 
 unsigned long previousMillis = 0;
-unsigned long startMillis1;  // to count time during initial start up
+unsigned long startMillis1; // to count time during initial start up
 uint8_t numVariables;
 
 void preTransmission()
@@ -95,13 +103,13 @@ void setup()
 {
   startMillis1 = millis();
   Serial.begin(115200);
-  
+
   // Setup RS485 control pins
   pinMode(MAX485_RE, OUTPUT);
   pinMode(MAX485_DE, OUTPUT);
   digitalWrite(MAX485_RE, 0);
   digitalWrite(MAX485_DE, 0);
-  
+
   // Initialize PZEM serial communication
 #ifdef ESP8266
   PZEMSerial.begin(9600, SWSERIAL_8N2, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
@@ -125,7 +133,7 @@ void setup()
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
   node.begin(pzemSlaveAddr, PZEMSerial);
-  
+
   // Wait a moment before setting shunt
   delay(1000);
   Serial.print("Setting PZEM 017 shunt... ");
@@ -146,6 +154,7 @@ void loop()
 
     uint8_t result;
     result = node.readInputRegisters(0x0000, 6);
+    disConnect();
     if (result == node.ku8MBSuccess)
     {
       uint32_t tempdouble = 0x00000000;
@@ -156,7 +165,7 @@ void loop()
       tempdouble = (node.getResponseBuffer(0x0005) << 16) + node.getResponseBuffer(0x0004); // get the energy value. Energy value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit
       PZEMEnergy = tempdouble;
       PZEMEnergy /= 1000; // Convert to kWh
-      
+
       Serial.print("Vdc : ");
       Serial.print(PZEMVoltage, 1);
       Serial.print(" V   ");
@@ -180,6 +189,12 @@ void loop()
   }
 }
 
+void disConnect()
+{
+  pinMode(MAX485_RE, INPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+  pinMode(MAX485_DE, INPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+}
+
 void setShunt(uint8_t slaveAddr)
 {
   static uint8_t SlaveParameter = 0x06;     /* Write command code to PZEM */
@@ -194,7 +209,7 @@ void setShunt(uint8_t slaveAddr)
   u16CRC = crc16_update(u16CRC, lowByte(NewshuntAddr));
 
   preTransmission(); /* trigger transmission mode*/
-  
+
   PZEMSerial.write(slaveAddr); // these whole process code sequence refer to manual
   PZEMSerial.write(SlaveParameter);
   PZEMSerial.write(highByte(registerAddress));
@@ -204,10 +219,11 @@ void setShunt(uint8_t slaveAddr)
   PZEMSerial.write(lowByte(u16CRC));
   PZEMSerial.write(highByte(u16CRC));
   delay(10);
-  
+
   postTransmission(); /* trigger reception mode*/
   delay(100);
-  
+  disConnect();
+
   while (PZEMSerial.available())
   {
     Serial.print(char(PZEMSerial.read()), HEX); // Prints the response and display on Serial Monitor (Serial)
