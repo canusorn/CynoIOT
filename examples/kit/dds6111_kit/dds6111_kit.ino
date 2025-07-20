@@ -364,6 +364,7 @@ void loop()
         }
         else
         {
+            Serial.println("error read sensor");
             iot.debug("error read sensor");
             volt = NAN;
             curr = NAN;
@@ -397,29 +398,29 @@ void display_update()
     oled.println(" W");
     oled.setCursor(0, 36);
 
-    if (e3 < 9.999)
+    if (e1 < 9.999)
     {
-        oled.print(e3, 3);
+        oled.print(e1, 3);
         oled.println(" kWh");
     }
-    else if (e3 < 99.999)
+    else if (e1 < 99.999)
     {
-        oled.print(e3, 2);
+        oled.print(e1, 2);
         oled.println(" kWh");
     }
-    else if (e3 < 999.999)
+    else if (e1 < 999.999)
     {
-        oled.print(e3, 1);
+        oled.print(e1, 1);
         oled.println(" kWh");
     }
-    else if (e3 < 9999.999)
+    else if (e1 < 9999.999)
     {
-        oled.print(e3, 0);
+        oled.print(e1, 0);
         oled.println(" kWh");
     }
     else
     { // ifnan
-        oled.print(e3, 0);
+        oled.print(e1, 0);
         oled.println(" Wh");
     }
 
@@ -542,6 +543,8 @@ void display_update()
 
 void preTransmission() /* transmission program when triggered*/
 {
+    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
 
     digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
     digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/
@@ -647,7 +650,7 @@ void clearEEPROM()
 
 void reboot()
 {
-  server.send(200, "text/plain", "rebooting");
-  delay(1000);
-  ESP.restart();
+    server.send(200, "text/plain", "rebooting");
+    delay(1000);
+    ESP.restart();
 }

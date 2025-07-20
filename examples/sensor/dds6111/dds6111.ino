@@ -45,7 +45,7 @@ SoftwareSerial RS485Serial;
 ModbusMaster node;
 Cynoiot iot;
 
-const char ssid[] = "G6PD";
+const char ssid[] = "G6PD_2.4G";
 const char pass[] = "570610193";
 const char email[] = "anusorn1998@gmail.com";
 
@@ -161,7 +161,8 @@ void loop()
         }
         else
         {
-            Serial.println("error");
+            Serial.println("error read sensor");
+            iot.debug("error read sensor");
         }
 
         previousMillis = currentMillisPZEM; /* Set the starting point again for next counting time */
@@ -170,6 +171,8 @@ void loop()
 
 void preTransmission() /* transmission program when triggered*/
 {
+    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
 
     digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
     digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/

@@ -68,7 +68,9 @@ uint8_t numVariables;
 void preTransmission()
 {
   if (millis() - startMillis1 > 5000) // Wait for 5 seconds as ESP Serial cause start up code crash
-  {
+  {    
+    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
     digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
     digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/
     delay(1);                   // When both RE and DE Pin are high, converter is allow to transmit communication
