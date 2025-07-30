@@ -386,16 +386,22 @@ void display_update()
         oled.clearDisplay();
         oled.setTextSize(1);
         oled.setCursor(0, 0);
-        oled.println("3P meter");
+        oled.println("3P [kW]");
 
         oled.setCursor(0, 15);
-        oled.print("P1 ");oled.print(power[0]);oled.print(" kW");
+        oled.print("P1 ");
+        if(power[0]<10) oled.print(power[0],2);
+        else oled.print(power[0],0);
         
         oled.setCursor(0, 26);
-        oled.print("P2 ");oled.print(power[1]);oled.print(" kW");
+        oled.print("P2 ");
+        if(power[1]<10) oled.print(power[1],2);
+        else oled.print(power[1],0);
         
         oled.setCursor(0, 37);
-        oled.print("P3 ");oled.print(power[2]);oled.print(" kW");
+        oled.print("P3 ");
+        if(power[2]<10) oled.print(power[2],2);
+        else oled.print(power[2],0);
 
     // on error
     if (isnan(power[0]))
