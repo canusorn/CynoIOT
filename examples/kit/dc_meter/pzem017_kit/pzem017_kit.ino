@@ -6,16 +6,20 @@
     21            B
 */
 
-#include <ModbusMaster.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <Wire.h>
+#include <Ticker.h>  // Ticker library for interrupt
+#include <Wire.h>  // Wire library for I2C communication
+#include <EEPROM.h>  // EEPROM library for storing data
+
+#include <ModbusMaster.h>   // ModbusMaster by Doc Walker
+#include <Adafruit_SSD1306.h>  // Adafruit SSD1306 library by Adafruit
+#include <Adafruit_GFX.h>  // Adafruit GFX library by Adafruit
+#include <cynoiot.h>    // CynoIOT by IoTbundle
+
+// IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h>
-#include <Ticker.h>
-#include <EEPROM.h>
-#include <cynoiot.h>
 
+// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
 #include <SoftwareSerial.h>
 #include <ESP8266WiFi.h>
@@ -23,6 +27,7 @@
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266mDNS.h>
 
+// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
 #elif defined(ESP32)
 #include <WiFi.h>
 #include <NetworkClient.h>

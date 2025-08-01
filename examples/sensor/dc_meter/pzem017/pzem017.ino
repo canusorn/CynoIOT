@@ -2,15 +2,15 @@
 // Compatible with ESP8266 and ESP32
 
 #ifdef ESP8266
-#include <ESP8266WiFi.h>
-#include <SoftwareSerial.h>
+#include <ESP8266WiFi.h> // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
+#include <SoftwareSerial.h> // เรียกใช้ไลบรารี SoftwareSerial สำหรับบอร์ด ESP8266
 
 #elif defined(ESP32)
-#include <WiFi.h>
+#include <WiFi.h> // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
 #endif
 
-#include <ModbusMaster.h>
-#include <cynoiot.h>
+#include <ModbusMaster.h>   // ModbusMaster by Doc Walker
+#include <cynoiot.h> // CynoIOT by IoTbundle
 
 const char ssid[] = "G6PD_2.4G";
 const char pass[] = "570610193";

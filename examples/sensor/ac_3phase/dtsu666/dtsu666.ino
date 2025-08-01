@@ -1,9 +1,9 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-#include <ESP8266WiFi.h>
-#include <cynoiot.h>
-#include <SoftwareSerial.h>
-#include <ModbusMaster.h>
+#include <ESP8266WiFi.h> // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
+#include <cynoiot.h>    // CynoIOT by IoTbundle
+#include <SoftwareSerial.h> // เรียกใช้ไลบรารี SoftwareSerial สำหรับบอร์ด ESP8266
+#include <ModbusMaster.h>   // ModbusMaster by Doc Walker
 
 SoftwareSerial RS485Serial;
 

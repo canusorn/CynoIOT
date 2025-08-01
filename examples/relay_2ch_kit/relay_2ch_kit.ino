@@ -1,14 +1,11 @@
 #ifdef ESP8266
-#include <ESP8266WiFi.h>
-// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
+#include <ESP8266WiFi.h>// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 
 #elif defined(ESP32)
-#include <WiFi.h>
-// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
+#include <WiFi.h>// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
 #endif
 
-#include <cynoiot.h>
-// เรียกใช้ไลบรารี CynoIOT สำหรับเชื่อมต่อกับเซิร์ฟเวอร์
+#include <cynoiot.h> // CynoIOT by IoTbundle
 
 const char ssid[] = "G6PD_2.4G";      // ชื่อ WiFi
 const char pass[] = "570610193";      // รหัสผ่าน WiFi

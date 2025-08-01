@@ -1,5 +1,5 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
-
+ // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #include <SoftwareSerial.h>
@@ -7,6 +7,7 @@
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266mDNS.h>
 
+// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
 #elif defined(ESP32)
 #include <WiFi.h>
 #include <NetworkClient.h>
@@ -15,15 +16,18 @@
 #include <HTTPUpdateServer.h>
 #endif
 
-#include <cynoiot.h>
-#include <ModbusMaster.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <Wire.h>
+#include <Wire.h>   // Wire library for I2C communication
+#include <Ticker.h> // Ticker library for interrupt
+#include <EEPROM.h>  // EEPROM library for storing data
+
+#include <Adafruit_SSD1306.h>  // Adafruit SSD1306 library by Adafruit
+#include <Adafruit_GFX.h>  // Adafruit GFX library by Adafruit
+#include <cynoiot.h>    // CynoIOT by IoTbundle
+#include <ModbusMaster.h>   // ModbusMaster by Doc Walker
+
+// IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h>
-#include <Ticker.h>
-#include <EEPROM.h>
 
 #ifdef ESP8266
 SoftwareSerial RS485Serial;

@@ -6,21 +6,26 @@
   D4 - RX
 */
 
+ // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #include <ESP8266WiFi.h>
-#include <PZEM004Tv30.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-#include <IotWebConf.h>
-#include <IotWebConfUsing.h>
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266mDNS.h>
-#include <Ticker.h>
-#include <EEPROM.h>
-#include <cynoiot.h>
+
+#include <Wire.h>   // Wire library for I2C communication
+#include <Ticker.h> // Ticker library for interrupt
+#include <EEPROM.h>  // EEPROM library for storing data
+
+#include <PZEM004Tv30.h>     // PZEM004Tv30 by Jakub
+#include <Adafruit_SSD1306.h>  // Adafruit SSD1306 library by Adafruit
+#include <Adafruit_GFX.h>  // Adafruit GFX library by Adafruit
+#include <cynoiot.h>    // CynoIOT by IoTbundle
+
+// IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
+#include <IotWebConf.h>
+#include <IotWebConfUsing.h>
 
 // สร้าง object ชื่อ iot
 Cynoiot iot;

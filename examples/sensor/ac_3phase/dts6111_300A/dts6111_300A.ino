@@ -1,15 +1,15 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 #ifdef ESP8266
-#include <ESP8266WiFi.h>
-#include <SoftwareSerial.h>
+#include <ESP8266WiFi.h> // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
+#include <SoftwareSerial.h> // เรียกใช้ไลบรารี SoftwareSerial สำหรับบอร์ด ESP8266
 
 #elif defined(ESP32)
-#include <WiFi.h>
+#include <WiFi.h> // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
 #endif
 
-#include <cynoiot.h>
-#include <ModbusMaster.h>
+#include <cynoiot.h>    // CynoIOT by IoTbundle
+#include <ModbusMaster.h>   // ModbusMaster by Doc Walker
 
 #ifdef ESP8266
 SoftwareSerial RS485Serial;
@@ -84,17 +84,18 @@ void setup()
     node.postTransmission(postTransmission);
     node.begin(ADDRESS, RS485Serial);
 
-    uint8_t numVariables = 16;
+    uint8_t numVariables = 19;
     String keyname[numVariables] = {
         "Va", "Vb", "Vc",
         "Ia", "Ib", "Ic",
         "Pa", "Pb", "Pc",
         "PFa", "PFb", "PFc", "f",
-        "Et", "Ei", "Ee"};
+        "Et", "Ei", "Ee",
+        "Ert", "Eri", "Ere"};
     iot.setkeyname(keyname, numVariables);
 
     const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
-    iot.setTemplate("dts6111", version); // เลือกเทมเพลตแดชบอร์ด
+    iot.setTemplate("dts6111-300a", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.print("Connecting to server.");
     iot.connect(email);
@@ -117,8 +118,8 @@ void readFromMeter()
 {
     bool readValid = true;
     uint8_t result;
-    float var[16];
-    result = node.readInputRegisters(0x0000, 33);
+    float var[19];
+    result = node.readInputRegisters(0x0000, 81);
     disConnect();
     if (result == node.ku8MBSuccess) /* If there is a response */
     {
@@ -145,9 +146,15 @@ void readFromMeter()
 
         var[13] = node.getResponseBuffer(30) / 100.0; // Et
 
-        var[14] = node.getResponseBuffer(31) / 100.0; // Ei
+        var[14] = node.getResponseBuffer(40) / 100.0; // Ei
 
-        var[15] = node.getResponseBuffer(32) / 100.0; // Ee
+        var[15] = node.getResponseBuffer(50) / 100.0; // Ee
+
+        var[16] = node.getResponseBuffer(60) / 100.0; // Ert
+
+        var[17] = node.getResponseBuffer(70) / 100.0; // Eri
+
+        var[18] = node.getResponseBuffer(80) / 100.0; // Ere
     }
     else
     {
