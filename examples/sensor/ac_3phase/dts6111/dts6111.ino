@@ -118,7 +118,7 @@ void readFromMeter()
     bool readValid = true;
     uint8_t result;
     float var[16];
-    result = node.readInputRegisters(0x0000, 33);
+    result = node.readInputRegisters(0x0000, 51);
     disConnect();
     if (result == node.ku8MBSuccess) /* If there is a response */
     {
@@ -145,9 +145,9 @@ void readFromMeter()
 
         var[13] = node.getResponseBuffer(30) / 100.0; // Et
 
-        var[14] = node.getResponseBuffer(31) / 100.0; // Ei
+        var[14] = node.getResponseBuffer(40) / 100.0; // Ei
 
-        var[15] = node.getResponseBuffer(32) / 100.0; // Ee
+        var[15] = node.getResponseBuffer(50) / 100.0; // Ee
     }
     else
     {
