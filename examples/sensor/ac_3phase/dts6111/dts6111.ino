@@ -11,6 +11,12 @@
 #include <cynoiot.h>    // CynoIOT by IoTbundle
 #include <ModbusMaster.h>   // ModbusMaster by Doc Walker
 
+const char ssid[] = "G6PD_2.4G";
+const char pass[] = "570610193";
+const char email[] = "anusorn1998@gmail.com";
+
+#define ADDRESS 1
+
 #ifdef ESP8266
 SoftwareSerial RS485Serial;
 #elif defined(ESP32)
@@ -45,11 +51,6 @@ SoftwareSerial RS485Serial;
 ModbusMaster node;
 Cynoiot iot;
 
-const char ssid[] = "G6PD_2.4G";
-const char pass[] = "570610193";
-const char email[] = "anusorn1998@gmail.com";
-
-#define ADDRESS 1
 
 unsigned long previousMillis;
 
