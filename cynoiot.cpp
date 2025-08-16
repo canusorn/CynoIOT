@@ -537,6 +537,24 @@ void Cynoiot::setkeyname(String keyname[], uint8_t numElements)
     }
 }
 
+int getDecimalPlacesForDisplay(float value) {
+    String s = String(value, 3); // Convert to string with high precision
+    int dotIndex = s.indexOf('.');
+    if (dotIndex == -1) {
+        return 0; // No decimal point, it's an integer
+    }
+
+    int decimalCount = 0;
+    // Iterate from the end of the string backwards to find the last non-zero digit
+    for (int i = s.length() - 1; i > dotIndex; i--) {
+        if (s.charAt(i) != '0') {
+            decimalCount = i - dotIndex;
+            break;
+        }
+    }
+    return decimalCount;
+}
+
 void Cynoiot::update(float val[])
 {
     String payload = "{";
@@ -545,7 +563,7 @@ void Cynoiot::update(float val[])
         if (i)
             payload += ",";
 
-        payload += "\"" + this->_var[i] + "\":" + String(val[i], 3);
+        payload += "\"" + this->_var[i] + "\":" + String(val[i], getDecimalPlacesForDisplay(val[i]));
     }
     payload += "}";
 
