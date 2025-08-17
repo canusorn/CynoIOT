@@ -75,11 +75,6 @@ void setup()
     Serial.print("\nWiFi connected, IP address: ");
     Serial.println(WiFi.localIP());
 
-    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    digitalWrite(MAX485_RE, 0); /* Arduino create output signal for pin RE as LOW (no output)*/
-    digitalWrite(MAX485_DE, 0); /* Arduino create output signal for pin DE as LOW (no output)*/
-
     node.preTransmission(preTransmission); // Callbacks allow us to configure the RS485 transceiver correctly
     node.postTransmission(postTransmission);
     node.begin(ADDRESS, RS485Serial);

@@ -1,8 +1,8 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-#include <WiFi.h> // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
-#include <cynoiot.h>        // CynoIOT by IoTbundle
-#include <ModbusMaster.h>   // ModbusMaster by Doc Walker
+#include <WiFi.h>         // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
+#include <cynoiot.h>      // CynoIOT by IoTbundle
+#include <ModbusMaster.h> // ModbusMaster by Doc Walker
 
 #define RS485Serial Serial1
 
@@ -41,11 +41,6 @@ void setup()
     Serial.print("\nWiFi connected, IP address: ");
     Serial.println(WiFi.localIP());
 
-    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    digitalWrite(MAX485_RE, 0); /* Arduino create output signal for pin RE as LOW (no output)*/
-    digitalWrite(MAX485_DE, 0); /* Arduino create output signal for pin DE as LOW (no output)*/
-
     node.preTransmission(preTransmission); // Callbacks allow us to configure the RS485 transceiver correctly
     node.postTransmission(postTransmission);
     node.begin(1, RS485Serial);
@@ -58,8 +53,7 @@ void setup()
         "Pfa", "Pfb", "Pfc",
         "F",
         "E1", "E2", "E3", "E4", "E5",
-        "E6", "E7", "E8"
-    };
+        "E6", "E7", "E8"};
     iot.setkeyname(keyname, numVariables);
 
     Serial.print("Connecting to server.");
@@ -153,15 +147,15 @@ void loop()
             Serial.println("Ib\t" + String(varfloat[4], 3) + " A");
             Serial.println("Ic\t" + String(varfloat[5], 3) + " A");
 
-            Serial.println("Pa\t" + String(varfloat[7], 3) + " kW");
-            Serial.println("Pb\t" + String(varfloat[8], 3) + " kW");
-            Serial.println("Pc\t" + String(varfloat[9], 3) + " kW");
+            Serial.println("Pa\t" + String(varfloat[6], 3) + " kW");
+            Serial.println("Pb\t" + String(varfloat[7], 3) + " kW");
+            Serial.println("Pc\t" + String(varfloat[8], 3) + " kW");
 
-            Serial.println("Pf1\t" + String(varfloat[11], 3));
-            Serial.println("Pf2\t" + String(varfloat[12], 3));
-            Serial.println("Pf3\t" + String(varfloat[13], 3));
+            Serial.println("Pf1\t" + String(varfloat[9], 3));
+            Serial.println("Pf2\t" + String(varfloat[10], 3));
+            Serial.println("Pf3\t" + String(varfloat[11], 3));
 
-            Serial.println("F\t" + String(varfloat[14], 3) + " Hz");
+            Serial.println("F\t" + String(varfloat[12], 3) + " Hz");
         }
         else
         {
@@ -170,6 +164,7 @@ void loop()
         }
 
         result = node.readInputRegisters(0x4101E, 20);
+        disConnect();
         if (result == node.ku8MBSuccess) /* If there is a response */
         {
             // ImpEnergy
@@ -201,17 +196,16 @@ void loop()
             varfloat[19] = hexToFloat(var[19]);
             varfloat[20] = hexToFloat(var[20]);
 
-            Serial.println("ImpEp\t" + String(varfloat[15], 3) + " kWh");
-            Serial.println("ImpEp A\t" + String(varfloat[16], 3) + " kWh");
-            Serial.println("ImpEp B\t" + String(varfloat[17], 3) + " kWh");
-            Serial.println("ImpEp C\t" + String(varfloat[18], 3) + " kWh");
+            Serial.println("ImpEp\t" + String(varfloat[13], 3) + " kWh");
+            Serial.println("ImpEp A\t" + String(varfloat[14], 3) + " kWh");
+            Serial.println("ImpEp B\t" + String(varfloat[15], 3) + " kWh");
+            Serial.println("ImpEp C\t" + String(varfloat[16], 3) + " kWh");
 
-            Serial.println("ExpEp\t" + String(varfloat[20], 3) + " kWh");
-            Serial.println("ExpEp A\t" + String(varfloat[21], 3) + " kWh");
-            Serial.println("ExpEp B\t" + String(varfloat[22], 3) + " kWh");
-            Serial.println("ExpEp C\t" + String(varfloat[23], 3) + " kWh");
+            Serial.println("ExpEp\t" + String(varfloat[17], 3) + " kWh");
+            Serial.println("ExpEp A\t" + String(varfloat[18], 3) + " kWh");
+            Serial.println("ExpEp B\t" + String(varfloat[19], 3) + " kWh");
+            Serial.println("ExpEp C\t" + String(varfloat[20], 3) + " kWh");
             Serial.println("---------------------------------------");
-
         }
         else
         {
@@ -234,6 +228,8 @@ void loop()
 
 void preTransmission() /* transmission program when triggered*/
 {
+    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
 
     digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
     digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/
@@ -246,6 +242,12 @@ void postTransmission() /* Reception program when triggered*/
     delay(3);                   // When both RE and DE Pin are low, converter is allow to receive communication
     digitalWrite(MAX485_RE, 0); /* put RE Pin to low*/
     digitalWrite(MAX485_DE, 0); /* put DE Pin to low*/
+}
+
+void disConnect()
+{
+    pinMode(MAX485_RE, INPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, INPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
 }
 
 float hexToFloat(uint32_t hex_value)

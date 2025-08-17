@@ -1,76 +1,46 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
- // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
-#ifdef ESP8266
-#include <ESP8266WiFi.h>
-#include <SoftwareSerial.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
-#include <ESP8266mDNS.h>
 
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
-#elif defined(ESP32)
 #include <WiFi.h>
 #include <NetworkClient.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <HTTPUpdateServer.h>
-#endif
 
 #include <Wire.h>   // Wire library for I2C communication
 #include <Ticker.h> // Ticker library for interrupt
-#include <EEPROM.h>  // EEPROM library for storing data
+#include <EEPROM.h> // EEPROM library for storing data
 
-#include <Adafruit_SSD1306.h>  // Adafruit SSD1306 library by Adafruit
-#include <Adafruit_GFX.h>  // Adafruit GFX library by Adafruit
-#include <cynoiot.h>    // CynoIOT by IoTbundle
-#include <ModbusMaster.h>   // ModbusMaster by Doc Walker
+#include <Adafruit_SSD1306.h> // Adafruit SSD1306 library by Adafruit
+#include <Adafruit_GFX.h>     // Adafruit GFX library by Adafruit
+#include <cynoiot.h>          // CynoIOT by IoTbundle
+#include <ModbusMaster.h>     // ModbusMaster by Doc Walker
 
 // IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h>
 
-#ifdef ESP8266
-SoftwareSerial RS485Serial;
-#elif defined(ESP32)
-#define RS485Serial Serial1
-#endif
+#define ADDRESS 0x01
+const char thingName[] = "dtsu666";
+const char wifiInitialApPassword[] = "iotbundle";
+
+#define STRING_LEN 128
+#define NUMBER_LEN 32
 
 // ตั้งค่า pin สำหรับต่อกับ MAX485
-#ifdef ESP8266
-#define MAX485_RO D7 // RX
-#define MAX485_RE D6
-#define MAX485_DE D5
-#define MAX485_DI D0 // TX
-
-#elif defined(ESP32)
-#define RSTPIN 7
-
-#ifdef CONFIG_IDF_TARGET_ESP32S2
 #define MAX485_RO 18
 #define MAX485_RE 9
 #define MAX485_DE 9
 #define MAX485_DI 21
 
-#else
-#define MAX485_RO 23
-#define MAX485_RE 9
-#define MAX485_DE 9
-#define MAX485_DI 26
-#endif
+#define RSTPIN 7
 
-#endif
+#define RS485Serial Serial1
 
 ModbusMaster node;
 Cynoiot iot;
 #define OLED_RESET 0 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
-
-const char thingName[] = "dts6111";
-const char wifiInitialApPassword[] = "iotbundle";
-#define ADDRESS 1
-
-#define STRING_LEN 128
-#define NUMBER_LEN 32
 
 // timer interrupt
 Ticker timestamp;
@@ -79,13 +49,7 @@ unsigned long previousMillis;
 
 DNSServer dnsServer;
 WebServer server(80);
-
-#ifdef ESP8266
-ESP8266HTTPUpdateServer httpUpdater;
-
-#elif defined(ESP32)
 HTTPUpdateServer httpUpdater;
-#endif
 
 char emailParamValue[STRING_LEN];
 
@@ -158,17 +122,19 @@ float power[3];
 
 void iotSetup()
 {
-    uint8_t numVariables = 16;
+    uint8_t numVariables = 21;
     String keyname[numVariables] = {
         "Va", "Vb", "Vc",
         "Ia", "Ib", "Ic",
         "Pa", "Pb", "Pc",
-        "PFa", "PFb", "PFc", "f",
-        "Et", "Ei", "Ee"};
+        "Pfa", "Pfb", "Pfc",
+        "F",
+        "E1", "E2", "E3", "E4", "E5",
+        "E6", "E7", "E8"};
     iot.setkeyname(keyname, numVariables);
 
     const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
-    iot.setTemplate("dts6111", version); // เลือกเทมเพลตแดชบอร์ด
+    iot.setTemplate("dtsu666", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
@@ -212,11 +178,7 @@ void setup()
 {
     Serial.begin(115200);
 
-#ifdef ESP8266
-    RS485Serial.begin(9600, SWSERIAL_8N1, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
-#elif defined(ESP32)
-    RS485Serial.begin(9600, SERIAL_8N1, MAX485_RO, MAX485_DI); // serial สำหรับติดต่อกับ MAX485
-#endif
+    RS485Serial.begin(9600, SERIAL_8N1, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
 
     // timer interrupt every 1 sec
     timestamp.attach(1, time1sec);
@@ -285,8 +247,6 @@ void setup()
     server.onNotFound([]()
                       { iotWebConf.handleNotFound(); });
 
-    Serial.println("Ready.");
-
     iotSetup();
 }
 
@@ -295,91 +255,174 @@ void loop()
     iotWebConf.doLoop();
     server.handleClient();
     iot.handle();
-#ifdef ESP8266
-    MDNS.update();
-#endif
 
-    // อ่านค่าจาก PZEM-017
     uint32_t currentMillisPZEM = millis();
     if (currentMillisPZEM - previousMillis >= 5000) /* for every x seconds, run the codes below*/
     {
-        previousMillis = currentMillisPZEM; /* Set the starting point again for next counting time */
-        readFromMeter();
+        bool isError = false;
+        float varfloat[21];
+        uint32_t tempdouble = 0x00000000; /* Declare variable "tempdouble" as 32 bits with initial value is 0 */
+        uint32_t var[21];
+        uint8_t result;                               /* Declare variable "result" as 8 bits */
+        result = node.readInputRegisters(0x2006, 64); /* read the 9 registers (information) of the PZEM-014 / 016 starting 0x0000 (voltage information) kindly refer to manual)*/
+        if (result == node.ku8MBSuccess)              /* If there is a response */
+        {
+            // voltage
+            tempdouble = (node.getResponseBuffer(0) << 16) + node.getResponseBuffer(1);
+            var[0] = tempdouble;
+
+            tempdouble = (node.getResponseBuffer(2) << 16) + node.getResponseBuffer(3);
+            var[1] = tempdouble;
+
+            tempdouble = (node.getResponseBuffer(4) << 16) + node.getResponseBuffer(5);
+            var[2] = tempdouble;
+
+            // current
+            tempdouble = (node.getResponseBuffer(6) << 16) + node.getResponseBuffer(7);
+            var[3] = tempdouble;
+
+            tempdouble = (node.getResponseBuffer(8) << 16) + node.getResponseBuffer(9);
+            var[4] = tempdouble;
+
+            tempdouble = (node.getResponseBuffer(10) << 16) + node.getResponseBuffer(11);
+            var[5] = tempdouble;
+
+            // power
+            tempdouble = (node.getResponseBuffer(14) << 16) + node.getResponseBuffer(15);
+            var[6] = tempdouble;
+
+            tempdouble = (node.getResponseBuffer(16) << 16) + node.getResponseBuffer(17);
+            var[7] = tempdouble;
+
+            tempdouble = (node.getResponseBuffer(18) << 16) + node.getResponseBuffer(19);
+            var[8] = tempdouble;
+
+            // pf
+            tempdouble = (node.getResponseBuffer(30) << 16) + node.getResponseBuffer(31);
+            var[9] = tempdouble;
+
+            tempdouble = (node.getResponseBuffer(32) << 16) + node.getResponseBuffer(33);
+            var[10] = tempdouble;
+
+            tempdouble = (node.getResponseBuffer(34) << 16) + node.getResponseBuffer(35);
+            var[11] = tempdouble;
+
+            // freq
+            tempdouble = (node.getResponseBuffer(62) << 16) + node.getResponseBuffer(63);
+            var[12] = tempdouble;
+
+            // แสดงค่าที่ได้จากบน Serial monitor
+            // V
+            varfloat[0] = hexToFloat(var[0]) * 0.1;
+            varfloat[1] = hexToFloat(var[1]) * 0.1;
+            varfloat[2] = hexToFloat(var[2]) * 0.1;
+            // I
+            varfloat[3] = hexToFloat(var[3]) * 0.001;
+            varfloat[4] = hexToFloat(var[4]) * 0.001;
+            varfloat[5] = hexToFloat(var[5]) * 0.001;
+            // P to kW
+            varfloat[6] = hexToFloat(var[6]) * 0.1 * 0.001;
+            varfloat[7] = hexToFloat(var[7]) * 0.1 * 0.001;
+            varfloat[8] = hexToFloat(var[8]) * 0.1 * 0.001;
+            // to global variable
+            power[0] = varfloat[6];
+            power[1] = varfloat[7];
+            power[2] = varfloat[8];
+            // pf
+            varfloat[9] = hexToFloat(var[9]) * 0.001;
+            varfloat[10] = hexToFloat(var[10]) * 0.001;
+            varfloat[11] = hexToFloat(var[11]) * 0.001;
+            // Freq
+            varfloat[12] = hexToFloat(var[12]) * 0.01;
+
+            Serial.println("Va\t" + String(varfloat[0], 3) + " v");
+            Serial.println("Vb\t" + String(varfloat[1], 3) + " v");
+            Serial.println("Vc\t" + String(varfloat[2], 3) + " v");
+
+            Serial.println("Ia\t" + String(varfloat[3], 3) + " A");
+            Serial.println("Ib\t" + String(varfloat[4], 3) + " A");
+            Serial.println("Ic\t" + String(varfloat[5], 3) + " A");
+
+            Serial.println("Pa\t" + String(varfloat[6], 3) + " kW");
+            Serial.println("Pb\t" + String(varfloat[7], 3) + " kW");
+            Serial.println("Pc\t" + String(varfloat[8], 3) + " kW");
+
+            Serial.println("Pf1\t" + String(varfloat[9], 3));
+            Serial.println("Pf2\t" + String(varfloat[10], 3));
+            Serial.println("Pf3\t" + String(varfloat[11], 3));
+
+            Serial.println("F\t" + String(varfloat[12], 3) + " Hz");
+        }
+        else
+        {
+            isError = true;
+            Serial.println("Error 0x2000 reading");
+        }
+
+        result = node.readInputRegisters(0x4101E, 20);
+        disConnect();
+        if (result == node.ku8MBSuccess) /* If there is a response */
+        {
+            // ImpEnergy
+            tempdouble = (node.getResponseBuffer(0) << 16) + node.getResponseBuffer(1);
+            var[13] = tempdouble;
+            tempdouble = (node.getResponseBuffer(2) << 16) + node.getResponseBuffer(3);
+            var[14] = tempdouble;
+            tempdouble = (node.getResponseBuffer(4) << 16) + node.getResponseBuffer(5);
+            var[15] = tempdouble;
+            tempdouble = (node.getResponseBuffer(6) << 16) + node.getResponseBuffer(7);
+            var[16] = tempdouble;
+
+            // ExpEnergy
+            tempdouble = (node.getResponseBuffer(10) << 16) + node.getResponseBuffer(11);
+            var[17] = tempdouble;
+            tempdouble = (node.getResponseBuffer(12) << 16) + node.getResponseBuffer(13);
+            var[18] = tempdouble;
+            tempdouble = (node.getResponseBuffer(14) << 16) + node.getResponseBuffer(15);
+            var[19] = tempdouble;
+            tempdouble = (node.getResponseBuffer(16) << 16) + node.getResponseBuffer(17);
+            var[20] = tempdouble;
+
+            varfloat[13] = hexToFloat(var[13]);
+            varfloat[14] = hexToFloat(var[14]);
+            varfloat[15] = hexToFloat(var[15]);
+            varfloat[16] = hexToFloat(var[16]);
+            varfloat[17] = hexToFloat(var[17]);
+            varfloat[18] = hexToFloat(var[18]);
+            varfloat[19] = hexToFloat(var[19]);
+            varfloat[20] = hexToFloat(var[20]);
+
+            Serial.println("ImpEp\t" + String(varfloat[13], 3) + " kWh");
+            Serial.println("ImpEp A\t" + String(varfloat[14], 3) + " kWh");
+            Serial.println("ImpEp B\t" + String(varfloat[15], 3) + " kWh");
+            Serial.println("ImpEp C\t" + String(varfloat[16], 3) + " kWh");
+
+            Serial.println("ExpEp\t" + String(varfloat[17], 3) + " kWh");
+            Serial.println("ExpEp A\t" + String(varfloat[18], 3) + " kWh");
+            Serial.println("ExpEp B\t" + String(varfloat[19], 3) + " kWh");
+            Serial.println("ExpEp C\t" + String(varfloat[20], 3) + " kWh");
+            Serial.println("---------------------------------------");
+        }
+        else
+        {
+            isError = true;
+            Serial.println("Error Energy reading");
+        }
+
+        if (!isError)
+        {
+            iot.update(varfloat);
+        }
+        else
+        {
+            iot.debug("Error sensor reading");
+            power[0] = NAN;
+            power[1] = NAN;
+            power[2] = NAN;
+        }
         display_update();
-    }
-}
 
-void readFromMeter()
-{
-    bool readValid = true;
-    uint8_t result;
-    float var[16];
-    result = node.readInputRegisters(0x0000, 51);
-    disConnect();
-    if (result == node.ku8MBSuccess) /* If there is a response */
-    {
-        var[0] = node.getResponseBuffer(0) * 0.1;  // Va
-        var[1] = node.getResponseBuffer(1) * 0.1;  // Vb
-        var[2] = node.getResponseBuffer(2) * 0.1;  // Vc
-        var[3] = node.getResponseBuffer(3) * 0.01; // Ia
-        var[4] = node.getResponseBuffer(4) * 0.01; // Ib
-        var[5] = node.getResponseBuffer(5) * 0.01; // Ic
-
-        // power with signed
-        int16_t p = int16_t(node.getResponseBuffer(8)); // Pa
-        var[6] = p / 1000.0;                            // to kW
-        p = int(node.getResponseBuffer(9));             // Pb
-        var[7] = p / 1000.0;                            // to kW
-        p = int(node.getResponseBuffer(10));            // Pc
-        var[8] = p / 1000.0;                            // to kW
-
-        power[0] = var[6];
-        power[1] = var[7];
-        power[2] = var[8];
-
-        var[9] = node.getResponseBuffer(20) * 0.001;  // PFa
-        var[10] = node.getResponseBuffer(21) * 0.001; // PFb
-        var[11] = node.getResponseBuffer(22) * 0.001; // PFc
-
-        var[12] = node.getResponseBuffer(26) * 0.01; // f
-
-        var[13] = node.getResponseBuffer(30) / 100.0; // Et
-
-        var[14] = node.getResponseBuffer(40) / 100.0; // Ei
-
-        var[15] = node.getResponseBuffer(50) / 100.0; // Ee
-    }
-    else
-    {
-        Serial.println("error read sensor");
-        iot.debug("error read sensor");
-        readValid = false;
-        power[0] = NAN;
-        power[1] = NAN;
-        power[2] = NAN;
-    }
-
-    if (readValid)
-    {
-        Serial.println("Va: " + String(var[0]));
-        Serial.println("Vb: " + String(var[1]));
-        Serial.println("Vc: " + String(var[2]));
-        Serial.println("Ia: " + String(var[3]));
-        Serial.println("Ib: " + String(var[4]));
-        Serial.println("Ic: " + String(var[5]));
-        Serial.println("Pa: " + String(var[6]));
-        Serial.println("Pb: " + String(var[7]));
-        Serial.println("Pc: " + String(var[8]));
-        Serial.println("PFa: " + String(var[9]));
-        Serial.println("PFb: " + String(var[10]));
-        Serial.println("PFc: " + String(var[11]));
-        Serial.println("f: " + String(var[12]));
-        Serial.println("Et: " + String(var[13]));
-        Serial.println("Ei: " + String(var[14]));
-        Serial.println("Ee: " + String(var[15]));
-        Serial.println("----------------------");
-
-        iot.update(var);
+        previousMillis = currentMillisPZEM; /* Set the starting point again for next counting time */
     }
 }
 
@@ -387,25 +430,31 @@ void readFromMeter()
 void display_update()
 {
     //------Update OLED------
-        oled.clearDisplay();
-        oled.setTextSize(1);
-        oled.setCursor(0, 0);
-        oled.println("3P [kW]");
+    oled.clearDisplay();
+    oled.setTextSize(1);
+    oled.setCursor(0, 0);
+    oled.println("3P [kW]");
 
-        oled.setCursor(0, 15);
-        oled.print("Pa ");
-        if(power[0]<10) oled.print(power[0],2);
-        else oled.print(power[0],0);
-        
-        oled.setCursor(0, 26);
-        oled.print("Pb ");
-        if(power[1]<10) oled.print(power[1],2);
-        else oled.print(power[1],0);
-        
-        oled.setCursor(0, 37);
-        oled.print("Pc ");
-        if(power[2]<10) oled.print(power[2],2);
-        else oled.print(power[2],0);
+    oled.setCursor(0, 15);
+    oled.print("Pa ");
+    if (power[0] < 10)
+        oled.print(power[0], 2);
+    else
+        oled.print(power[0], 0);
+
+    oled.setCursor(0, 26);
+    oled.print("Pb ");
+    if (power[1] < 10)
+        oled.print(power[1], 2);
+    else
+        oled.print(power[1], 0);
+
+    oled.setCursor(0, 37);
+    oled.print("Pc ");
+    if (power[2] < 10)
+        oled.print(power[2], 2);
+    else
+        oled.print(power[2], 0);
 
     // on error
     if (isnan(power[0]))
@@ -548,6 +597,17 @@ void disConnect()
     pinMode(MAX485_DE, INPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
 }
 
+float hexToFloat(uint32_t hex_value)
+{
+    union
+    {
+        uint32_t i;
+        float f;
+    } u;
+
+    u.i = hex_value;
+    return u.f;
+}
 
 void handleRoot()
 {
