@@ -85,12 +85,14 @@ void wifiConnected();
 void configSaved();
 bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
+// กำหนดขาที่ใช้เชื่อมต่อกับเซ็นเซอร์ PMS7003
 #ifdef ESP8266
 SoftwareSerial pmsSerial;
+#define PURIFIER D8
 #elif defined(ESP32)
 #define pmsSerial Serial1
+#define PURIFIER 12
 #endif
-
 PMS pms(pmsSerial);
 PMS::DATA data;
 
@@ -150,19 +152,44 @@ uint8_t displaytime;
 String noti;
 uint16_t timer_nointernet;
 uint8_t numVariables;
-uint8_t sampleUpdate, updateValue = 5;
+uint8_t sampleUpdate, updateValue = 5, oledstate;
 uint8_t sensorNotDetect = updateValue;
+uint8_t purifierOnValue = 50;
+
+// ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
+void handleEvent(String event, String value)
+{
+    if (event == "purifierOnValue") // ตรวจสอบว่าเป็น event ชื่อ "purifierOnValue" หรือไม่
+    {
+        purifierOnValue = (uint8_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน purifierOnValue
+
+        Serial.println("set purifierOnValue: " + String((uint8_t)value.toInt()));
+        EEPROM.begin(512);
+        EEPROM.write(499, purifierOnValue);
+        EEPROM.commit();
+    }
+}
 
 // ฟังก์ชันตั้งค่าการเชื่อมต่อกับ CynoIOT
 void iotSetup()
 {
+    // read purifierOnValue from EEPROM
+    EEPROM.begin(512);
+    purifierOnValue = (uint8_t)EEPROM.read(499);
+    if (purifierOnValue == 255) // if not have eeprom data use default value
+    {
+        purifierOnValue = 50;
+    }
+
+    iot.setEventCallback(handleEvent);
+
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
-    numVariables = 3;                                      // จำนวนตัวแปร
-    String keyname[numVariables] = {"pm1", "pm2", "pm10"}; // ชื่อตัวแปร
+    numVariables = 4;                                              // จำนวนตัวแปร
+    String keyname[numVariables] = {"pm1", "pm2", "pm10", "puri"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
-    const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
-    iot.setTemplate("pms7003", version); // เลือกเทมเพลตแดชบอร์ด
+    const uint8_t version = 1; // เวอร์ชั่นโปรเจคนี้
+    // iot.setTemplate("pms7003_airpurifier", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
@@ -212,6 +239,9 @@ void setup()
 #elif defined(ESP32)
     pmsSerial.begin(9600, SERIAL_8N1, 16, 18); // serial สำหรับติดต่อกับ MAX485
 #endif
+
+    pinMode(PURIFIER, OUTPUT);
+    digitalWrite(PURIFIER, LOW);
 
     // ตั้งค่า timer interrupt ทุก 1 วินาที
     timestamp.attach(1, time1sec);
@@ -298,6 +328,22 @@ void loop()
         sensorNotDetect = 0; // รีเซ็ตตัวนับเมื่ออ่านข้อมูลได้
 
         display_update(); // อัพเดทจอ OLED
+
+        // check purifier On Value
+        if (digitalRead(PURIFIER) == LOW) // if off
+        {
+            if (data.PM_AE_UG_2_5 >= purifierOnValue && data.PM_AE_UG_2_5 > 5)
+            {
+                digitalWrite(PURIFIER, HIGH); // on purifier (active low)
+            }
+        }
+        else // if on
+        {
+            if (data.PM_AE_UG_2_5 <= purifierOnValue - 10  || data.PM_AE_UG_2_5 <= 5)
+            {
+                digitalWrite(PURIFIER, LOW); // off purifier (active low)
+            }
+        }
     }
 
     // ทำงานทุก 1 วินาที
@@ -322,7 +368,8 @@ void loop()
                 return;
 
             //  อัพเดทค่าใหม่ในรูปแบบ array
-            float val[numVariables] = {data.PM_AE_UG_1_0, data.PM_AE_UG_2_5, data.PM_AE_UG_10_0};
+            float val[numVariables] = {data.PM_AE_UG_1_0, data.PM_AE_UG_2_5, data.PM_AE_UG_10_0, digitalRead(PURIFIER) == HIGH ? 1 : 0};
+
             iot.update(val); // ส่งข้อมูลไปยังเซิร์ฟเวอร์
         }
     }
@@ -331,6 +378,12 @@ void loop()
 // ฟังก์ชันอัพเดทการแสดงผลบนจอ OLED
 void display_update()
 {
+    oledstate++;
+    if (oledstate > 10)
+    {
+        oledstate = 0;
+    }
+
     // แสดงสถานะการเชื่อมต่อ
     iotwebconf::NetworkState curr_state = iotWebConf.getState();
     if (curr_state == iotwebconf::Boot)
@@ -413,20 +466,52 @@ void display_update()
     //------อัพเดทจอ OLED------
     else if (sensorNotDetect < updateValue)
     {
-        // แสดงค่า PM จากเซ็นเซอร์
-        oled.clearDisplay();
-        oled.setTextSize(1);
-        oled.setCursor(0, 0);
-        oled.println("PM(ug/m3)");
-        oled.setCursor(0, 15);
-        oled.print(" 1.0 : ");
-        oled.print(data.PM_AE_UG_1_0);
-        oled.setCursor(0, 26);
-        oled.print(" 2.5 : ");
-        oled.print(data.PM_AE_UG_2_5);
-        oled.setCursor(0, 37);
-        oled.print("10.0 : ");
-        oled.print(data.PM_AE_UG_10_0);
+        if (oledstate <= 7)
+        {
+            // แสดงค่า PM จากเซ็นเซอร์ - PM2.5 เป็นตัวใหญ่ PM1.0 และ PM10.0 เป็นตัวเล็ก
+            oled.clearDisplay();
+
+            // PM2.5 as big text in the center
+            oled.setTextSize(3);
+            if (data.PM_AE_UG_2_5 < 9)
+                oled.setCursor(20, 15);
+            else if (data.PM_AE_UG_2_5 < 99)
+                oled.setCursor(15, 15);
+            else if (data.PM_AE_UG_2_5 < 999)
+                oled.setCursor(10, 15);
+            else
+            {
+                oled.setTextSize(2);
+                oled.setCursor(0, 15);
+            }
+
+            oled.print(data.PM_AE_UG_2_5);
+
+            // Title at top
+            oled.setTextSize(1);
+            oled.setCursor(14, 0);
+            oled.print("PM2.5");
+
+            oled.setCursor(18, 40);
+            oled.print("ug/m3");
+        }
+        else
+        {
+            // แสดงค่า PM จากเซ็นเซอร์
+            oled.clearDisplay();
+            oled.setTextSize(1);
+            oled.setCursor(0, 0);
+            oled.println("PM(ug/m3)");
+            oled.setCursor(0, 15);
+            oled.print(" 1.0 : ");
+            oled.print(data.PM_AE_UG_1_0);
+            oled.setCursor(0, 26);
+            oled.print(" 2.5 : ");
+            oled.print(data.PM_AE_UG_2_5);
+            oled.setCursor(0, 37);
+            oled.print("10.0 : ");
+            oled.print(data.PM_AE_UG_10_0);
+        }
     }
     // แสดงข้อความเมื่อไม่พบเซ็นเซอร์
     else

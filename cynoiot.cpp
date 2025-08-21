@@ -437,7 +437,7 @@ void Cynoiot::handle()
     {
         if (event[i].length() && value[i].length())
         {
-            DEBUGLN("Event flag found " + event[i] + " value " + value[i]);
+            // DEBUGLN("Event flag found " + event[i] + " value " + value[i]);
             triggerEvent(event[i], value[i]);
             eventUpdate(event[i], value[i]);
             event[i] = "";
@@ -537,17 +537,21 @@ void Cynoiot::setkeyname(String keyname[], uint8_t numElements)
     }
 }
 
-int getDecimalPlacesForDisplay(float value) {
+int getDecimalPlacesForDisplay(float value)
+{
     String s = String(value, 3); // Convert to string with high precision
     int dotIndex = s.indexOf('.');
-    if (dotIndex == -1) {
+    if (dotIndex == -1)
+    {
         return 0; // No decimal point, it's an integer
     }
 
     int decimalCount = 0;
     // Iterate from the end of the string backwards to find the last non-zero digit
-    for (int i = s.length() - 1; i > dotIndex; i--) {
-        if (s.charAt(i) != '0') {
+    for (int i = s.length() - 1; i > dotIndex; i--)
+    {
+        if (s.charAt(i) != '0')
+        {
             decimalCount = i - dotIndex;
             break;
         }
@@ -965,7 +969,9 @@ void Cynoiot::updateOTA(String otafile)
 
 #ifdef ESP8266
     ESPhttpUpdate.onStart([]()
-                          { Serial.println("OTA: HTTP update process started"); });
+                          { 
+                            Serial.println("OTA: HTTP update process started"); 
+                        everySecond.detach(); });
 
     ESPhttpUpdate.onEnd([]()
                         { Serial.println("OTA: HTTP update process finished");
@@ -993,7 +999,9 @@ void Cynoiot::updateOTA(String otafile)
 
 #elif defined(ESP32)
     httpUpdate.onStart([]()
-                       { Serial.println("OTA: HTTP update process started"); });
+                       { Serial.println("OTA: HTTP update process started"); 
+                    everySecond.detach();
+                });
 
     httpUpdate.onEnd([]()
                      {  Serial.println("OTA: HTTP update process finished"); 
