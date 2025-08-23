@@ -154,7 +154,7 @@ uint16_t timer_nointernet;
 uint8_t numVariables;
 uint8_t sampleUpdate, updateValue = 5, oledstate;
 uint8_t sensorNotDetect = updateValue;
-uint8_t purifierOnValue = 50;
+uint8_t purifierOnValue = 40;
 
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
@@ -178,7 +178,7 @@ void iotSetup()
     purifierOnValue = (uint8_t)EEPROM.read(499);
     if (purifierOnValue == 255) // if not have eeprom data use default value
     {
-        purifierOnValue = 50;
+        purifierOnValue = 40;
     }
 
     iot.setEventCallback(handleEvent);
@@ -194,7 +194,7 @@ void iotSetup()
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
 
-// ฟังก์ชันที่ทำงานทุก 1 วินาที (timer interrupt)
+// ฟังก์ชันที่ทำงานทุก 1 วินาที
 void time1sec()
 {
 
@@ -218,6 +218,7 @@ void time1sec()
     {
         Serial.println("Can't connect to server -> Restart wifi");
         iotWebConf.goOffLine();
+        timer_nointernet++;
     }
     else if (timer_nointernet >= 65)
     {
@@ -242,9 +243,6 @@ void setup()
 
     pinMode(PURIFIER, OUTPUT);
     digitalWrite(PURIFIER, LOW);
-
-    // ตั้งค่า timer interrupt ทุก 1 วินาที
-    timestamp.attach(1, time1sec);
 
     //------แสดงโลโก้เมื่อเริ่มต้น------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C); // เริ่มต้นการทำงานของจอ OLED
@@ -339,7 +337,7 @@ void loop()
         }
         else // if on
         {
-            if (data.PM_AE_UG_2_5 <= purifierOnValue - 10  || data.PM_AE_UG_2_5 <= 5)
+            if (data.PM_AE_UG_2_5 <= purifierOnValue - 10 || data.PM_AE_UG_2_5 <= 5)
             {
                 digitalWrite(PURIFIER, LOW); // off purifier (active low)
             }
@@ -351,6 +349,9 @@ void loop()
     if (currentMillis - previousMillis >= 1000)
     {
         previousMillis = currentMillis;
+
+        time1sec();
+
         if (sensorNotDetect < updateValue)
             sensorNotDetect++;
         else

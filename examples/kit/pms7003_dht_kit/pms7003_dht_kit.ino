@@ -168,6 +168,7 @@ void time1sec()
     {
         Serial.println("Can't connect to server -> Restart wifi");
         iotWebConf.goOffLine();
+            timer_nointernet++;
     }
     else if (timer_nointernet >= 65)
     {
@@ -195,9 +196,6 @@ void setup()
     //    digitalWrite(D8, LOW);
     //    pinMode(D6, OUTPUT);
     //    pinMode(D8, OUTPUT);
-
-    // timer interrupt every 1 sec
-    timestamp.attach(1, time1sec);
 
     //------Display LOGO at start------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -285,6 +283,9 @@ void loop()
     if (currentMillis - previousMillis >= 1000)
     { // run every 1 second
         previousMillis = currentMillis;
+        
+        time1sec();
+
         if (sensorNotDetect < updateValue)
             sensorNotDetect++;
         else

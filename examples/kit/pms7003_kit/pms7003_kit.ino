@@ -167,7 +167,7 @@ void iotSetup()
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
 
-// ฟังก์ชันที่ทำงานทุก 1 วินาที (timer interrupt)
+// ฟังก์ชันที่ทำงานทุก 1 วินาที
 void time1sec()
 {
 
@@ -191,6 +191,7 @@ void time1sec()
     {
         Serial.println("Can't connect to server -> Restart wifi");
         iotWebConf.goOffLine();
+            timer_nointernet++;
     }
     else if (timer_nointernet >= 65)
     {
@@ -212,9 +213,6 @@ void setup()
 #elif defined(ESP32)
     pmsSerial.begin(9600, SERIAL_8N1, 16, 18); // serial สำหรับติดต่อกับ MAX485
 #endif
-
-    // ตั้งค่า timer interrupt ทุก 1 วินาที
-    timestamp.attach(1, time1sec);
 
     //------แสดงโลโก้เมื่อเริ่มต้น------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C); // เริ่มต้นการทำงานของจอ OLED
@@ -305,6 +303,9 @@ void loop()
     if (currentMillis - previousMillis >= 1000)
     {
         previousMillis = currentMillis;
+        
+        time1sec();
+
         if (sensorNotDetect < updateValue)
             sensorNotDetect++;
         else
