@@ -45,7 +45,7 @@ const char wifiInitialApPassword[] = "iotbundle"; // รหัสผ่านเ
 #define STRING_LEN 128 // ความยาวสูงสุดของสตริง
 #define NUMBER_LEN 32  // ความยาวสูงสุดของตัวเลข
 
-#define STARTPWM 120
+#define STARTPWM 150
 
 // ตัวจับเวลาสำหรับการทำงานแบบ interrupt
 Ticker timestamp;
