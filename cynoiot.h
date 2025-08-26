@@ -25,7 +25,7 @@
 // #define DEFAULT_SERVER "192.168.1.191"
 #endif
 
-#define RECONNECT_SERVER_TIME 30000 // in ms
+#define RECONNECT_SERVER_TIME 15000 // in ms
 
 #ifndef MAX_PUBLISH_TIME
 #define MAX_PUBLISH_TIME 500 // in ms

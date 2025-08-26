@@ -401,6 +401,7 @@ bool Cynoiot::connect(const char email[], const char server[])
 
         // ota status checking
         EEPROM.begin(512);
+
         int retrievedValue = EEPROM.read(511);
         // Serial.println("EEPROM: " + String(retrievedValue));
         if (retrievedValue != 0)
@@ -417,6 +418,7 @@ bool Cynoiot::connect(const char email[], const char server[])
             EEPROM.write(511, 0); // reset status
             EEPROM.commit();
         }
+        EEPROM.end();
     }
 
 #ifdef CYNOIOT_DEBUG
@@ -976,7 +978,8 @@ void Cynoiot::updateOTA(String otafile)
     ESPhttpUpdate.onEnd([]()
                         { Serial.println("OTA: HTTP update process finished");
                         EEPROM.write(511, 1);  // 1 is update success
-                    EEPROM.commit(); });
+                    EEPROM.commit(); 
+                EEPROM.end(); });
 
     ESPhttpUpdate.onProgress([](int cur, int total)
                              { Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur, total); });
@@ -984,7 +987,8 @@ void Cynoiot::updateOTA(String otafile)
     ESPhttpUpdate.onError([](int err)
                           { Serial.printf("OTA: HTTP update fatal error code %d\n", err); 
                           EEPROM.write(511, 2);  // 2 is failed
-                            EEPROM.commit(); });
+                            EEPROM.commit(); 
+                        EEPROM.end(); });
 
     // WiFiClientSecure clientOTA;
     // clientOTA.setInsecure();
@@ -1000,8 +1004,7 @@ void Cynoiot::updateOTA(String otafile)
 #elif defined(ESP32)
     httpUpdate.onStart([]()
                        { Serial.println("OTA: HTTP update process started"); 
-                    everySecond.detach();
-                });
+                    everySecond.detach(); });
 
     httpUpdate.onEnd([]()
                      {  Serial.println("OTA: HTTP update process finished"); 

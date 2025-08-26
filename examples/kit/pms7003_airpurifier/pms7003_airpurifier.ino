@@ -45,6 +45,8 @@ const char wifiInitialApPassword[] = "iotbundle"; // รหัสผ่านเ
 #define STRING_LEN 128 // ความยาวสูงสุดของสตริง
 #define NUMBER_LEN 32  // ความยาวสูงสุดของตัวเลข
 
+#define STARTPWM 120
+
 // ตัวจับเวลาสำหรับการทำงานแบบ interrupt
 Ticker timestamp;
 
@@ -154,32 +156,68 @@ uint16_t timer_nointernet;
 uint8_t numVariables;
 uint8_t sampleUpdate, updateValue = 5, oledstate;
 uint8_t sensorNotDetect = updateValue;
-uint8_t purifierOnValue = 40;
+
+uint8_t purifierStartValue = 20, purifierMaxValue = 50;
+int16_t fanPWM;
 
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
 {
-    if (event == "purifierOnValue") // ตรวจสอบว่าเป็น event ชื่อ "purifierOnValue" หรือไม่
+    EEPROM.begin(512);
+    if (event == "Start") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
     {
-        purifierOnValue = (uint8_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน purifierOnValue
+        purifierStartValue = (uint8_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน purifierStartValue
 
-        Serial.println("set purifierOnValue: " + String((uint8_t)value.toInt()));
-        EEPROM.begin(512);
-        EEPROM.write(499, purifierOnValue);
-        EEPROM.commit();
+        uint8_t currentValue = EEPROM.read(498);
+        if (currentValue != purifierStartValue)
+        {
+            EEPROM.write(498, purifierStartValue);
+            EEPROM.commit();
+            Serial.println("Verified written value: " + String(EEPROM.read(498)));
+        }
+        else
+        {
+            Serial.println("Value already matches, skipping write");
+        }
     }
+    else if (event == "Max")
+    {
+        purifierMaxValue = (uint8_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน purifierMaxValue
+
+        uint8_t currentValue = EEPROM.read(499);
+        if (currentValue != purifierMaxValue)
+        {
+            EEPROM.write(499, purifierMaxValue);
+            EEPROM.commit();
+            Serial.println("Verified written value: " + String(EEPROM.read(499)));
+        }
+        else
+        {
+            Serial.println("Value already matches, skipping write");
+        }
+    }
+    EEPROM.end();
 }
 
 // ฟังก์ชันตั้งค่าการเชื่อมต่อกับ CynoIOT
 void iotSetup()
 {
-    // read purifierOnValue from EEPROM
+    delay(1000);
+    // read purifierStartValue from EEPROM
     EEPROM.begin(512);
-    purifierOnValue = (uint8_t)EEPROM.read(499);
-    if (purifierOnValue == 255) // if not have eeprom data use default value
+    purifierStartValue = (uint8_t)EEPROM.read(498);
+    Serial.println("purifierStartValue: " + String(purifierStartValue));
+    if (purifierStartValue == 255) // if not have eeprom data use default value
     {
-        purifierOnValue = 40;
+        purifierStartValue = 20;
     }
+    purifierMaxValue = (uint8_t)EEPROM.read(499);
+    Serial.println("purifierMaxValue: " + String(purifierMaxValue));
+    if (purifierMaxValue == 255) // if not have eeprom data use default value
+    {
+        purifierMaxValue = 50;
+    }
+    EEPROM.end();
 
     iot.setEventCallback(handleEvent);
 
@@ -188,8 +226,8 @@ void iotSetup()
     String keyname[numVariables] = {"pm1", "pm2", "pm10", "puri"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
-    const uint8_t version = 1; // เวอร์ชั่นโปรเจคนี้
-    // iot.setTemplate("pms7003_airpurifier", version); // เลือกเทมเพลตแดชบอร์ด
+    const uint8_t version = 1;                       // เวอร์ชั่นโปรเจคนี้
+    iot.setTemplate("pms7003_airpurifier", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
@@ -241,8 +279,7 @@ void setup()
     pmsSerial.begin(9600, SERIAL_8N1, 16, 18); // serial สำหรับติดต่อกับ MAX485
 #endif
 
-    pinMode(PURIFIER, OUTPUT);
-    digitalWrite(PURIFIER, LOW);
+    ledcAttach(PURIFIER, 20000, 8);
 
     //------แสดงโลโก้เมื่อเริ่มต้น------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C); // เริ่มต้นการทำงานของจอ OLED
@@ -327,21 +364,20 @@ void loop()
 
         display_update(); // อัพเดทจอ OLED
 
-        // check purifier On Value
-        if (digitalRead(PURIFIER) == LOW) // if off
+        if ((data.PM_AE_UG_2_5 > purifierStartValue))
         {
-            if (data.PM_AE_UG_2_5 >= purifierOnValue && data.PM_AE_UG_2_5 > 5)
-            {
-                digitalWrite(PURIFIER, HIGH); // on purifier (active low)
-            }
+            fanPWM = map(data.PM_AE_UG_2_5, purifierStartValue, purifierMaxValue, STARTPWM, 255);
+            if (fanPWM < 0)
+                fanPWM = 0;
+            else if (fanPWM > 255)
+                fanPWM = 255;
         }
-        else // if on
+        else
         {
-            if (data.PM_AE_UG_2_5 <= purifierOnValue - 10 || data.PM_AE_UG_2_5 <= 5)
-            {
-                digitalWrite(PURIFIER, LOW); // off purifier (active low)
-            }
+            fanPWM = 0;
         }
+        ledcWrite(PURIFIER, fanPWM);
+        // analogWrite(PURIFIER, fanPWM);
     }
 
     // ทำงานทุก 1 วินาที
@@ -368,8 +404,15 @@ void loop()
             if (isnan(data.PM_AE_UG_1_0))
                 return;
 
+            // calculate rpm %
+            int rpm = map(fanPWM, STARTPWM, 255, 0, 100);
+            if (rpm < 0)
+                rpm = 0;
+            else if (rpm > 100)
+                rpm = 100;
+
             //  อัพเดทค่าใหม่ในรูปแบบ array
-            float val[numVariables] = {data.PM_AE_UG_1_0, data.PM_AE_UG_2_5, data.PM_AE_UG_10_0, digitalRead(PURIFIER) == HIGH ? 1 : 0};
+            float val[numVariables] = {data.PM_AE_UG_1_0, data.PM_AE_UG_2_5, data.PM_AE_UG_10_0, rpm};
 
             iot.update(val); // ส่งข้อมูลไปยังเซิร์ฟเวอร์
         }
@@ -636,7 +679,10 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
 // ฟังก์ชันล้างข้อมูลใน EEPROM
 void clearEEPROM()
 {
+    Serial.println("clearEEPROM() called!");
+
     EEPROM.begin(512);
+
     // เขียนค่า 0 ลงใน EEPROM ทั้งหมด 512 ไบต์
     for (int i = 0; i < 512; i++)
     {
