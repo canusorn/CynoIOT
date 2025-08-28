@@ -105,7 +105,7 @@ Adafruit_SSD1306 oled(OLED_RESET);
 #define RESET_PIN 7
 
 // ตัวแปรเก็บเวลาล่าสุดที่อัพเดทข้อมูล
-unsigned long previousMillis = 0;
+unsigned long previousMillis = 0, endButton;
 
 // สร้าง object สำหรับ DNS Server และ Web Server
 DNSServer dnsServer;
@@ -159,6 +159,9 @@ uint8_t sensorNotDetect = updateValue;
 
 uint8_t purifierStartValue = 20, purifierMaxValue = 50;
 int16_t fanPWM;
+uint8_t buttonPress;
+uint8_t state; // 0-auto  1-sleep  2-narmal   3-max
+const uint8_t sleeppwm = 150, normalpwm = 200, maxpwm = 255;
 
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
@@ -281,6 +284,8 @@ void setup()
 
     ledcAttach(PURIFIER, 20000, 8);
 
+    pinMode(0, INPUT_PULLUP);
+
     //------แสดงโลโก้เมื่อเริ่มต้น------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C); // เริ่มต้นการทำงานของจอ OLED
     oled.clearDisplay();
@@ -364,20 +369,29 @@ void loop()
 
         display_update(); // อัพเดทจอ OLED
 
-        if ((data.PM_AE_UG_2_5 > purifierStartValue))
+        if (state == 0)
         {
-            fanPWM = map(data.PM_AE_UG_2_5, purifierStartValue, purifierMaxValue, STARTPWM, 255);
-            if (fanPWM < 0)
+            if ((data.PM_AE_UG_2_5 > purifierStartValue))
+            {
+                fanPWM = map(data.PM_AE_UG_2_5, purifierStartValue, purifierMaxValue, STARTPWM, 255);
+                if (fanPWM < 0)
+                    fanPWM = 0;
+                else if (fanPWM > 255)
+                    fanPWM = 255;
+            }
+            else
+            {
                 fanPWM = 0;
-            else if (fanPWM > 255)
-                fanPWM = 255;
+            }
         }
-        else
-        {
-            fanPWM = 0;
-        }
+        else if (state == 1)
+            fanPWM = sleeppwm;
+        else if (state == 2)
+            fanPWM = normalpwm;
+        else if (state == 3)
+            fanPWM = maxpwm;
+
         ledcWrite(PURIFIER, fanPWM);
-        // analogWrite(PURIFIER, fanPWM);
     }
 
     // ทำงานทุก 1 วินาที
@@ -417,183 +431,219 @@ void loop()
             iot.update(val); // ส่งข้อมูลไปยังเซิร์ฟเวอร์
         }
     }
+
+    // กดปุ่ม
+    if (digitalRead(0) == 0)
+    {
+        if (buttonPress < 200)
+            buttonPress++;
+        Serial.println(buttonPress);
+    }
+    else
+    {
+        if (buttonPress > 20)
+        {
+            Serial.println("buttonPress");
+            endButton = millis() + 3000;
+            state++;
+            if (state == 4)
+                state = 0;
+
+            oled.clearDisplay();
+            oled.setTextSize(2);
+            oled.setCursor(0, 10);
+
+            if (state == 0)
+                oled.print("Auto\nMode");
+            else if (state == 1)
+                oled.print("Sleep\nMode");
+            else if (state == 2)
+                oled.print("Norma\nMode");
+            else
+                oled.print("Turbo\nMode");
+        }
+        buttonPress = 0;
+    }
 }
 
 // ฟังก์ชันอัพเดทการแสดงผลบนจอ OLED
 void display_update()
 {
-    oledstate++;
-    if (oledstate > 10)
+    if (endButton < millis())
     {
-        oledstate = 0;
-    }
+        oledstate++;
+        if (oledstate > 10)
+        {
+            oledstate = 0;
+        }
 
-    // แสดงสถานะการเชื่อมต่อ
-    iotwebconf::NetworkState curr_state = iotWebConf.getState();
-    if (curr_state == iotwebconf::Boot)
-    {
-        prev_state = curr_state;
-    }
-    else if (curr_state == iotwebconf::NotConfigured)
-    {
-        if (prev_state == iotwebconf::Boot)
+        // แสดงสถานะการเชื่อมต่อ
+        iotwebconf::NetworkState curr_state = iotWebConf.getState();
+        if (curr_state == iotwebconf::Boot)
         {
-            displaytime = 5;
             prev_state = curr_state;
-            noti = "-State-\n\nno config\nstay in\nAP Mode";
         }
-    }
-    else if (curr_state == iotwebconf::ApMode)
-    {
-        if (prev_state == iotwebconf::Boot)
+        else if (curr_state == iotwebconf::NotConfigured)
         {
-            displaytime = 5;
-            prev_state = curr_state;
-            noti = "-State-\n\nAP Mode\nfor 30 sec";
-        }
-        else if (prev_state == iotwebconf::Connecting)
-        {
-            displaytime = 5;
-            prev_state = curr_state;
-            noti = "-State-\n\nX  can't\nconnect\nwifi\ngo AP Mode";
-        }
-        else if (prev_state == iotwebconf::OnLine)
-        {
-            displaytime = 10;
-            prev_state = curr_state;
-            noti = "-State-\n\nX wifi\ndisconnect\ngo AP Mode";
-        }
-    }
-    else if (curr_state == iotwebconf::Connecting)
-    {
-        if (prev_state == iotwebconf::ApMode)
-        {
-            displaytime = 5;
-            prev_state = curr_state;
-            noti = "-State-\n\nwifi\nconnecting";
-        }
-        else if (prev_state == iotwebconf::OnLine)
-        {
-            displaytime = 10;
-            prev_state = curr_state;
-            noti = "-State-\n\nX  wifi\ndisconnect\nreconnecting";
-        }
-    }
-    else if (curr_state == iotwebconf::OnLine)
-    {
-        if (prev_state == iotwebconf::Connecting)
-        {
-            displaytime = 5;
-            prev_state = curr_state;
-            noti = "-State-\n\nwifi\nconnect\nsuccess\n" + String(WiFi.RSSI()) + " dBm";
-        }
-    }
-
-    // แสดงการแจ้งเตือนจาก CynoIOT
-    if (iot.noti != "" && displaytime == 0)
-    {
-        displaytime = 3;
-        noti = iot.noti;
-        iot.noti = "";
-    }
-
-    // แสดงข้อความแจ้งเตือน
-    if (displaytime)
-    {
-        displaytime--;
-        oled.clearDisplay();
-        oled.setTextSize(1);
-        oled.setCursor(0, 0);
-        oled.print(noti);
-        Serial.println(noti);
-    }
-    //------อัพเดทจอ OLED------
-    else if (sensorNotDetect < updateValue)
-    {
-        if (oledstate <= 7)
-        {
-            // แสดงค่า PM จากเซ็นเซอร์ - PM2.5 เป็นตัวใหญ่ PM1.0 และ PM10.0 เป็นตัวเล็ก
-            oled.clearDisplay();
-
-            // PM2.5 as big text in the center
-            oled.setTextSize(3);
-            if (data.PM_AE_UG_2_5 < 9)
-                oled.setCursor(20, 15);
-            else if (data.PM_AE_UG_2_5 < 99)
-                oled.setCursor(15, 15);
-            else if (data.PM_AE_UG_2_5 < 999)
-                oled.setCursor(10, 15);
-            else
+            if (prev_state == iotwebconf::Boot)
             {
-                oled.setTextSize(2);
-                oled.setCursor(0, 15);
+                displaytime = 5;
+                prev_state = curr_state;
+                noti = "-State-\n\nno config\nstay in\nAP Mode";
             }
-
-            oled.print(data.PM_AE_UG_2_5);
-
-            // Title at top
-            oled.setTextSize(1);
-            oled.setCursor(14, 0);
-            oled.print("PM2.5");
-
-            oled.setCursor(18, 40);
-            oled.print("ug/m3");
         }
-        else
+        else if (curr_state == iotwebconf::ApMode)
         {
-            // แสดงค่า PM จากเซ็นเซอร์
+            if (prev_state == iotwebconf::Boot)
+            {
+                displaytime = 5;
+                prev_state = curr_state;
+                noti = "-State-\n\nAP Mode\nfor 30 sec";
+            }
+            else if (prev_state == iotwebconf::Connecting)
+            {
+                displaytime = 5;
+                prev_state = curr_state;
+                noti = "-State-\n\nX  can't\nconnect\nwifi\ngo AP Mode";
+            }
+            else if (prev_state == iotwebconf::OnLine)
+            {
+                displaytime = 10;
+                prev_state = curr_state;
+                noti = "-State-\n\nX wifi\ndisconnect\ngo AP Mode";
+            }
+        }
+        else if (curr_state == iotwebconf::Connecting)
+        {
+            if (prev_state == iotwebconf::ApMode)
+            {
+                displaytime = 5;
+                prev_state = curr_state;
+                noti = "-State-\n\nwifi\nconnecting";
+            }
+            else if (prev_state == iotwebconf::OnLine)
+            {
+                displaytime = 10;
+                prev_state = curr_state;
+                noti = "-State-\n\nX  wifi\ndisconnect\nreconnecting";
+            }
+        }
+        else if (curr_state == iotwebconf::OnLine)
+        {
+            if (prev_state == iotwebconf::Connecting)
+            {
+                displaytime = 5;
+                prev_state = curr_state;
+                noti = "-State-\n\nwifi\nconnect\nsuccess\n" + String(WiFi.RSSI()) + " dBm";
+            }
+        }
+
+        // แสดงการแจ้งเตือนจาก CynoIOT
+        if (iot.noti != "" && displaytime == 0)
+        {
+            displaytime = 3;
+            noti = iot.noti;
+            iot.noti = "";
+        }
+
+        // แสดงข้อความแจ้งเตือน
+        if (displaytime)
+        {
+            displaytime--;
             oled.clearDisplay();
             oled.setTextSize(1);
             oled.setCursor(0, 0);
-            oled.println("PM(ug/m3)");
-            oled.setCursor(0, 15);
-            oled.print(" 1.0 : ");
-            oled.print(data.PM_AE_UG_1_0);
-            oled.setCursor(0, 26);
-            oled.print(" 2.5 : ");
-            oled.print(data.PM_AE_UG_2_5);
-            oled.setCursor(0, 37);
-            oled.print("10.0 : ");
-            oled.print(data.PM_AE_UG_10_0);
+            oled.print(noti);
+            Serial.println(noti);
         }
-    }
-    // แสดงข้อความเมื่อไม่พบเซ็นเซอร์
-    else
-    {
-        oled.clearDisplay();
-        oled.setTextSize(1);
-        oled.setCursor(0, 0);
-        oled.printf("-Sensor-\n\nno sensor\ndetect!");
-    }
+        //------อัพเดทจอ OLED------
+        else if (sensorNotDetect < updateValue)
+        {
+            if (oledstate <= 7)
+            {
+                // แสดงค่า PM จากเซ็นเซอร์ - PM2.5 เป็นตัวใหญ่ PM1.0 และ PM10.0 เป็นตัวเล็ก
+                oled.clearDisplay();
 
-    // แสดงไอคอนสถานการเชื่อมต่อ
-    if (curr_state == iotwebconf::NotConfigured || curr_state == iotwebconf::ApMode)
-        oled.drawBitmap(55, 0, wifi_ap, 9, 8, 1); // แสดงไอคอน AP Mode
-    else if (curr_state == iotwebconf::Connecting)
-    {
-        if (t_connecting == 1)
-        {
-            oled.drawBitmap(56, 0, wifi_on, 8, 8, 1); // แสดงไอคอนกำลังเชื่อมต่อ
-            t_connecting = 0;
+                // PM2.5 as big text in the center
+                oled.setTextSize(3);
+                if (data.PM_AE_UG_2_5 < 9)
+                    oled.setCursor(20, 15);
+                else if (data.PM_AE_UG_2_5 < 99)
+                    oled.setCursor(15, 15);
+                else if (data.PM_AE_UG_2_5 < 999)
+                    oled.setCursor(10, 15);
+                else
+                {
+                    oled.setTextSize(2);
+                    oled.setCursor(0, 15);
+                }
+
+                oled.print(data.PM_AE_UG_2_5);
+
+                // Title at top
+                oled.setTextSize(1);
+                oled.setCursor(14, 0);
+                oled.print("PM2.5");
+
+                oled.setCursor(18, 40);
+                oled.print("ug/m3");
+            }
+            else
+            {
+                // แสดงค่า PM จากเซ็นเซอร์
+                oled.clearDisplay();
+                oled.setTextSize(1);
+                oled.setCursor(0, 0);
+                oled.println("PM(ug/m3)");
+                oled.setCursor(0, 15);
+                oled.print(" 1.0 : ");
+                oled.print(data.PM_AE_UG_1_0);
+                oled.setCursor(0, 26);
+                oled.print(" 2.5 : ");
+                oled.print(data.PM_AE_UG_2_5);
+                oled.setCursor(0, 37);
+                oled.print("10.0 : ");
+                oled.print(data.PM_AE_UG_10_0);
+            }
         }
+        // แสดงข้อความเมื่อไม่พบเซ็นเซอร์
         else
         {
-            t_connecting = 1;
+            oled.clearDisplay();
+            oled.setTextSize(1);
+            oled.setCursor(0, 0);
+            oled.printf("-Sensor-\n\nno sensor\ndetect!");
         }
-    }
-    else if (curr_state == iotwebconf::OnLine)
-    {
-        if (iot.status())
+
+        // แสดงไอคอนสถานการเชื่อมต่อ
+        if (curr_state == iotwebconf::NotConfigured || curr_state == iotwebconf::ApMode)
+            oled.drawBitmap(55, 0, wifi_ap, 9, 8, 1); // แสดงไอคอน AP Mode
+        else if (curr_state == iotwebconf::Connecting)
         {
-            oled.drawBitmap(56, 0, wifi_on, 8, 8, 1); // แสดงไอคอนเชื่อมต่อสำเร็จ
+            if (t_connecting == 1)
+            {
+                oled.drawBitmap(56, 0, wifi_on, 8, 8, 1); // แสดงไอคอนกำลังเชื่อมต่อ
+                t_connecting = 0;
+            }
+            else
+            {
+                t_connecting = 1;
+            }
         }
-        else
+        else if (curr_state == iotwebconf::OnLine)
         {
-            oled.drawBitmap(56, 0, wifi_nointernet, 8, 8, 1); // แสดงไอคอนไม่มีอินเทอร์เน็ต
+            if (iot.status())
+            {
+                oled.drawBitmap(56, 0, wifi_on, 8, 8, 1); // แสดงไอคอนเชื่อมต่อสำเร็จ
+            }
+            else
+            {
+                oled.drawBitmap(56, 0, wifi_nointernet, 8, 8, 1); // แสดงไอคอนไม่มีอินเทอร์เน็ต
+            }
         }
+        else if (curr_state == iotwebconf::OffLine)
+            oled.drawBitmap(56, 0, wifi_off, 8, 8, 1); // แสดงไอคอนไม่ได้เชื่อมต่อ
     }
-    else if (curr_state == iotwebconf::OffLine)
-        oled.drawBitmap(56, 0, wifi_off, 8, 8, 1); // แสดงไอคอนไม่ได้เชื่อมต่อ
 
     oled.display(); // แสดงผลบนจอ OLED
 
