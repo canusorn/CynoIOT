@@ -1069,17 +1069,21 @@ void Cynoiot::triggerEvent(String event, String value)
 
 void Cynoiot::eventUpdate(String event, String value)
 {
-    int value_int = value.toInt();
-    if (value == "on" || value == "ON" || value == "HIGH" || value == "high" || value == "1")
-    {
-        value_int = 1;
-    }
-    else if (value == "off" || value == "OFF" || value == "LOW" || value == "low" || value == "0")
-    {
-        value_int = 0;
-    }
+    // int value_int = value.toInt();
+    // if (value == "on" || value == "ON" || value == "HIGH" || value == "high" || value == "1")
+    // {
+    //     value_int = 1;
+    // }
+    // else if (value == "off" || value == "OFF" || value == "LOW" || value == "low" || value == "0")
+    // {
+    //     value_int = 0;
+    // }
 
-    eventUpdate(event, value_int);
+    // eventUpdate(event, value_int);
+
+    String eventStr = "Event:" + event + ":" + value;
+    String topic = "/" + getClientId() + "/eventact";
+    publish(eventStr, topic);
 }
 
 void Cynoiot::eventUpdate(String event, int value)
