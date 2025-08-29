@@ -1133,7 +1133,7 @@ uint32_t Cynoiot::getTime()
 void Cynoiot::printTimeDetails()
 {
     // Calculate days since Sunday (0-6)
-    uint32_t daysSinceSunday = getDayofWeek();
+    uint32_t daysSinceSunday = ::getDayofWeek();
 
     if (daysSinceSunday == 0)
     {
@@ -1141,9 +1141,9 @@ void Cynoiot::printTimeDetails()
     }
 
     // Calculate hours, minutes, seconds
-    uint8_t hours = getHour();
-    uint8_t minutes = getMinute();
-    uint8_t seconds = getSecond();
+    uint8_t hours = ::getHour();
+    uint8_t minutes = ::getMinute();
+    uint8_t seconds = ::getSecond();
 
     // Array of day names
     const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -1168,23 +1168,23 @@ void Cynoiot::printTimeDetails()
 // in cynoiot class
 uint32_t Cynoiot::getDaytimestamps()
 {
-    return getDaytimestamps();
+    return ::getDaytimestamps();
 }
 uint8_t Cynoiot::getDayofWeek()
 {
-    return getDayofWeek();
+    return ::getDayofWeek();
 }
 uint8_t Cynoiot::getHour()
 {
-    return getHour();
+    return ::getHour();
 }
 uint8_t Cynoiot::getMinute()
 {
-    return getMinute();
+    return ::getMinute();
 }
 uint8_t Cynoiot::getSecond()
 {
-    return getSecond();
+    return ::getSecond();
 }
 
 void Cynoiot::handleTimestamp()
