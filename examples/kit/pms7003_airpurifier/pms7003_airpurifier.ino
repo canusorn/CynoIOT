@@ -203,13 +203,20 @@ void handleEvent(String event, String value)
 
     else if (event == "Mode")
     {
-        if(value == "auto"){
-state = 0;
-        }else if(value == "sleep"){
-state = 1;
-        }else if(value == "normal"){
+        if (value == "auto")
+        {
+            state = 0;
+        }
+        else if (value == "sleep")
+        {
+            state = 1;
+        }
+        else if (value == "normal")
+        {
             state = 2;
-        }else if(value == "turbo"){
+        }
+        else if (value == "turbo")
+        {
             state = 3;
         }
         EEPROM.write(497, state);
@@ -465,8 +472,9 @@ void loop()
     buttonHandler();
 }
 
-void buttonHandler(){
-// กดปุ่ม
+void buttonHandler()
+{
+    // กดปุ่ม
     if (digitalRead(0) == 0)
     {
         if (buttonPress < 200)
@@ -492,22 +500,22 @@ void buttonHandler(){
             if (state == 0)
             {
                 oled.print("Auto\nMode");
-                iot.eventUpdate("Mode", "auto");  // อัพเดท event ไปยัง server
+                iot.eventUpdate("Mode", "auto"); // อัพเดท event ไปยัง server
             }
             else if (state == 1)
             {
                 oled.print("Sleep\nMode");
-                iot.eventUpdate("Mode", "sleep");  // อัพเดท event ไปยัง server
+                iot.eventUpdate("Mode", "sleep"); // อัพเดท event ไปยัง server
             }
             else if (state == 2)
             {
                 oled.print("Norma\nMode");
-                iot.eventUpdate("Mode", "normal");  // อัพเดท event ไปยัง server
+                iot.eventUpdate("Mode", "normal"); // อัพเดท event ไปยัง server
             }
             else
             {
                 oled.print("Turbo\nMode");
-                iot.eventUpdate("Mode", "turbo");  // อัพเดท event ไปยัง server
+                iot.eventUpdate("Mode", "turbo"); // อัพเดท event ไปยัง server
             }
 
             EEPROM.write(497, state);
