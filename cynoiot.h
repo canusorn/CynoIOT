@@ -2,27 +2,27 @@
 #define cynoiot_h
 
 #include <Arduino.h>
-#include <MQTT.h>
 #include <EEPROM.h>
-
+#include <MQTT.h>
 
 #ifdef ESP8266
-#include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <ESP8266WiFi.h>
 #include <ESP8266httpUpdate.h>
 #include <WiFiClientSecureBearSSL.h>
+
 #elif defined(ESP32)
+#include <HTTPUpdate.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <HTTPUpdate.h>
+
 #endif
 
 #define IOTVERSION "1.0.6"
 
 #ifndef DEFAULT_SERVER
-#define DEFAULT_SERVER "cynoiot.com"
-// #define DEFAULT_SERVER "192.168.0.101"
-// #define DEFAULT_SERVER "192.168.1.191"
+// #define DEFAULT_SERVER "cynoiot.com"
+#define DEFAULT_SERVER "192.168.1.221"
 #endif
 
 #define RECONNECT_SERVER_TIME 15000 // in ms
@@ -37,12 +37,12 @@
 // Define callback function type
 typedef void (*EventCallbackFunction)(String event, String value);
 
-class Cynoiot
-{
+class Cynoiot {
 
 private:
   String _email = "";
-  const char _secret[14] = {0x63, 0x79, 0x6E, 0x6F, 0x69, 0x6F, 0x74, 0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0x00};
+  const char _secret[14] = {0x63, 0x79, 0x6E, 0x6F, 0x69, 0x6F, 0x74,
+                            0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0x00};
   String _var[32];
   uint8_t _numElements = 0;
   bool _connected = false;
@@ -63,6 +63,10 @@ private:
   void checkSubscription();
   void updateOTA(String otafile);
   void handleTimestamp();
+  void handleAutomation(String varrable, float value);
+  void executeAutomationAction(String actionType, String target, String mode, String value);
+  void checkAutomationTimeouts();
+  
 #ifdef ESP8266
   int getPinNumber(String pinId);
   String getDpin(int pin);
@@ -102,10 +106,10 @@ public:
 
   // Set the event callback function
   void setEventCallback(EventCallbackFunction callback);
-  
+
   // Call the event callback function
   void triggerEvent(String event, String value);
-  
+
   void eventUpdate(String event, String value);
   void eventUpdate(String event, int value);
 

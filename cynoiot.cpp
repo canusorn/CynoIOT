@@ -19,6 +19,7 @@ uint8_t pub2SubTime;
 
 const uint8_t bufferIO = 10;
 String event[bufferIO], value[bufferIO], gpio[bufferIO];
+String automationList;
 
 String needOTA = "";
 String lastMsgPublish = "";
@@ -396,6 +397,7 @@ void Cynoiot::handle() {
     checkUpdateTimestamps();
 
     handleTimestamp();
+    checkAutomationTimeouts(); // Check for automation timeouts
 
     // printTimeDetails();
     // DEBUGLN((String)((weektimestamp % 86400) / 3600) + ":" +
@@ -479,6 +481,8 @@ void Cynoiot::update(float val[]) {
 
     payload += "\"" + this->_var[i] +
                "\":" + String(val[i], getDecimalPlacesForDisplay(val[i]));
+
+    handleAutomation(this->_var[i], val[i]);
   }
   payload += "}";
 
@@ -778,6 +782,9 @@ void Cynoiot::messageReceived(String &topic, String &payload) {
         return;
       }
     }
+  } else if (topic == "/" + _clientid + "/automation") {
+
+    automationList = payload;
   } else if (topic.startsWith("/" + _clientid + "/timer")) {
     DEBUGLN("Update new timer : " + payload);
     timerStr = payload;
@@ -953,19 +960,6 @@ void Cynoiot::triggerEvent(String event, String value) {
 }
 
 void Cynoiot::eventUpdate(String event, String value) {
-  // int value_int = value.toInt();
-  // if (value == "on" || value == "ON" || value == "HIGH" || value == "high" ||
-  // value == "1")
-  // {
-  //     value_int = 1;
-  // }
-  // else if (value == "off" || value == "OFF" || value == "LOW" || value ==
-  // "low" || value == "0")
-  // {
-  //     value_int = 0;
-  // }
-
-  // eventUpdate(event, value_int);
 
   String eventStr = "Event:" + event + ":" + value;
   String topic = "/" + getClientId() + "/eventact";
@@ -1060,4 +1054,222 @@ void Cynoiot::handleTimestamp() {
   } else {
     nexttimeupdate = random(3600, 7200);
   }
+}
+
+// Structure to track time-limited automation actions
+struct AutomationTimeout {
+  String actionType;
+  String target;
+  String mode;
+  String timeoutValue;
+  unsigned long startTime;
+  unsigned long timeoutDuration;
+  bool active;
+};
+
+// Array to track active time-limited automations
+static AutomationTimeout timeoutTracking[10];
+static int timeoutCount = 0;
+
+void Cynoiot::handleAutomation(String variable, float value) {
+  // Format: event,gpio : var : operator : value_th : event_name,gpio : mode :
+  // value [: timeLimit] [: timeLimit value]
+  // Components: [0]actionType
+  // [1]variable [2]operator [3]threshold [4]target [5]mode [6]value
+  // [7]timeLimit [8]timeoutValue
+
+  if (automationList.length() == 0) {
+    return;
+  }
+
+  // Process each automation rule separated by commas
+  int startPos = 0;
+  int endPos = automationList.indexOf(',');
+
+  while (endPos != -1 || startPos < automationList.length()) {
+    String rule;
+    if (endPos != -1) {
+      rule = automationList.substring(startPos, endPos);
+      startPos = endPos + 1;
+      endPos = automationList.indexOf(',', startPos);
+    } else {
+      rule = automationList.substring(startPos);
+      startPos = automationList.length();
+    }
+
+    if (rule.length() == 0) {
+      continue;
+    }
+
+    // Parse rule components
+    String components[9];
+    int componentCount = 0;
+    int colonPos = 0;
+    int lastPos = 0;
+
+    // Split by colons
+    while (colonPos != -1 && componentCount < 9) {
+      colonPos = rule.indexOf(':', lastPos);
+      if (colonPos != -1) {
+        components[componentCount] = rule.substring(lastPos, colonPos);
+        lastPos = colonPos + 1;
+      } else {
+        components[componentCount] = rule.substring(lastPos);
+      }
+      componentCount++;
+    }
+
+    // Minimum 7 components required (actionType, variable, operator, threshold,
+    // target, mode, value)
+    if (componentCount < 7) {
+      DEBUGLN("Automation rule invalid - insufficient components: " + rule);
+      continue;
+    }
+
+    String actionType = components[0];
+    actionType.trim();
+    String ruleVariable = components[1];
+    ruleVariable.trim();
+    String operatorStr = components[2];
+    operatorStr.trim();
+    String thresholdStr = components[3];
+    thresholdStr.trim();
+    float threshold = thresholdStr.toFloat();
+    String target = components[4];
+    target.trim();
+    String mode = components[5];
+    mode.trim();
+    String actionValue = components[6];
+    actionValue.trim();
+    String timeLimit = (componentCount > 7) ? components[7] : "";
+    timeLimit.trim();
+    String timeoutValue = (componentCount > 8) ? components[8] : "";
+    timeoutValue.trim();
+
+    // Check if this rule applies to the current variable
+    if (ruleVariable != variable) {
+      continue;
+    }
+
+    // Evaluate condition
+    bool conditionMet = false;
+    if (operatorStr == ">") {
+      conditionMet = (value > threshold);
+    } else if (operatorStr == "<") {
+      conditionMet = (value < threshold);
+    } else if (operatorStr == ">=") {
+      conditionMet = (value >= threshold);
+    } else if (operatorStr == "<=") {
+      conditionMet = (value <= threshold);
+    } else if (operatorStr == "==") {
+      conditionMet = (value == threshold);
+    } else {
+      DEBUGLN("Automation rule invalid operator: " + operatorStr);
+      continue;
+    }
+
+    if (conditionMet) {
+      DEBUGLN("Automation condition met: " + variable + " " + operatorStr +
+              " " + String(threshold) + " (value: " + String(value) + ")");
+
+      // Execute action
+      executeAutomationAction(actionType, target, mode, actionValue);
+
+      // Handle time limit if specified
+      if (timeLimit.length() > 0 && timeoutValue.length() > 0) {
+        int timeLimitSeconds = timeLimit.toInt();
+        if (timeLimitSeconds > 0 && timeoutCount < 10) {
+          // Add to timeout tracking
+          timeoutTracking[timeoutCount].actionType = actionType;
+          timeoutTracking[timeoutCount].target = target;
+          timeoutTracking[timeoutCount].mode = mode;
+          timeoutTracking[timeoutCount].timeoutValue = timeoutValue;
+          timeoutTracking[timeoutCount].startTime = millis();
+          timeoutTracking[timeoutCount].timeoutDuration =
+              timeLimitSeconds * 1000; // Convert to milliseconds
+          timeoutTracking[timeoutCount].active = true;
+          timeoutCount++;
+
+          DEBUGLN("Automation timeout set for " + String(timeLimitSeconds) +
+                  " seconds");
+        }
+      }
+    }
+  }
+
+  // Check for timeouts
+  checkAutomationTimeouts();
+}
+
+void Cynoiot::executeAutomationAction(String actionType, String target,
+                                      String mode, String value) {
+  if (actionType == "gpio" || actionType == "g") {
+    // GPIO control action
+    uint8_t gpioIndex = 0;
+    while (gpio[gpioIndex].length() != 0 && gpioIndex < bufferIO) {
+      gpioIndex++;
+    }
+
+    if (gpioIndex < bufferIO) {
+      String gpioCommand = target + ":" + mode + ":" + value;
+      gpio[gpioIndex] = gpioCommand;
+
+      DEBUGLN("Automation GPIO: " + gpioCommand);
+    } else {
+      DEBUGLN("Automation GPIO buffer full");
+    }
+  } else if (actionType == "event" || actionType == "e") {
+    // Event emit action (mode parameter not used for events)
+    uint8_t eventIndex = 0;
+    while (event[eventIndex].length() != 0 && eventIndex < bufferIO) {
+      eventIndex++;
+    }
+
+    if (eventIndex < bufferIO) {
+      event[eventIndex] = target;
+      ::value[eventIndex] = value;
+
+      DEBUGLN("Automation Event: " + target + " value: " + value);
+    } else {
+      DEBUGLN("Automation Event buffer full");
+    }
+  } else {
+    DEBUGLN("Unknown automation action type: " + actionType);
+  }
+}
+
+void Cynoiot::checkAutomationTimeouts() {
+  unsigned long currentTime = millis();
+
+  for (int i = 0; i < timeoutCount; i++) {
+    if (timeoutTracking[i].active) {
+      // Check if timeout period has elapsed
+      unsigned long elapsedTime = currentTime - timeoutTracking[i].startTime;
+
+      if (elapsedTime >= timeoutTracking[i].timeoutDuration) {
+        // Execute timeout action
+        executeAutomationAction(
+            timeoutTracking[i].actionType, timeoutTracking[i].target,
+            timeoutTracking[i].mode, timeoutTracking[i].timeoutValue);
+
+        // Mark as inactive
+        timeoutTracking[i].active = false;
+
+        DEBUGLN("Automation timeout executed for: " +
+                timeoutTracking[i].target);
+      }
+    }
+  }
+
+  // Clean up inactive timeouts
+  int activeCount = 0;
+  for (int i = 0; i < timeoutCount; i++) {
+    if (timeoutTracking[i].active) {
+      if (activeCount != i) {
+        timeoutTracking[activeCount] = timeoutTracking[i];
+      }
+      activeCount++;
+    }
+  }
+  timeoutCount = activeCount;
 }
