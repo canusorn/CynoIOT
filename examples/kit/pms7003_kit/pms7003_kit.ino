@@ -7,7 +7,6 @@
 */
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
-#include <SoftwareSerial.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
@@ -23,7 +22,6 @@
 #include <HTTPUpdateServer.h>
 #endif
 
-#include <Ticker.h> // Ticker library for interrupt
 #include <Wire.h>   // Wire library for I2C communication
 #include <EEPROM.h> // EEPROM library for storing data
 
@@ -44,9 +42,6 @@ const char wifiInitialApPassword[] = "iotbundle"; // รหัสผ่านเ
 
 #define STRING_LEN 128 // ความยาวสูงสุดของสตริง
 #define NUMBER_LEN 32  // ความยาวสูงสุดของตัวเลข
-
-// ตัวจับเวลาสำหรับการทำงานแบบ interrupt
-Ticker timestamp;
 
 // HTML template เก็บไว้ใน flash memory
 const char htmlTemplate[] PROGMEM = R"rawliteral(
@@ -98,7 +93,11 @@ PMS::DATA data;
 #define OLED_RESET 0 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
-#define RESET_PIN 7
+#ifdef ESP8266
+#define RESET_PIN D5
+#elif defined(ESP32)
+#define RESET_PIN 4
+#endif
 
 // ตัวแปรเก็บเวลาล่าสุดที่อัพเดทข้อมูล
 unsigned long previousMillis = 0;
