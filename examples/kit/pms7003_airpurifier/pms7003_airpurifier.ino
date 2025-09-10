@@ -11,7 +11,6 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
-#include <SoftwareSerial.h>
 #include <SoftwareSerial.h> // SoftwareSerial for ESP8266
 
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
@@ -25,7 +24,6 @@
 #endif
 
 #include <EEPROM.h> // EEPROM library for storing data
-#include <Ticker.h> // Ticker library for interrupt
 #include <Wire.h>   // Wire library for I2C communication
 
 // IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
@@ -47,9 +45,6 @@ const char wifiInitialApPassword[] = "iotbundle"; // รหัสผ่านเ
 #define NUMBER_LEN 32  // ความยาวสูงสุดของตัวเลข
 
 #define STARTPWM 150
-
-// ตัวจับเวลาสำหรับการทำงานแบบ interrupt
-Ticker timestamp;
 
 // HTML template เก็บไว้ใน flash memory
 const char htmlTemplate[] PROGMEM = R"rawliteral(
@@ -303,7 +298,14 @@ void setup() {
   pmsSerial.begin(9600, SERIAL_8N1, 16, 18); // serial สำหรับติดต่อกับ MAX485
 #endif
 
+#ifdef ESP8266
+  // ESP8266 setup for 20kHz PWM
+  analogWriteFreq(20000); // Set PWM frequency to 20kHz
+  analogWriteRange(255);  // Set PWM range to 0-255
+  pinMode(PURIFIER, OUTPUT);
+#elif defined(ESP32)
   ledcAttach(PURIFIER, 20000, 8);
+#endif
 
   pinMode(0, INPUT_PULLUP);
 
@@ -398,7 +400,11 @@ void loop() {
     else if (state == 3)
       fanPWM = maxpwm;
 
+#ifdef ESP8266
+    analogWrite(PURIFIER, fanPWM);
+#elif defined(ESP32)
     ledcWrite(PURIFIER, fanPWM);
+#endif
   }
 
   // ทำงานทุก 1 วินาที
