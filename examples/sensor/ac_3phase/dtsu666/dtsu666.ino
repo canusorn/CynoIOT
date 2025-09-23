@@ -107,13 +107,13 @@ void loop()
             var[8] = tempdouble;
 
             // pf
-            tempdouble = (node.getResponseBuffer(30) << 16) + node.getResponseBuffer(31);
+            tempdouble = (node.getResponseBuffer(38) << 16) + node.getResponseBuffer(39);
             var[9] = tempdouble;
 
-            tempdouble = (node.getResponseBuffer(32) << 16) + node.getResponseBuffer(33);
+            tempdouble = (node.getResponseBuffer(40) << 16) + node.getResponseBuffer(41);
             var[10] = tempdouble;
 
-            tempdouble = (node.getResponseBuffer(34) << 16) + node.getResponseBuffer(35);
+            tempdouble = (node.getResponseBuffer(42) << 16) + node.getResponseBuffer(43);
             var[11] = tempdouble;
 
             // freq
