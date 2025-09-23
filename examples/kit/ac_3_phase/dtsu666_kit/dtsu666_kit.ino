@@ -21,6 +21,8 @@
 #include <IotWebConfUsing.h>
 
 #define ADDRESS 0x01
+#define CTRATIO 60
+
 const char thingName[] = "dtsu666";
 const char wifiInitialApPassword[] = "iotbundle";
 
@@ -317,13 +319,13 @@ void loop()
             varfloat[1] = hexToFloat(var[1]) * 0.1;
             varfloat[2] = hexToFloat(var[2]) * 0.1;
             // I
-            varfloat[3] = hexToFloat(var[3]) * 0.001;
-            varfloat[4] = hexToFloat(var[4]) * 0.001;
-            varfloat[5] = hexToFloat(var[5]) * 0.001;
+            varfloat[3] = hexToFloat(var[3]) * 0.001 * CTRATIO;
+            varfloat[4] = hexToFloat(var[4]) * 0.001 * CTRATIO;
+            varfloat[5] = hexToFloat(var[5]) * 0.001 * CTRATIO;
             // P to kW
-            varfloat[6] = hexToFloat(var[6]) * 0.1 * 0.001;
-            varfloat[7] = hexToFloat(var[7]) * 0.1 * 0.001;
-            varfloat[8] = hexToFloat(var[8]) * 0.1 * 0.001;
+            varfloat[6] = hexToFloat(var[6]) * 0.1 * 0.001 * CTRATIO;
+            varfloat[7] = hexToFloat(var[7]) * 0.1 * 0.001 * CTRATIO;
+            varfloat[8] = hexToFloat(var[8]) * 0.1 * 0.001 * CTRATIO;
             // to global variable
             power[0] = varfloat[6];
             power[1] = varfloat[7];
@@ -383,14 +385,14 @@ void loop()
             tempdouble = (node.getResponseBuffer(16) << 16) + node.getResponseBuffer(17);
             var[20] = tempdouble;
 
-            varfloat[13] = hexToFloat(var[13]);
-            varfloat[14] = hexToFloat(var[14]);
-            varfloat[15] = hexToFloat(var[15]);
-            varfloat[16] = hexToFloat(var[16]);
-            varfloat[17] = hexToFloat(var[17]);
-            varfloat[18] = hexToFloat(var[18]);
-            varfloat[19] = hexToFloat(var[19]);
-            varfloat[20] = hexToFloat(var[20]);
+            varfloat[13] = hexToFloat(var[13]) * CTRATIO;
+            varfloat[14] = hexToFloat(var[14]) * CTRATIO;
+            varfloat[15] = hexToFloat(var[15]) * CTRATIO;
+            varfloat[16] = hexToFloat(var[16]) * CTRATIO;
+            varfloat[17] = hexToFloat(var[17]) * CTRATIO;
+            varfloat[18] = hexToFloat(var[18]) * CTRATIO;
+            varfloat[19] = hexToFloat(var[19]) * CTRATIO;
+            varfloat[20] = hexToFloat(var[20]) * CTRATIO;
 
             Serial.println("ImpEp\t" + String(varfloat[13], 3) + " kWh");
             Serial.println("ImpEp A\t" + String(varfloat[14], 3) + " kWh");
