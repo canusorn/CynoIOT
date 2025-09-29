@@ -6,6 +6,10 @@
    D3  - RX(not use in this code)
 */
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
+
+// #define ECO_MODEL
+#define POWER_MODEL
+
 #ifdef ESP8266
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266WebServer.h>
@@ -44,7 +48,6 @@ const char wifiInitialApPassword[] = "iotbundle"; // รหัสผ่านเ
 #define STRING_LEN 128 // ความยาวสูงสุดของสตริง
 #define NUMBER_LEN 32  // ความยาวสูงสุดของตัวเลข
 
-#define STARTPWM 150
 
 // HTML template เก็บไว้ใน flash memory
 const char htmlTemplate[] PROGMEM = R"rawliteral(
@@ -169,7 +172,14 @@ uint8_t purifierStartValue = 20, purifierMaxValue = 50;
 int16_t fanPWM;
 uint8_t buttonPress;
 uint8_t state; // 0-auto  1-sleep  2-narmal   3-max
-const uint8_t sleeppwm = 200, normalpwm = 225, maxpwm = 255;
+
+#ifdef POWER_MODEL
+const uint8_t sleeppwm = 50, normalpwm = 175, maxpwm = 255;
+#const uint8_t STARTPWM = 20;
+#elif defined(ECO_MODEL)
+const uint8_t sleeppwm = 190, normalpwm = 220, maxpwm = 255;
+#const uint8_t STARTPWM = 150;
+#endif
 uint8_t oledOn = 1;
 
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
