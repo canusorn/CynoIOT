@@ -8,7 +8,7 @@
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 
 // #define ECO_MODEL
-#define POWER_MODEL
+// #define POWER_MODEL
 
 #ifdef ESP8266
 #include <ESP8266HTTPUpdateServer.h>
