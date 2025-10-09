@@ -42,7 +42,7 @@
 // สร้าง object ชื่อ iot
 Cynoiot iot;
 
-const char thingName[] = "purifier";               // ชื่ออุปกรณ์
+const char thingName[] = "purifier";              // ชื่ออุปกรณ์
 const char wifiInitialApPassword[] = "iotbundle"; // รหัสผ่านเริ่มต้นสำหรับ AP Mode
 
 #define STRING_LEN 128 // ความยาวสูงสุดของสตริง
@@ -182,16 +182,16 @@ const uint8_t STARTPWM = 130;
 uint8_t oledOn = 1;
 
 // ตัวแปรสำหรับ soft start PWM
-int16_t currentPWM = 0;  // ค่า PWM ปัจจุบัน
-int16_t targetPWM = 0;   // ค่า PWM เป้าหมาย
+int16_t currentPWM = 0; // ค่า PWM ปัจจุบัน
+int16_t targetPWM = 0;  // ค่า PWM เป้าหมาย
 unsigned long lastPWMTimer = 0;
-const uint8_t PWM_STEP_SIZE = 3;     // ขนาดของการเปลี่ยนแปลง PWM ต่อขั้นตอน
+const uint8_t PWM_STEP_SIZE = 3; // ขนาดของการเปลี่ยนแปลง PWM ต่อขั้นตอน
 
 // ฟังก์ชันสำหรับควบคุม soft start PWM
 void softStartPWM(int16_t targetValue)
 {
   targetPWM = targetValue;
-  
+
   // ปรับค่า currentPWM ถ้าต่างจากค่าจริงที่ pin
   if (currentPWM != targetPWM)
   {
@@ -199,12 +199,14 @@ void softStartPWM(int16_t targetValue)
     if (currentPWM < targetPWM)
     {
       currentPWM += PWM_STEP_SIZE;
-      if (currentPWM > targetPWM) currentPWM = targetPWM;
+      if (currentPWM > targetPWM)
+        currentPWM = targetPWM;
     }
     else if (currentPWM > targetPWM)
     {
       currentPWM -= PWM_STEP_SIZE;
-      if (currentPWM < targetPWM) currentPWM = targetPWM;
+      if (currentPWM < targetPWM)
+        currentPWM = targetPWM;
     }
 
     // Serial.println("currentPWM: " + String(currentPWM));
@@ -302,11 +304,11 @@ void iotSetup()
   Serial.println("purifierMaxValue: " + String(purifierMaxValue));
   if (purifierMaxValue == 255) // if not have eeprom data use default value
   {
-    #ifdef POWER_MODEL
+#ifdef POWER_MODEL
     purifierMaxValue = 100;
-    #else
+#else
     purifierMaxValue = 50;
-    #endif
+#endif
   }
   state = (uint8_t)EEPROM.read(497);
   Serial.println("state: " + String(state));
@@ -536,6 +538,9 @@ void loop()
 
       iot.update(val); // ส่งข้อมูลไปยังเซิร์ฟเวอร์
     }
+
+    // ใช้ soft start PWM แทนการตั้งค่าโดยตรง
+    softStartPWM(fanPWM);
   }
 
   buttonHandler();
