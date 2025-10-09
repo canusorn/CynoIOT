@@ -42,7 +42,7 @@
 // สร้าง object ชื่อ iot
 Cynoiot iot;
 
-const char thingName[] = "pms7003";               // ชื่ออุปกรณ์
+const char thingName[] = "purifier";               // ชื่ออุปกรณ์
 const char wifiInitialApPassword[] = "iotbundle"; // รหัสผ่านเริ่มต้นสำหรับ AP Mode
 
 #define STRING_LEN 128 // ความยาวสูงสุดของสตริง
@@ -176,10 +176,47 @@ uint8_t state; // 0-auto  1-sleep  2-narmal   3-max
 const uint8_t sleeppwm = 40, normalpwm = 100, maxpwm = 240;
 const uint8_t STARTPWM = 10;
 #elif defined(ECO_MODEL)
-const uint8_t sleeppwm = 190, normalpwm = 220, maxpwm = 255;
-const uint8_t STARTPWM = 150;
+const uint8_t sleeppwm = 150, normalpwm = 210, maxpwm = 255;
+const uint8_t STARTPWM = 130;
 #endif
 uint8_t oledOn = 1;
+
+// ตัวแปรสำหรับ soft start PWM
+int16_t currentPWM = 0;  // ค่า PWM ปัจจุบัน
+int16_t targetPWM = 0;   // ค่า PWM เป้าหมาย
+unsigned long lastPWMTimer = 0;
+const uint8_t PWM_STEP_SIZE = 3;     // ขนาดของการเปลี่ยนแปลง PWM ต่อขั้นตอน
+
+// ฟังก์ชันสำหรับควบคุม soft start PWM
+void softStartPWM(int16_t targetValue)
+{
+  targetPWM = targetValue;
+  
+  // ปรับค่า currentPWM ถ้าต่างจากค่าจริงที่ pin
+  if (currentPWM != targetPWM)
+  {
+    // ปรับเปลี่ยนค่อยๆ ไปหาค่าเป้าหมาย
+    if (currentPWM < targetPWM)
+    {
+      currentPWM += PWM_STEP_SIZE;
+      if (currentPWM > targetPWM) currentPWM = targetPWM;
+    }
+    else if (currentPWM > targetPWM)
+    {
+      currentPWM -= PWM_STEP_SIZE;
+      if (currentPWM < targetPWM) currentPWM = targetPWM;
+    }
+
+    // Serial.println("currentPWM: " + String(currentPWM));
+
+    // ตั้งค่า PWM ใหม่
+#ifdef ESP8266
+    analogWrite(PURIFIER, currentPWM);
+#elif defined(ESP32)
+    ledcWrite(PURIFIER, currentPWM);
+#endif
+  }
+}
 
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
@@ -265,7 +302,11 @@ void iotSetup()
   Serial.println("purifierMaxValue: " + String(purifierMaxValue));
   if (purifierMaxValue == 255) // if not have eeprom data use default value
   {
+    #ifdef POWER_MODEL
+    purifierMaxValue = 100;
+    #else
     purifierMaxValue = 50;
+    #endif
   }
   state = (uint8_t)EEPROM.read(497);
   Serial.println("state: " + String(state));
@@ -342,8 +383,10 @@ void setup()
   analogWriteFreq(20000); // Set PWM frequency to 20kHz
   analogWriteRange(255);  // Set PWM range to 0-255
   pinMode(PURIFIER, OUTPUT);
+  analogWrite(PURIFIER, 0); // เริ่มต้น PWM ที่ 0 เพื่อ soft start
 #elif defined(ESP32)
   ledcAttach(PURIFIER, 20000, 8);
+  ledcWrite(PURIFIER, 0); // เริ่มต้น PWM ที่ 0 เพื่อ soft start
 #endif
 
   pinMode(0, INPUT_PULLUP);
@@ -452,11 +495,8 @@ void loop()
     else if (state == 3)
       fanPWM = maxpwm;
 
-#ifdef ESP8266
-    analogWrite(PURIFIER, fanPWM);
-#elif defined(ESP32)
-    ledcWrite(PURIFIER, fanPWM);
-#endif
+    // ใช้ soft start PWM แทนการตั้งค่าโดยตรง
+    softStartPWM(fanPWM);
   }
 
   // ทำงานทุก 1 วินาที
@@ -483,8 +523,8 @@ void loop()
       if (isnan(data.PM_AE_UG_1_0))
         return;
 
-      // calculate rpm %
-      int rpm = map(fanPWM, STARTPWM, 255, 0, 100);
+      // calculate rpm % - ใช้ currentPWM แทน fanPWM เพื่อให้แสดงค่าจริงที่ใช้งานอยู่
+      int rpm = map(currentPWM, STARTPWM, 255, 0, 100);
       if (rpm < 0)
         rpm = 0;
       else if (rpm > 100)
@@ -508,11 +548,11 @@ void buttonHandler()
   {
     if (buttonPress < 200)
       buttonPress++;
-    Serial.println(buttonPress);
+    // Serial.println(buttonPress);
   }
   else
   {
-    if (buttonPress > 20)
+    if (buttonPress > 10)
     {
       Serial.println("buttonPress");
       endButton = millis() + 3000;
