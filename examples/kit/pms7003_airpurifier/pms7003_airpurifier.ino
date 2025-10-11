@@ -184,18 +184,21 @@ uint8_t oledOn = 1;
 // ตัวแปรสำหรับ soft start PWM
 int16_t currentPWM = 0; // ค่า PWM ปัจจุบัน
 int16_t targetPWM = 0;  // ค่า PWM เป้าหมาย
+const uint16_t PWM_DELAY = 50; // 50ms
 unsigned long lastPWMTimer = 0;
 const uint8_t PWM_STEP_SIZE = 3; // ขนาดของการเปลี่ยนแปลง PWM ต่อขั้นตอน
 
-// ฟังก์ชันสำหรับควบคุม soft start PWM
-void softStartPWM(int16_t targetValue)
+// ฟังก์ชันที่เรียกใช้ทุก 20ms เพื่อจัดการ soft start PWM
+void handleSoftStartPWM()
 {
-  targetPWM = targetValue;
-
-  // ปรับค่า currentPWM ถ้าต่างจากค่าจริงที่ pin
-  if (currentPWM != targetPWM)
+  unsigned long currentMillis = millis();
+  
+  // ตรวจสอบว่าผ่าน 20ms แล้วหรือยัง
+  if (currentMillis - lastPWMTimer >= PWM_DELAY)
   {
-    // ปรับเปลี่ยนค่อยๆ ไปหาค่าเป้าหมาย
+    lastPWMTimer = currentMillis;
+    
+    // ปรับค่า currentPWM ถ้าต่างจากค่าเป้าหมาย
     if (currentPWM < targetPWM)
     {
       currentPWM += PWM_STEP_SIZE;
@@ -209,14 +212,15 @@ void softStartPWM(int16_t targetValue)
         currentPWM = targetPWM;
     }
 
+    // ตั้งค่า PWM ใหม่
     // Serial.println("currentPWM: " + String(currentPWM));
 
     // ตั้งค่า PWM ใหม่
-#ifdef ESP8266
+  #ifdef ESP8266
     analogWrite(PURIFIER, currentPWM);
-#elif defined(ESP32)
+  #elif defined(ESP32)
     ledcWrite(PURIFIER, currentPWM);
-#endif
+  #endif
   }
 }
 
@@ -467,6 +471,9 @@ void loop()
   MDNS.update(); // อัพเดท mDNS
 #endif
 
+  // จัดการ soft start PWM ทุก 20ms
+  handleSoftStartPWM();
+
   //------อ่านข้อมูลจากเซ็นเซอร์ PMS7003------
   if (pms.read(data))
   {
@@ -498,7 +505,7 @@ void loop()
       fanPWM = maxpwm;
 
     // ใช้ soft start PWM แทนการตั้งค่าโดยตรง
-    softStartPWM(fanPWM);
+    targetPWM = fanPWM;
   }
 
   // ทำงานทุก 1 วินาที
@@ -538,9 +545,6 @@ void loop()
 
       iot.update(val); // ส่งข้อมูลไปยังเซิร์ฟเวอร์
     }
-
-    // ใช้ soft start PWM แทนการตั้งค่าโดยตรง
-    softStartPWM(fanPWM);
   }
 
   buttonHandler();
