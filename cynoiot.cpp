@@ -17,7 +17,11 @@ Ticker everySecond; // Add Ticker object for 1-second interval
 uint32_t previousTime;
 uint8_t pub2SubTime;
 
-const uint8_t bufferIO = 10;
+#ifdef ESP8266
+const uint8_t bufferIO = 20*2;
+#elif defined(ESP32)
+const uint8_t bufferIO = 40*2;
+#endif
 String event[bufferIO], value[bufferIO], gpio[bufferIO];
 String automationList;
 
