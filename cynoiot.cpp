@@ -712,7 +712,7 @@ void Cynoiot::pinHandle(const String &pins, const String &modes,
   } else if (modes == "pwm") {
     analogWrite(pin, values.toInt());
   }
-#ifdef ESP32
+#if defined(ESP32) && !defined(ESP32S2) && !defined(ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C3)
   else if (modes == "DAC") {
     dacWrite(pin, values.toInt());
   }
