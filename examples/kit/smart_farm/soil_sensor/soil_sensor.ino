@@ -7,6 +7,10 @@
 // #define TEMP_HUMID_EC_MODEL
 // #define ALL_7IN1_MODEL
 
+// เลือกการควบคุม
+// #define PUMP_4CH
+// #define ONLY_4CH
+
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
 #include <ESP8266HTTPUpdateServer.h>
@@ -197,6 +201,7 @@ uint8_t numVariables;
 float humidity, temperature, ph;
 uint32_t conductivity, nitrogen, phosphorus, potassium;
 uint8_t state; // 0-auto  1-timer  2-off
+uint16_t onTimer, interval;
 
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
@@ -204,63 +209,46 @@ void handleEvent(String event, String value)
     EEPROM.begin(512);
     if (event == "Start") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
     {
-        // purifierStartValue =
-        //     (uint8_t)
-        //         value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน purifierStartValue
-
-        // uint8_t currentValue = EEPROM.read(498);
-        // if (currentValue != purifierStartValue)
-        // {
-        //     EEPROM.write(498, purifierStartValue);
-        //     EEPROM.commit();
-        //     Serial.println("Verified written value: " + String(EEPROM.read(498)));
-        // }
-        // else
-        // {
-        //     Serial.println("Value already matches, skipping write");
-        // }
+        onTimer = interval;
     }
-    else if (event == "Max")
-    {
-        // purifierMaxValue =
-        //     (uint8_t)
-        //         value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน purifierMaxValue
-
-        // uint8_t currentValue = EEPROM.read(499);
-        // if (currentValue != purifierMaxValue)
-        // {
-        //     EEPROM.write(499, purifierMaxValue);
-        //     EEPROM.commit();
-        //     Serial.println("Verified written value: " + String(EEPROM.read(499)));
-        // }
-        // else
-        // {
-        //     Serial.println("Value already matches, skipping write");
-        // }
-    }
-
     else if (event == "Mode")
     {
-        // if (value == "auto" || value == "null")
-        // {
-        //     state = 0;
-        // }
-        // else if (value == "timer")
-        // {
-        //     state = 1;
-        // }
-        // else if (value == "off")
-        // {
-        //     state = 2;
-        // }
+        if (value == "auto" || value == "null")
+        {
+            state = 0;
+        }
+        else if (value == "timer")
+        {
+            state = 1;
+        }
+        else if (value == "off")
+        {
+            state = 2;
+        }
 
-        // EEPROM.write(497, state);
-        // EEPROM.commit();
+        EEPROM.write(500, state);
+        EEPROM.commit();
     }
-    else if (event == "OledOn")
+    else if (event == "Interval")
     {
-        // oledOn = (uint8_t)value.toInt();
+        interval =
+            (uint8_t)
+                value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน interval
+
+        uint16_t currentValue = (uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8);
+        if (currentValue != interval)
+        {
+            EEPROM.write(498, interval & 0xFF);        // low byte
+            EEPROM.write(499, (interval >> 8) & 0xFF); // high byte
+            EEPROM.commit();
+            Serial.println("Verified written value: " + String(EEPROM.read(499)));
+        }
+        else
+        {
+            Serial.println("Value already matches, skipping write");
+        }
     }
+
     EEPROM.end();
 }
 
@@ -268,37 +256,28 @@ void handleEvent(String event, String value)
 void iotSetup()
 {
     // read purifierStartValue from EEPROM
-    //   EEPROM.begin(512);
-    //   purifierStartValue = (uint8_t)EEPROM.read(498);
-    //   Serial.println("purifierStartValue: " + String(purifierStartValue));
-    //   if (purifierStartValue == 255) // if not have eeprom data use default value
-    //   {
-    //     purifierStartValue = 20;
-    //   }
-    //   purifierMaxValue = (uint8_t)EEPROM.read(499);
-    //   Serial.println("purifierMaxValue: " + String(purifierMaxValue));
-    //   if (purifierMaxValue == 255) // if not have eeprom data use default value
-    //   {
-    // #ifdef POWER_MODEL
-    //     purifierMaxValue = 100;
-    // #else
-    //     purifierMaxValue = 50;
-    // #endif
-    //   }
-    //   state = (uint8_t)EEPROM.read(497);
-    //   Serial.println("state: " + String(state));
-    //   if (state == 255) // if not have eeprom data use default value
-    //   {
-    //     state = 0;
-    //   }
+    EEPROM.begin(512);
+    interval = (uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8);
+    Serial.println("interval: " + String(interval));
+    if (interval == 65535) // if not have eeprom data use default value
+    {
+        interval = 600;
+    }
 
-    //   EEPROM.end();
+    state = (uint8_t)EEPROM.read(500);
+    Serial.println("state: " + String(state));
+    if (state == 255) // if not have eeprom data use default value
+    {
+        state = 0;
+    }
+
+    EEPROM.end();
 
     iot.setEventCallback(handleEvent);
 
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
-    numVariables = 7;                                                            // จำนวนตัวแปร
-    String keyname[numVariables] = {"humid", "temp", "ec", "ph", "n", "p", "k"}; // ชื่อตัวแปร
+    numVariables = 8;                                                                  // จำนวนตัวแปร
+    String keyname[numVariables] = {"on", "humid", "temp", "ec", "ph", "n", "p", "k"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
     const uint8_t version = 1; // เวอร์ชั่นโปรเจคนี้
@@ -462,6 +441,12 @@ void loop()
 // ------------------------------------------------------------------
 void readSensorData()
 {
+    #ifdef NOSENSOR_MODEL
+        float payload[numVariables] = {bool(onTimer)};
+        iot.update(payload);
+        return;
+    #endif
+
     uint8_t result = node.readHoldingRegisters(0x0000, 7);
     disConnect();
     if (result == node.ku8MBSuccess)
@@ -473,6 +458,7 @@ void readSensorData()
         nitrogen = node.getResponseBuffer(4);           // mg/kg
         phosphorus = node.getResponseBuffer(5);         // mg/kg
         potassium = node.getResponseBuffer(6);          // mg/kg
+
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
@@ -496,8 +482,9 @@ void readSensorData()
         Serial.print(potassium);
         Serial.println(" mg/kg");
 
-        float payload[7] = {humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
+        float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
         iot.update(payload);
+
     }
     else
     {
