@@ -5,11 +5,12 @@
    D4  - TX
    D3  - RX(not use in this code)
 */
-// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 
+// เลือกรุ่นที่ใช้งาน
 // #define ECO_MODEL
 // #define POWER_MODEL
 
+// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266WebServer.h>
@@ -89,9 +90,11 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 #ifdef ESP8266
 SoftwareSerial pmsSerial;
 #define PURIFIER D8
+#define RESET_PIN D5
 #elif defined(ESP32)
 #define pmsSerial Serial1
 #define PURIFIER 12
+#define RESET_PIN 7
 #endif
 PMS pms(pmsSerial);
 PMS::DATA data;
@@ -99,8 +102,6 @@ PMS::DATA data;
 // กำหนดค่าสำหรับจอ OLED
 #define OLED_RESET 0 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
-
-#define RESET_PIN 7
 
 // ตัวแปรเก็บเวลาล่าสุดที่อัพเดทข้อมูล
 unsigned long previousMillis = 0, endButton;
@@ -173,8 +174,8 @@ uint8_t buttonPress;
 uint8_t state; // 0-auto  1-sleep  2-narmal   3-max
 
 #ifdef POWER_MODEL
-const uint8_t sleeppwm = 30, normalpwm = 90, maxpwm = 240;
-const uint8_t STARTPWM = 10;
+const uint8_t sleeppwm = 72, normalpwm = 120, maxpwm = 240;
+const uint8_t STARTPWM = 20;
 #elif defined(ECO_MODEL)
 const uint8_t sleeppwm = 190, normalpwm = 220, maxpwm = 255;
 const uint8_t STARTPWM = 150;
@@ -561,7 +562,7 @@ void buttonHandler()
   }
   else
   {
-    if (buttonPress > 10)
+    if (buttonPress > 5)
     {
       Serial.println("buttonPress");
       endButton = millis() + 3000;

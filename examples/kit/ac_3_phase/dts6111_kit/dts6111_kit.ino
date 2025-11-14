@@ -351,8 +351,39 @@ void readFromMeter()
     }
     else
     {
-        Serial.println("error read sensor");
-        iot.debug("error read sensor");
+        // Detailed error reporting based on ModbusMaster error codes
+        String errorMsg = "RS485 Error: ";
+        switch (result) {
+            case node.ku8MBIllegalFunction:
+                errorMsg += "Illegal Function (0x01)";
+                break;
+            case node.ku8MBIllegalDataAddress:
+                errorMsg += "Illegal Data Address (0x02)";
+                break;
+            case node.ku8MBIllegalDataValue:
+                errorMsg += "Illegal Data Value (0x03)";
+                break;
+            case node.ku8MBSlaveDeviceFailure:
+                errorMsg += "Slave Device Failure (0x04)";
+                break;
+            case node.ku8MBInvalidSlaveID:
+                errorMsg += "Invalid Slave ID (0xE0)";
+                break;
+            case node.ku8MBInvalidFunction:
+                errorMsg += "Invalid Function (0xE1)";
+                break;
+            case node.ku8MBResponseTimedOut:
+                errorMsg += "Response Timeout (0xE2)";
+                break;
+            case node.ku8MBInvalidCRC:
+                errorMsg += "Invalid CRC (0xE3)";
+                break;
+            default:
+                errorMsg += "Unknown Error (0x" + String(result, HEX) + ")";
+        }
+        
+        Serial.println(errorMsg);
+        iot.debug(errorMsg);
         readValid = false;
         power[0] = NAN;
         power[1] = NAN;

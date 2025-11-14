@@ -66,7 +66,7 @@ Cynoiot iot;
 #define OLED_RESET 0 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
-const char thingName[] = "pzem017";
+const char thingName[] = "dds6111";
 const char wifiInitialApPassword[] = "iotbundle";
 #define ADDRESS 1
 
