@@ -201,15 +201,19 @@ uint8_t numVariables;
 float humidity, temperature, ph;
 uint32_t conductivity, nitrogen, phosphorus, potassium;
 uint8_t state; // 0-auto  1-timer  2-off
-uint16_t onTimer, interval;
-
+uint16_t interval;
+uint16_t pumpTimer, ch1Timer, ch2Timer, ch3Timer, ch4Timer;
+String displayStatus;
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
 {
     EEPROM.begin(512);
     if (event == "Start") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
     {
-        onTimer = interval;
+        ch1Timer = interval;
+        ch2Timer = interval;
+        ch3Timer = interval;
+        ch4Timer = interval;
     }
     else if (event == "Mode")
     {
@@ -275,25 +279,32 @@ void iotSetup()
 
     iot.setEventCallback(handleEvent);
 
-    // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
-    numVariables = 8;                                                                  // จำนวนตัวแปร
-    String keyname[numVariables] = {"on", "humid", "temp", "ec", "ph", "n", "p", "k"}; // ชื่อตัวแปร
-    iot.setkeyname(keyname, numVariables);
-
     const uint8_t version = 1; // เวอร์ชั่นโปรเจคนี้
 
-// เลือกเทมเพลตแดชบอร์ด
+// ตั้งค่าจำนวนตัวแปรตามโมเดลที่เลือก
 #ifdef NOSENSOR_MODEL
-    iot.setTemplate("smart_farm_nosensor", version);
+    numVariables = 1;
+    String keyname[numVariables] = {"on"};           // ชื่อตัวแปร
+    iot.setTemplate("smart_farm_nosensor", version); // เลือกเทมเพลต
 #elif defined(HUMID_MODEL)
-    iot.setTemplate("smart_farm_humid", version);
+    numVariables = 2;
+    String keyname[numVariables] = {"on", "humid"}; // ชื่อตัวแปร
+    iot.setTemplate("smart_farm_humid", version);   // เลือกเทมเพลต
 #elif defined(TEMP_HUMID_MODEL)
-    iot.setTemplate("smart_farm_temp_humid", version);
+    numVariables = 3;
+    String keyname[numVariables] = {"on", "humid", "temp"}; // ชื่อตัวแปร
+    iot.setTemplate("smart_farm_temp_humid", version);      // เลือกเทมเพลต
 #elif defined(TEMP_HUMID_EC_MODEL)
-    iot.setTemplate("smart_farm_temp_humid_ec", version);
-#elif defined(ALL_7IN1_MODEL)
-    iot.setTemplate("smart_farm_7in1", version);
+    numVariables = 4;
+    String keyname[numVariables] = {"on", "humid", "temp", "ec"}; // ชื่อตัวแปร
+    iot.setTemplate("smart_farm_temp_humid_ec", version);         // เเลือกเทมเพลต
+#else // ALL_7IN1_MODEL (default)
+    numVariables = 8;
+    String keyname[numVariables] = {"on", "humid", "temp", "ec", "ph", "n", "p", "k"}; // ชื่อตัวแปร
+    iot.setTemplate("smart_farm_7in1", version);                                       // เลือกเทมเพลต
 #endif
+
+    iot.setkeyname(keyname, numVariables);
 
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
@@ -436,32 +447,77 @@ void loop()
     }
 }
 
+void outputControl()
+{
+    if (ch1Timer)
+    {
+        digitalWrite(PUMP, HIGH);
+        digitalWrite(CH1, HIGH);
+        displayStatus = "Pump+CH1 " + String(ch1Timer);
+        ch1Timer--;
+    }
+    else if (ch2Timer)
+    {
+        digitalWrite(PUMP, HIGH);
+        digitalWrite(CH1, LOW);
+        digitalWrite(CH2, HIGH);
+        displayStatus = "Pump+CH2 " + String(ch2Timer);
+        ch2Timer--;
+    }
+    else if (ch3Timer)
+    {
+        digitalWrite(PUMP, HIGH);
+        digitalWrite(CH2, LOW);
+        digitalWrite(CH3, HIGH);
+        displayStatus = "Pump+CH3 " + String(ch3Timer);
+        ch3Timer--;
+    }
+    else if (ch4Timer)
+    {
+        digitalWrite(PUMP, HIGH);
+        digitalWrite(CH3, LOW);
+        digitalWrite(CH4, HIGH);
+        displayStatus = "Pump+CH4 " + String(ch4Timer);
+        ch4Timer--;
+    }
+    else if (pumpTimer)
+    {
+        digitalWrite(PUMP, LOW);
+        digitalWrite(CH1, LOW);
+        digitalWrite(CH2, LOW);
+        digitalWrite(CH3, LOW);
+        digitalWrite(CH4, LOW);
+        displayStatus = "OFF";
+    }
+}
+
 // ------------------------------------------------------------------
 // Read sensor data based on the defined sensor model
 // ------------------------------------------------------------------
 void readSensorData()
 {
-    #ifdef NOSENSOR_MODEL
-        // No sensors - only send the onTimer state
-        float payload[numVariables] = {bool(onTimer), 0, 0, 0, 0, 0, 0, 0};
-        iot.update(payload);
-        return;
-    #endif
+    // Calculate onTimer: set to 1 if any of ch1-ch4 is on, otherwise 0
+    uint8_t onTimer = (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0) ? 1 : 0;
 
-    #ifdef HUMID_MODEL
+    // Determine which sensor model is defined and execute accordingly
+    #if defined(NOSENSOR_MODEL)
+        // No sensors - only send the onTimer state
+        float payload[numVariables] = {bool(onTimer)};
+        iot.update(payload);
+    #elif defined(HUMID_MODEL)
         // Only humidity sensor
-        uint8_t result = node.readHoldingRegisters(0x0000, 1);  // Read only humidity register
+        uint8_t result = node.readHoldingRegisters(0x0000, 1); // Read only humidity register
         disConnect();
         if (result == node.ku8MBSuccess)
         {
-            humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+            humidity = node.getResponseBuffer(0) / 10.0; // 0.1 %RH
 
             Serial.println("----- Soil Parameters -----");
             Serial.print("Humidity  : ");
             Serial.print(humidity);
             Serial.println(" %RH");
 
-            float payload[numVariables] = {bool(onTimer), humidity, 0, 0, 0, 0, 0, 0};
+            float payload[numVariables] = {bool(onTimer), humidity};
             iot.update(payload);
         }
         else
@@ -469,12 +525,9 @@ void readSensorData()
             Serial.println("Modbus error reading humidity!");
             iot.debug("error read humidity sensor");
         }
-        return;
-    #endif
-
-    #ifdef TEMP_HUMID_MODEL
+    #elif defined(TEMP_HUMID_MODEL)
         // Temperature and humidity sensors
-        uint8_t result = node.readHoldingRegisters(0x0000, 2);  // Read humidity and temperature registers
+        uint8_t result = node.readHoldingRegisters(0x0000, 2); // Read humidity and temperature registers
         disConnect();
         if (result == node.ku8MBSuccess)
         {
@@ -489,7 +542,7 @@ void readSensorData()
             Serial.print(temperature);
             Serial.println(" °C");
 
-            float payload[numVariables] = {bool(onTimer), humidity, temperature, 0, 0, 0, 0, 0};
+            float payload[numVariables] = {bool(onTimer), humidity, temperature};
             iot.update(payload);
         }
         else
@@ -497,12 +550,9 @@ void readSensorData()
             Serial.println("Modbus error reading temp/humidity!");
             iot.debug("error read temp/humidity sensor");
         }
-        return;
-    #endif
-
-    #ifdef TEMP_HUMID_EC_MODEL
+    #elif defined(TEMP_HUMID_EC_MODEL)
         // Temperature, humidity and EC (conductivity) sensors
-        uint8_t result = node.readHoldingRegisters(0x0000, 3);  // Read humidity, temperature, and conductivity registers
+        uint8_t result = node.readHoldingRegisters(0x0000, 3); // Read humidity, temperature, and conductivity registers
         disConnect();
         if (result == node.ku8MBSuccess)
         {
@@ -521,7 +571,7 @@ void readSensorData()
             Serial.print(conductivity);
             Serial.println(" µS/cm");
 
-            float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity, 0, 0, 0, 0};
+            float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity};
             iot.update(payload);
         }
         else
@@ -529,10 +579,7 @@ void readSensorData()
             Serial.println("Modbus error reading temp/humidity/EC!");
             iot.debug("error read temp/humidity/EC sensor");
         }
-        return;
-    #endif
-
-    #ifdef ALL_7IN1_MODEL
+    #elif defined(ALL_7IN1_MODEL)
         // All 7 sensors (humidity, temperature, EC, pH, N, P, K)
         uint8_t result = node.readHoldingRegisters(0x0000, 7);
         disConnect();
@@ -545,7 +592,6 @@ void readSensorData()
             nitrogen = node.getResponseBuffer(4);           // mg/kg
             phosphorus = node.getResponseBuffer(5);         // mg/kg
             potassium = node.getResponseBuffer(6);          // mg/kg
-
 
             Serial.println("----- Soil Parameters -----");
             Serial.print("Humidity  : ");
@@ -577,12 +623,7 @@ void readSensorData()
             Serial.println("Modbus error!");
             iot.debug("error read sensor");
         }
-        return;
     #endif
-
-    // Fallback case - if no model is defined, send zeros
-    float payload[numVariables] = {bool(onTimer), 0, 0, 0, 0, 0, 0, 0};
-    iot.update(payload);
 }
 
 void preTransmission() /* transmission program when triggered*/
@@ -707,14 +748,25 @@ void display_update()
     else
     {
 
-        // แสดงค่า PM จากเซ็นเซอร์ - PM2.5 เป็นตัวใหญ่ PM1.0 และ PM10.0 เป็นตัวเล็ก
+        // แสดงค่าจากเซ็นเซอร์ตามโมเดลที่เลือก
         oled.clearDisplay();
 
         oled.setTextSize(2);
         oled.setCursor(0, 15);
 
-        oled.print(humidity, 0);
+#ifdef HUMID_MODEL
+        oled.print(humidity, 0); // Humidity only
         oled.print(" %");
+#elif defined(TEMP_HUMID_MODEL)
+        oled.print(humidity, 0); // Humidity and temperature
+        oled.print(" %");
+#elif defined(TEMP_HUMID_EC_MODEL)
+        oled.print(humidity, 0); // Humidity, temperature, and EC
+        oled.print(" %");
+#else // ALL_7IN1_MODEL
+        oled.print(humidity, 0); // All sensors
+        oled.print(" %");
+#endif
 
         // Title at top
         oled.setTextSize(1);
