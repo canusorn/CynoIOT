@@ -437,60 +437,152 @@ void loop()
 }
 
 // ------------------------------------------------------------------
-// Read all 7 registers (0x0000 … 0x0006)
+// Read sensor data based on the defined sensor model
 // ------------------------------------------------------------------
 void readSensorData()
 {
     #ifdef NOSENSOR_MODEL
-        float payload[numVariables] = {bool(onTimer)};
+        // No sensors - only send the onTimer state
+        float payload[numVariables] = {bool(onTimer), 0, 0, 0, 0, 0, 0, 0};
         iot.update(payload);
         return;
     #endif
 
-    uint8_t result = node.readHoldingRegisters(0x0000, 7);
-    disConnect();
-    if (result == node.ku8MBSuccess)
-    {
-        humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
-        temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
-        conductivity = node.getResponseBuffer(2);       // µS/cm
-        ph = node.getResponseBuffer(3) / 10.0;          // 0.1 pH
-        nitrogen = node.getResponseBuffer(4);           // mg/kg
-        phosphorus = node.getResponseBuffer(5);         // mg/kg
-        potassium = node.getResponseBuffer(6);          // mg/kg
+    #ifdef HUMID_MODEL
+        // Only humidity sensor
+        uint8_t result = node.readHoldingRegisters(0x0000, 1);  // Read only humidity register
+        disConnect();
+        if (result == node.ku8MBSuccess)
+        {
+            humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+
+            Serial.println("----- Soil Parameters -----");
+            Serial.print("Humidity  : ");
+            Serial.print(humidity);
+            Serial.println(" %RH");
+
+            float payload[numVariables] = {bool(onTimer), humidity, 0, 0, 0, 0, 0, 0};
+            iot.update(payload);
+        }
+        else
+        {
+            Serial.println("Modbus error reading humidity!");
+            iot.debug("error read humidity sensor");
+        }
+        return;
+    #endif
+
+    #ifdef TEMP_HUMID_MODEL
+        // Temperature and humidity sensors
+        uint8_t result = node.readHoldingRegisters(0x0000, 2);  // Read humidity and temperature registers
+        disConnect();
+        if (result == node.ku8MBSuccess)
+        {
+            humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+            temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+
+            Serial.println("----- Soil Parameters -----");
+            Serial.print("Humidity  : ");
+            Serial.print(humidity);
+            Serial.println(" %RH");
+            Serial.print("Temperature: ");
+            Serial.print(temperature);
+            Serial.println(" °C");
+
+            float payload[numVariables] = {bool(onTimer), humidity, temperature, 0, 0, 0, 0, 0};
+            iot.update(payload);
+        }
+        else
+        {
+            Serial.println("Modbus error reading temp/humidity!");
+            iot.debug("error read temp/humidity sensor");
+        }
+        return;
+    #endif
+
+    #ifdef TEMP_HUMID_EC_MODEL
+        // Temperature, humidity and EC (conductivity) sensors
+        uint8_t result = node.readHoldingRegisters(0x0000, 3);  // Read humidity, temperature, and conductivity registers
+        disConnect();
+        if (result == node.ku8MBSuccess)
+        {
+            humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+            temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+            conductivity = node.getResponseBuffer(2);       // µS/cm
+
+            Serial.println("----- Soil Parameters -----");
+            Serial.print("Humidity  : ");
+            Serial.print(humidity);
+            Serial.println(" %RH");
+            Serial.print("Temperature: ");
+            Serial.print(temperature);
+            Serial.println(" °C");
+            Serial.print("Conductivity: ");
+            Serial.print(conductivity);
+            Serial.println(" µS/cm");
+
+            float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity, 0, 0, 0, 0};
+            iot.update(payload);
+        }
+        else
+        {
+            Serial.println("Modbus error reading temp/humidity/EC!");
+            iot.debug("error read temp/humidity/EC sensor");
+        }
+        return;
+    #endif
+
+    #ifdef ALL_7IN1_MODEL
+        // All 7 sensors (humidity, temperature, EC, pH, N, P, K)
+        uint8_t result = node.readHoldingRegisters(0x0000, 7);
+        disConnect();
+        if (result == node.ku8MBSuccess)
+        {
+            humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+            temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+            conductivity = node.getResponseBuffer(2);       // µS/cm
+            ph = node.getResponseBuffer(3) / 10.0;          // 0.1 pH
+            nitrogen = node.getResponseBuffer(4);           // mg/kg
+            phosphorus = node.getResponseBuffer(5);         // mg/kg
+            potassium = node.getResponseBuffer(6);          // mg/kg
 
 
-        Serial.println("----- Soil Parameters -----");
-        Serial.print("Humidity  : ");
-        Serial.print(humidity);
-        Serial.println(" %RH");
-        Serial.print("Temperature: ");
-        Serial.print(temperature);
-        Serial.println(" °C");
-        Serial.print("Conductivity: ");
-        Serial.print(conductivity);
-        Serial.println(" µS/cm");
-        Serial.print("pH        : ");
-        Serial.println(ph);
-        Serial.print("Nitrogen  : ");
-        Serial.print(nitrogen);
-        Serial.println(" mg/kg");
-        Serial.print("Phosphorus: ");
-        Serial.print(phosphorus);
-        Serial.println(" mg/kg");
-        Serial.print("Potassium : ");
-        Serial.print(potassium);
-        Serial.println(" mg/kg");
+            Serial.println("----- Soil Parameters -----");
+            Serial.print("Humidity  : ");
+            Serial.print(humidity);
+            Serial.println(" %RH");
+            Serial.print("Temperature: ");
+            Serial.print(temperature);
+            Serial.println(" °C");
+            Serial.print("Conductivity: ");
+            Serial.print(conductivity);
+            Serial.println(" µS/cm");
+            Serial.print("pH        : ");
+            Serial.println(ph);
+            Serial.print("Nitrogen  : ");
+            Serial.print(nitrogen);
+            Serial.println(" mg/kg");
+            Serial.print("Phosphorus: ");
+            Serial.print(phosphorus);
+            Serial.println(" mg/kg");
+            Serial.print("Potassium : ");
+            Serial.print(potassium);
+            Serial.println(" mg/kg");
 
-        float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
-        iot.update(payload);
+            float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
+            iot.update(payload);
+        }
+        else
+        {
+            Serial.println("Modbus error!");
+            iot.debug("error read sensor");
+        }
+        return;
+    #endif
 
-    }
-    else
-    {
-        Serial.println("Modbus error!");
-        iot.debug("error read sensor");
-    }
+    // Fallback case - if no model is defined, send zeros
+    float payload[numVariables] = {bool(onTimer), 0, 0, 0, 0, 0, 0, 0};
+    iot.update(payload);
 }
 
 void preTransmission() /* transmission program when triggered*/
