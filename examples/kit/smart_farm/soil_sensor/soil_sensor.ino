@@ -469,7 +469,6 @@ void setup()
     node.begin(ADDRESS, RS485Serial);
 
     iotSetup();
-    iot.setEventCallback(handleEvent); // ตั้งค่าฟังก์ชัน callback สำหรับรับ event จากเซิร์ฟเวอร์
 }
 
 void loop()
