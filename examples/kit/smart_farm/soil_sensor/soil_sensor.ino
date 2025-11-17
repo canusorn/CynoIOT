@@ -7,10 +7,6 @@
 // #define TEMP_HUMID_EC_MODEL
 // #define ALL_7IN1_MODEL
 
-// เลือกการควบคุม
-// #define PUMP_4CH
-// #define ONLY_4CH
-
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
 #include <ESP8266HTTPUpdateServer.h>
@@ -152,16 +148,12 @@ HTTPUpdateServer httpUpdater;
 char emailParamValue[STRING_LEN];
 
 // สร้าง object สำหรับการตั้งค่า WiFi ผ่านเว็บ
-IotWebConf
-    iotWebConf(thingName, &dnsServer, &server,
-               wifiInitialApPassword); // version defind in iotbundle.h file
+IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword); // version defind in iotbundle.h file
 // -- You can also use namespace formats e.g.: iotwebconf::TextParameter
-IotWebConfParameterGroup login =
-    IotWebConfParameterGroup("login", "ล็อกอิน(สมัครที่เว็บก่อนนะครับ)");
+IotWebConfParameterGroup login = IotWebConfParameterGroup("login", "ล็อกอิน(สมัครที่เว็บก่อนนะครับ)");
 
 // พารามิเตอร์สำหรับกรอกอีเมล
-IotWebConfTextParameter emailParam =
-    IotWebConfTextParameter("อีเมลล์", "emailParam", emailParamValue, STRING_LEN);
+IotWebConfTextParameter emailParam = IotWebConfTextParameter("อีเมลล์", "emailParam", emailParamValue, STRING_LEN);
 
 // รูปภาพโลโก้ขนาด 33x30 พิกเซล
 const uint8_t logo_bmp[] = { // 'cyno', 33x30px
@@ -179,15 +171,10 @@ const uint8_t logo_bmp[] = { // 'cyno', 33x30px
     0xff, 0xe0, 0x00, 0x01, 0xff, 0xff, 0xc0, 0x00, 0x00, 0x7f, 0xff, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 // รูปไอคอนสถานการ WiFi ขนาด 8x8 พิกเซล
-const uint8_t wifi_on[] = {0x00, 0x3c, 0x42, 0x99,
-                           0x24, 0x00, 0x18, 0x18}; // 'wifi-1', 8x8px
-const uint8_t wifi_off[] = {0x01, 0x3e, 0x46, 0x99, 0x34,
-                            0x20, 0x58, 0x98}; // 'wifi_nointernet-1', 8x8px
-const uint8_t wifi_ap[] = {
-    0x41, 0x00, 0x80, 0x80, 0xa2, 0x80, 0xaa, 0x80,
-    0xaa, 0x80, 0x88, 0x80, 0x49, 0x00, 0x08, 0x00}; // 'router-2', 9x8px
-const uint8_t wifi_nointernet[] = {0x03, 0x7b, 0x87, 0x33,
-                                   0x4b, 0x00, 0x33, 0x33};
+const uint8_t wifi_on[] = {0x00, 0x3c, 0x42, 0x99, 0x24, 0x00, 0x18, 0x18};                                                 // 'wifi-1', 8x8px
+const uint8_t wifi_off[] = {0x01, 0x3e, 0x46, 0x99, 0x34, 0x20, 0x58, 0x98};                                                // 'wifi_nointernet-1', 8x8px
+const uint8_t wifi_ap[] = {0x41, 0x00, 0x80, 0x80, 0xa2, 0x80, 0xaa, 0x80, 0xaa, 0x80, 0x88, 0x80, 0x49, 0x00, 0x08, 0x00}; // 'router-2', 9x8px
+const uint8_t wifi_nointernet[] = {0x03, 0x7b, 0x87, 0x33, 0x4b, 0x00, 0x33, 0x33};
 
 // ตัวแปรสำหรับการแสดงผลและการเชื่อมต่อ
 uint8_t t_connecting;
@@ -204,16 +191,43 @@ uint8_t state; // 0-auto  1-timer  2-off
 uint16_t interval;
 uint16_t pumpTimer, ch1Timer, ch2Timer, ch3Timer, ch4Timer;
 String displayStatus;
+
+bool pumpState, ch1State, ch2State, ch3State, ch4State;
+
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
 {
     EEPROM.begin(512);
     if (event == "Start") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
     {
-        ch1Timer = interval;
-        ch2Timer = interval;
-        ch3Timer = interval;
-        ch4Timer = interval;
+        uint8_t chNum = 0;
+
+        if (ch1State)
+        {
+            ch1Timer = interval;
+            chNum++;
+        }
+        if (ch2State)
+        {
+            ch2Timer = interval;
+            chNum++;
+        }
+        if (ch3State)
+        {
+            ch3Timer = interval;
+            chNum++;
+        }
+        if (ch4State)
+        {
+            ch4Timer = interval;
+            chNum++;
+        }
+
+        if (chNum == 0)
+            chNum = 1;
+
+        if (pumpState)
+            pumpTimer = chNum * interval;
     }
     else if (event == "Mode")
     {
@@ -273,6 +287,41 @@ void iotSetup()
     if (state == 255) // if not have eeprom data use default value
     {
         state = 0;
+    }
+
+    pumpState = (uint8_t)EEPROM.read(497);
+    Serial.println("pumpState: " + String(pumpState));
+    if (pumpState == 255) // if not have eeprom data use default value
+    {
+        pumpState = 1;
+    }
+
+    ch1State = (uint8_t)EEPROM.read(496);
+    Serial.println("ch1State: " + String(ch1State));
+    if (ch1State == 255) // if not have eeprom data use default value
+    {
+        ch1State = 0;
+    }
+
+    ch2State = (uint8_t)EEPROM.read(495);
+    Serial.println("ch2State: " + String(ch2State));
+    if (ch2State == 255) // if not have eeprom data use default value
+    {
+        ch2State = 0;
+    }
+
+    ch3State = (uint8_t)EEPROM.read(494);
+    Serial.println("ch3State: " + String(ch3State));
+    if (ch3State == 255) // if not have eeprom data use default value
+    {
+        ch3State = 0;
+    }
+
+    ch4State = (uint8_t)EEPROM.read(493);
+    Serial.println("ch4State: " + String(ch4State));
+    if (ch4State == 255) // if not have eeprom data use default value
+    {
+        ch4State = 0;
     }
 
     EEPROM.end();
@@ -418,6 +467,9 @@ void setup()
     node.preTransmission(preTransmission); // Callbacks allow us to configure the RS485 transceiver correctly
     node.postTransmission(postTransmission);
     node.begin(ADDRESS, RS485Serial);
+
+    iotSetup();
+    iot.setEventCallback(handleEvent); // ตั้งค่าฟังก์ชัน callback สำหรับรับ event จากเซิร์ฟเวอร์
 }
 
 void loop()
@@ -497,133 +549,133 @@ void outputControl()
 void readSensorData()
 {
     // Calculate onTimer: set to 1 if any of ch1-ch4 is on, otherwise 0
-    uint8_t onTimer = (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0) ? 1 : 0;
+    uint8_t onTimer = (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0 || pumpTimer > 0) ? 1 : 0;
 
-    // Determine which sensor model is defined and execute accordingly
-    #if defined(NOSENSOR_MODEL)
-        // No sensors - only send the onTimer state
-        float payload[numVariables] = {bool(onTimer)};
+// Determine which sensor model is defined and execute accordingly
+#if defined(NOSENSOR_MODEL)
+    // No sensors - only send the onTimer state
+    float payload[numVariables] = {bool(onTimer)};
+    iot.update(payload);
+#elif defined(HUMID_MODEL)
+    // Only humidity sensor
+    uint8_t result = node.readHoldingRegisters(0x0000, 1); // Read only humidity register
+    disConnect();
+    if (result == node.ku8MBSuccess)
+    {
+        humidity = node.getResponseBuffer(0) / 10.0; // 0.1 %RH
+
+        Serial.println("----- Soil Parameters -----");
+        Serial.print("Humidity  : ");
+        Serial.print(humidity);
+        Serial.println(" %RH");
+
+        float payload[numVariables] = {bool(onTimer), humidity};
         iot.update(payload);
-    #elif defined(HUMID_MODEL)
-        // Only humidity sensor
-        uint8_t result = node.readHoldingRegisters(0x0000, 1); // Read only humidity register
-        disConnect();
-        if (result == node.ku8MBSuccess)
-        {
-            humidity = node.getResponseBuffer(0) / 10.0; // 0.1 %RH
+    }
+    else
+    {
+        Serial.println("Modbus error reading humidity!");
+        iot.debug("error read humidity sensor");
+    }
+#elif defined(TEMP_HUMID_MODEL)
+    // Temperature and humidity sensors
+    uint8_t result = node.readHoldingRegisters(0x0000, 2); // Read humidity and temperature registers
+    disConnect();
+    if (result == node.ku8MBSuccess)
+    {
+        humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+        temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
 
-            Serial.println("----- Soil Parameters -----");
-            Serial.print("Humidity  : ");
-            Serial.print(humidity);
-            Serial.println(" %RH");
+        Serial.println("----- Soil Parameters -----");
+        Serial.print("Humidity  : ");
+        Serial.print(humidity);
+        Serial.println(" %RH");
+        Serial.print("Temperature: ");
+        Serial.print(temperature);
+        Serial.println(" °C");
 
-            float payload[numVariables] = {bool(onTimer), humidity};
-            iot.update(payload);
-        }
-        else
-        {
-            Serial.println("Modbus error reading humidity!");
-            iot.debug("error read humidity sensor");
-        }
-    #elif defined(TEMP_HUMID_MODEL)
-        // Temperature and humidity sensors
-        uint8_t result = node.readHoldingRegisters(0x0000, 2); // Read humidity and temperature registers
-        disConnect();
-        if (result == node.ku8MBSuccess)
-        {
-            humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
-            temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+        float payload[numVariables] = {bool(onTimer), humidity, temperature};
+        iot.update(payload);
+    }
+    else
+    {
+        Serial.println("Modbus error reading temp/humidity!");
+        iot.debug("error read temp/humidity sensor");
+    }
+#elif defined(TEMP_HUMID_EC_MODEL)
+    // Temperature, humidity and EC (conductivity) sensors
+    uint8_t result = node.readHoldingRegisters(0x0000, 3); // Read humidity, temperature, and conductivity registers
+    disConnect();
+    if (result == node.ku8MBSuccess)
+    {
+        humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+        temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+        conductivity = node.getResponseBuffer(2);       // µS/cm
 
-            Serial.println("----- Soil Parameters -----");
-            Serial.print("Humidity  : ");
-            Serial.print(humidity);
-            Serial.println(" %RH");
-            Serial.print("Temperature: ");
-            Serial.print(temperature);
-            Serial.println(" °C");
+        Serial.println("----- Soil Parameters -----");
+        Serial.print("Humidity  : ");
+        Serial.print(humidity);
+        Serial.println(" %RH");
+        Serial.print("Temperature: ");
+        Serial.print(temperature);
+        Serial.println(" °C");
+        Serial.print("Conductivity: ");
+        Serial.print(conductivity);
+        Serial.println(" µS/cm");
 
-            float payload[numVariables] = {bool(onTimer), humidity, temperature};
-            iot.update(payload);
-        }
-        else
-        {
-            Serial.println("Modbus error reading temp/humidity!");
-            iot.debug("error read temp/humidity sensor");
-        }
-    #elif defined(TEMP_HUMID_EC_MODEL)
-        // Temperature, humidity and EC (conductivity) sensors
-        uint8_t result = node.readHoldingRegisters(0x0000, 3); // Read humidity, temperature, and conductivity registers
-        disConnect();
-        if (result == node.ku8MBSuccess)
-        {
-            humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
-            temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
-            conductivity = node.getResponseBuffer(2);       // µS/cm
+        float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity};
+        iot.update(payload);
+    }
+    else
+    {
+        Serial.println("Modbus error reading temp/humidity/EC!");
+        iot.debug("error read temp/humidity/EC sensor");
+    }
+#elif defined(ALL_7IN1_MODEL)
+    // All 7 sensors (humidity, temperature, EC, pH, N, P, K)
+    uint8_t result = node.readHoldingRegisters(0x0000, 7);
+    disConnect();
+    if (result == node.ku8MBSuccess)
+    {
+        humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+        temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+        conductivity = node.getResponseBuffer(2);       // µS/cm
+        ph = node.getResponseBuffer(3) / 10.0;          // 0.1 pH
+        nitrogen = node.getResponseBuffer(4);           // mg/kg
+        phosphorus = node.getResponseBuffer(5);         // mg/kg
+        potassium = node.getResponseBuffer(6);          // mg/kg
 
-            Serial.println("----- Soil Parameters -----");
-            Serial.print("Humidity  : ");
-            Serial.print(humidity);
-            Serial.println(" %RH");
-            Serial.print("Temperature: ");
-            Serial.print(temperature);
-            Serial.println(" °C");
-            Serial.print("Conductivity: ");
-            Serial.print(conductivity);
-            Serial.println(" µS/cm");
+        Serial.println("----- Soil Parameters -----");
+        Serial.print("Humidity  : ");
+        Serial.print(humidity);
+        Serial.println(" %RH");
+        Serial.print("Temperature: ");
+        Serial.print(temperature);
+        Serial.println(" °C");
+        Serial.print("Conductivity: ");
+        Serial.print(conductivity);
+        Serial.println(" µS/cm");
+        Serial.print("pH        : ");
+        Serial.println(ph);
+        Serial.print("Nitrogen  : ");
+        Serial.print(nitrogen);
+        Serial.println(" mg/kg");
+        Serial.print("Phosphorus: ");
+        Serial.print(phosphorus);
+        Serial.println(" mg/kg");
+        Serial.print("Potassium : ");
+        Serial.print(potassium);
+        Serial.println(" mg/kg");
 
-            float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity};
-            iot.update(payload);
-        }
-        else
-        {
-            Serial.println("Modbus error reading temp/humidity/EC!");
-            iot.debug("error read temp/humidity/EC sensor");
-        }
-    #elif defined(ALL_7IN1_MODEL)
-        // All 7 sensors (humidity, temperature, EC, pH, N, P, K)
-        uint8_t result = node.readHoldingRegisters(0x0000, 7);
-        disConnect();
-        if (result == node.ku8MBSuccess)
-        {
-            humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
-            temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
-            conductivity = node.getResponseBuffer(2);       // µS/cm
-            ph = node.getResponseBuffer(3) / 10.0;          // 0.1 pH
-            nitrogen = node.getResponseBuffer(4);           // mg/kg
-            phosphorus = node.getResponseBuffer(5);         // mg/kg
-            potassium = node.getResponseBuffer(6);          // mg/kg
-
-            Serial.println("----- Soil Parameters -----");
-            Serial.print("Humidity  : ");
-            Serial.print(humidity);
-            Serial.println(" %RH");
-            Serial.print("Temperature: ");
-            Serial.print(temperature);
-            Serial.println(" °C");
-            Serial.print("Conductivity: ");
-            Serial.print(conductivity);
-            Serial.println(" µS/cm");
-            Serial.print("pH        : ");
-            Serial.println(ph);
-            Serial.print("Nitrogen  : ");
-            Serial.print(nitrogen);
-            Serial.println(" mg/kg");
-            Serial.print("Phosphorus: ");
-            Serial.print(phosphorus);
-            Serial.println(" mg/kg");
-            Serial.print("Potassium : ");
-            Serial.print(potassium);
-            Serial.println(" mg/kg");
-
-            float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
-            iot.update(payload);
-        }
-        else
-        {
-            Serial.println("Modbus error!");
-            iot.debug("error read sensor");
-        }
-    #endif
+        float payload[numVariables] = {bool(onTimer), humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
+        iot.update(payload);
+    }
+    else
+    {
+        Serial.println("Modbus error!");
+        iot.debug("error read sensor");
+    }
+#endif
 }
 
 void preTransmission() /* transmission program when triggered*/
@@ -750,21 +802,11 @@ void display_update()
 
         // แสดงค่าจากเซ็นเซอร์ตามโมเดลที่เลือก
         oled.clearDisplay();
-
         oled.setTextSize(2);
         oled.setCursor(0, 15);
 
-#ifdef HUMID_MODEL
+#if !defined(NOSENSOR_MODEL)
         oled.print(humidity, 0); // Humidity only
-        oled.print(" %");
-#elif defined(TEMP_HUMID_MODEL)
-        oled.print(humidity, 0); // Humidity and temperature
-        oled.print(" %");
-#elif defined(TEMP_HUMID_EC_MODEL)
-        oled.print(humidity, 0); // Humidity, temperature, and EC
-        oled.print(" %");
-#else // ALL_7IN1_MODEL
-        oled.print(humidity, 0); // All sensors
         oled.print(" %");
 #endif
 
@@ -842,12 +884,11 @@ void wifiConnected()
     MDNS.begin(iotWebConf.getThingName());
     MDNS.addService("http", "tcp", 80);
 
-    Serial.printf("Ready! Open http://%s.local in your browser\n",
-                  String(iotWebConf.getThingName()));
+    Serial.printf("Ready! Open http://%s.local in your browser\n", String(iotWebConf.getThingName()));
     if ((String)emailParamValue != "")
     {
         // เริ่มเชื่อมต่อ หลังจากต่อไวไฟได้
-        Serial.println("login");
+        Serial.println("login with " + (String)emailParamValue);
         iot.connect((String)emailParamValue); // เชื่อมต่อกับ CynoIOT ด้วยอีเมล
     }
 }
