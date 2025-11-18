@@ -193,6 +193,7 @@ uint16_t pumpTimer, ch1Timer, ch2Timer, ch3Timer, ch4Timer;
 String displayStatus;
 
 bool pumpState, ch1State, ch2State, ch3State, ch4State;
+bool pumpUse, ch1Use, ch2Use, ch3Use, ch4Use;
 bool onState;
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
@@ -207,22 +208,22 @@ void handleEvent(String event, String value)
 
             uint8_t chNum = 0;
 
-            if (ch1State)
+            if (ch1Use)
             {
                 ch1Timer = interval;
                 chNum++;
             }
-            if (ch2State)
+            if (ch2Use)
             {
                 ch2Timer = interval;
                 chNum++;
             }
-            if (ch3State)
+            if (ch3Use)
             {
                 ch3Timer = interval;
                 chNum++;
             }
-            if (ch4State)
+            if (ch4Use)
             {
                 ch4Timer = interval;
                 chNum++;
@@ -231,10 +232,10 @@ void handleEvent(String event, String value)
             if (chNum == 0)
                 chNum = 1;
 
-            if (pumpState)
+            if (pumpUse)
                 pumpTimer = chNum * interval;
         }
-        else if (value == "off")
+        else
         {
             digitalWrite(PUMP, LOW);
             digitalWrite(CH1, LOW);
@@ -247,6 +248,14 @@ void handleEvent(String event, String value)
             ch3Timer = 0;
             ch4Timer = 0;
             onState = false;
+        }
+    }
+    else if (event == "Pump"){
+        if(value){
+            pumpTimer = interval;
+        }
+        else{
+            pumpTimer = 0;
         }
     }
     else if (event == "Mode")
@@ -286,46 +295,46 @@ void handleEvent(String event, String value)
             Serial.println("Value already matches, skipping write");
         }
     }
-    else if (event == "pump")
+    else if (event == "Pump use")
     {
-        Serial.println("pump use : " + value);
-        pumpState = (bool)value.toInt();
+        Serial.println("Pump use : " + value);
+        pumpUse = (bool)value.toInt();
 
         // Save pumpState to EEPROM
         EEPROM.write(497, (uint8_t)pumpState);
         EEPROM.commit();
     }
-    else if (event == "ch1")
+    else if (event == "CH1 use")
     {
-        Serial.println("ch1 use : " + value);
-        ch1State = (bool)value.toInt();
+        Serial.println("CH1 use : " + value);
+        ch1Use = (bool)value.toInt();
 
         // Save ch1State to EEPROM
         EEPROM.write(496, (uint8_t)ch1State);
         EEPROM.commit();
     }
-    else if (event == "ch2")
+    else if (event == "CH2 use")
     {
-        Serial.println("ch2 use : " + value);
-        ch2State = (bool)value.toInt();
+        Serial.println("CH2 use : " + value);
+        ch2Use = (bool)value.toInt();   
 
         // Save ch2State to EEPROM
         EEPROM.write(495, (uint8_t)ch2State);
         EEPROM.commit();
     }
-    else if (event == "ch3")
+    else if (event == "CH3 use")
     {
-        Serial.println("ch3 use : " + value);
-        ch3State = (bool)value.toInt();
+        Serial.println("CH3 use : " + value);
+        ch3Use = (bool)value.toInt();
 
         // Save ch3State to EEPROM
         EEPROM.write(494, (uint8_t)ch3State);
         EEPROM.commit();
     }
-    else if (event == "ch4")
+    else if (event == "CH4 use")
     {
-        Serial.println("ch4 use : " + value);
-        ch4State = (bool)value.toInt();
+        Serial.println("CH4 use : " + value);
+        ch4Use = (bool)value.toInt();
 
         // Save ch4State to EEPROM
         EEPROM.write(493, (uint8_t)ch4State);
@@ -356,45 +365,45 @@ void iotSetup()
     }
     Serial.println("state: " + String(state));
 
-    pumpState = (uint8_t)EEPROM.read(497);
-    if (pumpState == 255) // if not have eeprom data use default value
+    pumpUse = (uint8_t)EEPROM.read(497);
+    if (pumpUse == 255) // if not have eeprom data use default value
     {
-        Serial.println("Load pumpState = " + String(pumpState) + ", pumpState not found in EEPROM, using default value");
-        pumpState = 1;
+        Serial.println("Load pumpUse = " + String(pumpUse) + ", pumpUse not found in EEPROM, using default value");
+        pumpUse = 0;
     }
-    Serial.println("pumpState: " + String(pumpState));
+    Serial.println("pumpUse: " + String(pumpUse));
 
-    ch1State = (uint8_t)EEPROM.read(496);
-    if (ch1State == 255) // if not have eeprom data use default value
+    ch1Use = (uint8_t)EEPROM.read(496);
+    if (ch1Use == 255) // if not have eeprom data use default value
     {
-        Serial.println("Load ch1State = " + String(ch1State) + ", ch1State not found in EEPROM, using default value");
-        ch1State = 0;
+        Serial.println("Load ch1Use = " + String(ch1Use) + ", ch1Use not found in EEPROM, using default value");
+        ch1Use = 0;
     }
-    Serial.println("ch1State: " + String(ch1State));
+    Serial.println("ch1Use: " + String(ch1Use));
 
-    ch2State = (uint8_t)EEPROM.read(495);
-    if (ch2State == 255) // if not have eeprom data use default value
+    ch2Use = (uint8_t)EEPROM.read(495);
+    if (ch2Use == 255) // if not have eeprom data use default value
     {
-        Serial.println("Load ch2State = " + String(ch2State) + ", ch2State not found in EEPROM, using default value");
-        ch2State = 0;
+        Serial.println("Load ch2Use = " + String(ch2Use) + ", ch2Use not found in EEPROM, using default value");
+        ch2Use = 0;
     }
-    Serial.println("ch2State: " + String(ch2State));
+    Serial.println("ch2Use: " + String(ch2Use));
 
-    ch3State = (uint8_t)EEPROM.read(494);
-    if (ch3State == 255) // if not have eeprom data use default value
+    ch3Use = (uint8_t)EEPROM.read(494);
+    if (ch3Use == 255) // if not have eeprom data use default value
     {
-        Serial.println("Load ch3State = " + String(ch3State) + ", ch3State not found in EEPROM, using default value");
-        ch3State = 0;
+        Serial.println("Load ch3Use = " + String(ch3Use) + ", ch3Use not found in EEPROM, using default value");
+        ch3Use = 0;
     }
-    Serial.println("ch3State: " + String(ch3State));
+    Serial.println("ch3Use: " + String(ch3Use));
 
-    ch4State = (uint8_t)EEPROM.read(493);
-    if (ch4State == 255) // if not have eeprom data use default value
+    ch4Use = (uint8_t)EEPROM.read(493);
+    if (ch4Use == 255) // if not have eeprom data use default value
     {
-        Serial.println("Load ch4State = " + String(ch4State) + ", ch4State not found in EEPROM, using default value");
-        ch4State = 0;
+        Serial.println("Load ch4Use = " + String(ch4Use) + ", ch4Use not found in EEPROM, using default value");
+        ch4Use = 0;
     }
-    Serial.println("ch4State: " + String(ch4State));
+    Serial.println("ch4Use: " + String(ch4Use));
 
     EEPROM.end();
 
