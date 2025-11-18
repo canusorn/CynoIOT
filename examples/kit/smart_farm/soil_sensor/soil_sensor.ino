@@ -322,7 +322,7 @@ void handleEvent(String event, String value)
         pumpUse = (bool)value.toInt();
 
         // Save pumpState to EEPROM
-        EEPROM.write(497, (uint8_t)pumpState);
+        EEPROM.write(497, (uint8_t)pumpUse);
         EEPROM.commit();
     }
     else if (event == "CH1 use")
