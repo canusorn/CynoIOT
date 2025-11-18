@@ -202,7 +202,7 @@ void handleEvent(String event, String value)
     if (event == "Start") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
     {
         Serial.println("Start: " + value);
-        if (value)
+        if (value.toInt())
         {
             onState = true;
 
@@ -211,37 +211,55 @@ void handleEvent(String event, String value)
             if (ch1Use)
             {
                 ch1Timer = interval;
+                iot.eventUpdate("CH1", 1);
                 chNum++;
             }
             if (ch2Use)
             {
                 ch2Timer = interval;
                 chNum++;
+
+                if (!ch1Use)
+                    iot.eventUpdate("CH2", 1);
             }
             if (ch3Use)
             {
                 ch3Timer = interval;
                 chNum++;
+
+                if (!ch1Use && !ch2Use)
+                    iot.eventUpdate("CH3", 1);
             }
             if (ch4Use)
             {
                 ch4Timer = interval;
                 chNum++;
+
+                if (!ch1Use && !ch2Use && !ch3Use)
+                    iot.eventUpdate("CH4", 1);
             }
 
             if (chNum == 0)
                 chNum = 1;
 
             if (pumpUse)
+            {
+                iot.eventUpdate("Pump", 1);
                 pumpTimer = chNum * interval;
+            }
         }
         else
         {
             digitalWrite(PUMP, LOW);
+            iot.eventUpdate("Pump", 0);
             digitalWrite(CH1, LOW);
+            iot.eventUpdate("CH1", 0);
             digitalWrite(CH2, LOW);
+            iot.eventUpdate("CH2", 0);
             digitalWrite(CH3, LOW);
+            iot.eventUpdate("CH3", 0);
             digitalWrite(CH4, LOW);
+            iot.eventUpdate("CH4", 0);
             pumpTimer = 0;
             ch1Timer = 0;
             ch2Timer = 0;
@@ -250,11 +268,14 @@ void handleEvent(String event, String value)
             onState = false;
         }
     }
-    else if (event == "Pump"){
-        if(value){
+    else if (event == "Pump")
+    {
+        if (value.toInt())
+        {
             pumpTimer = interval;
         }
-        else{
+        else
+        {
             pumpTimer = 0;
         }
     }
@@ -310,16 +331,16 @@ void handleEvent(String event, String value)
         ch1Use = (bool)value.toInt();
 
         // Save ch1State to EEPROM
-        EEPROM.write(496, (uint8_t)ch1State);
+        EEPROM.write(496, (uint8_t)ch1Use);
         EEPROM.commit();
     }
     else if (event == "CH2 use")
     {
         Serial.println("CH2 use : " + value);
-        ch2Use = (bool)value.toInt();   
+        ch2Use = (bool)value.toInt();
 
         // Save ch2State to EEPROM
-        EEPROM.write(495, (uint8_t)ch2State);
+        EEPROM.write(495, (uint8_t)ch2Use);
         EEPROM.commit();
     }
     else if (event == "CH3 use")
@@ -328,7 +349,7 @@ void handleEvent(String event, String value)
         ch3Use = (bool)value.toInt();
 
         // Save ch3State to EEPROM
-        EEPROM.write(494, (uint8_t)ch3State);
+        EEPROM.write(494, (uint8_t)ch3Use);
         EEPROM.commit();
     }
     else if (event == "CH4 use")
@@ -337,7 +358,7 @@ void handleEvent(String event, String value)
         ch4Use = (bool)value.toInt();
 
         // Save ch4State to EEPROM
-        EEPROM.write(493, (uint8_t)ch4State);
+        EEPROM.write(493, (uint8_t)ch4Use);
         EEPROM.commit();
     }
     EEPROM.end();
@@ -655,6 +676,45 @@ void onOffUpdate()
     {
         iot.eventUpdate("Start", thisState); // อัพเดท event ไปยัง server
         onState = thisState;
+    }
+
+    if (pumpTimer == 1)
+    {
+        iot.eventUpdate("Pump", 0);
+    }
+    if (ch1Timer == 1)
+    {
+        iot.eventUpdate("CH1", 0);
+
+        if (ch2Timer)
+            iot.eventUpdate("CH2", 1);
+
+        else if (ch3Timer)
+            iot.eventUpdate("CH3", 1);
+
+        else if (ch4Timer)
+            iot.eventUpdate("CH4", 1);
+    }
+    if (ch2Timer == 1)
+    {
+        iot.eventUpdate("CH2", 0);
+
+        if (ch3Timer)
+            iot.eventUpdate("CH3", 1);
+
+        else if (ch4Timer)
+            iot.eventUpdate("CH4", 1);
+    }
+    if (ch3Timer == 1)
+    {
+        iot.eventUpdate("CH3", 0);
+
+        if (ch4Timer)
+            iot.eventUpdate("CH4", 1);
+    }
+    if (ch4Timer == 1)
+    {
+        iot.eventUpdate("CH4", 0);
     }
 }
 // ------------------------------------------------------------------
