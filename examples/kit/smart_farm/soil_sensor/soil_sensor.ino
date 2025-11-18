@@ -290,26 +290,46 @@ void handleEvent(String event, String value)
     {
         Serial.println("pump use : " + value);
         pumpState = (bool)value.toInt();
+
+        // Save pumpState to EEPROM
+        EEPROM.write(497, (uint8_t)pumpState);
+        EEPROM.commit();
     }
     else if (event == "ch1")
     {
         Serial.println("ch1 use : " + value);
         ch1State = (bool)value.toInt();
+
+        // Save ch1State to EEPROM
+        EEPROM.write(496, (uint8_t)ch1State);
+        EEPROM.commit();
     }
     else if (event == "ch2")
     {
         Serial.println("ch2 use : " + value);
         ch2State = (bool)value.toInt();
+
+        // Save ch2State to EEPROM
+        EEPROM.write(495, (uint8_t)ch2State);
+        EEPROM.commit();
     }
     else if (event == "ch3")
     {
         Serial.println("ch3 use : " + value);
         ch3State = (bool)value.toInt();
+
+        // Save ch3State to EEPROM
+        EEPROM.write(494, (uint8_t)ch3State);
+        EEPROM.commit();
     }
     else if (event == "ch4")
     {
         Serial.println("ch4 use : " + value);
         ch4State = (bool)value.toInt();
+
+        // Save ch4State to EEPROM
+        EEPROM.write(493, (uint8_t)ch4State);
+        EEPROM.commit();
     }
     EEPROM.end();
 }
