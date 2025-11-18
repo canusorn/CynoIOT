@@ -1,7 +1,7 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 // เลือกรุ่นที่ใช้งาน
-// #define NOSENSOR_MODEL
+#define NOSENSOR_MODEL
 // #define HUMID_MODEL
 // #define TEMP_HUMID_MODEL
 // #define TEMP_HUMID_EC_MODEL
@@ -193,44 +193,65 @@ uint16_t pumpTimer, ch1Timer, ch2Timer, ch3Timer, ch4Timer;
 String displayStatus;
 
 bool pumpState, ch1State, ch2State, ch3State, ch4State;
-
+bool onState;
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
 {
     EEPROM.begin(512);
     if (event == "Start") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
     {
-        uint8_t chNum = 0;
+        Serial.println("Start: " + value);
+        if (value)
+        {
+            onState = true;
 
-        if (ch1State)
-        {
-            ch1Timer = interval;
-            chNum++;
-        }
-        if (ch2State)
-        {
-            ch2Timer = interval;
-            chNum++;
-        }
-        if (ch3State)
-        {
-            ch3Timer = interval;
-            chNum++;
-        }
-        if (ch4State)
-        {
-            ch4Timer = interval;
-            chNum++;
-        }
+            uint8_t chNum = 0;
 
-        if (chNum == 0)
-            chNum = 1;
+            if (ch1State)
+            {
+                ch1Timer = interval;
+                chNum++;
+            }
+            if (ch2State)
+            {
+                ch2Timer = interval;
+                chNum++;
+            }
+            if (ch3State)
+            {
+                ch3Timer = interval;
+                chNum++;
+            }
+            if (ch4State)
+            {
+                ch4Timer = interval;
+                chNum++;
+            }
 
-        if (pumpState)
-            pumpTimer = chNum * interval;
+            if (chNum == 0)
+                chNum = 1;
+
+            if (pumpState)
+                pumpTimer = chNum * interval;
+        }
+        else if (value == "off")
+        {
+            digitalWrite(PUMP, LOW);
+            digitalWrite(CH1, LOW);
+            digitalWrite(CH2, LOW);
+            digitalWrite(CH3, LOW);
+            digitalWrite(CH4, LOW);
+            pumpTimer = 0;
+            ch1Timer = 0;
+            ch2Timer = 0;
+            ch3Timer = 0;
+            ch4Timer = 0;
+            onState = false;
+        }
     }
     else if (event == "Mode")
     {
+        Serial.println("Mode: " + value);
         if (value == "auto" || value == "null")
         {
             state = 0;
@@ -249,9 +270,8 @@ void handleEvent(String event, String value)
     }
     else if (event == "Interval")
     {
-        interval =
-            (uint8_t)
-                value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน interval
+        Serial.println("Interval: " + value);
+        interval = (uint8_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน interval
 
         uint16_t currentValue = (uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8);
         if (currentValue != interval)
@@ -259,14 +279,38 @@ void handleEvent(String event, String value)
             EEPROM.write(498, interval & 0xFF);        // low byte
             EEPROM.write(499, (interval >> 8) & 0xFF); // high byte
             EEPROM.commit();
-            Serial.println("Verified written value: " + String(EEPROM.read(499)));
+            Serial.println("Verified written value: " + String((uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8)));
         }
         else
         {
             Serial.println("Value already matches, skipping write");
         }
     }
-
+    else if (event == "pump")
+    {
+        Serial.println("pump use : " + value);
+        pumpState = (bool)value.toInt();
+    }
+    else if (event == "ch1")
+    {
+        Serial.println("ch1 use : " + value);
+        ch1State = (bool)value.toInt();
+    }
+    else if (event == "ch2")
+    {
+        Serial.println("ch2 use : " + value);
+        ch2State = (bool)value.toInt();
+    }
+    else if (event == "ch3")
+    {
+        Serial.println("ch3 use : " + value);
+        ch3State = (bool)value.toInt();
+    }
+    else if (event == "ch4")
+    {
+        Serial.println("ch4 use : " + value);
+        ch4State = (bool)value.toInt();
+    }
     EEPROM.end();
 }
 
@@ -274,55 +318,63 @@ void handleEvent(String event, String value)
 void iotSetup()
 {
     // read purifierStartValue from EEPROM
+    Serial.println("Loading setting from EEPROM");
     EEPROM.begin(512);
     interval = (uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8);
-    Serial.println("interval: " + String(interval));
     if (interval == 65535) // if not have eeprom data use default value
     {
+        Serial.println("Load interval = " + String(interval) + ", interval not found in EEPROM, using default value");
         interval = 600;
     }
+    Serial.println("interval: " + String(interval));
 
     state = (uint8_t)EEPROM.read(500);
-    Serial.println("state: " + String(state));
     if (state == 255) // if not have eeprom data use default value
     {
-        state = 0;
+        Serial.println("Load state = " + String(state) + ", state not found in EEPROM, using default value");
+        state = 2;
     }
+    Serial.println("state: " + String(state));
 
     pumpState = (uint8_t)EEPROM.read(497);
-    Serial.println("pumpState: " + String(pumpState));
     if (pumpState == 255) // if not have eeprom data use default value
     {
+        Serial.println("Load pumpState = " + String(pumpState) + ", pumpState not found in EEPROM, using default value");
         pumpState = 1;
     }
+    Serial.println("pumpState: " + String(pumpState));
 
     ch1State = (uint8_t)EEPROM.read(496);
-    Serial.println("ch1State: " + String(ch1State));
     if (ch1State == 255) // if not have eeprom data use default value
     {
+        Serial.println("Load ch1State = " + String(ch1State) + ", ch1State not found in EEPROM, using default value");
         ch1State = 0;
     }
+    Serial.println("ch1State: " + String(ch1State));
 
     ch2State = (uint8_t)EEPROM.read(495);
-    Serial.println("ch2State: " + String(ch2State));
     if (ch2State == 255) // if not have eeprom data use default value
     {
+        Serial.println("Load ch2State = " + String(ch2State) + ", ch2State not found in EEPROM, using default value");
         ch2State = 0;
     }
+    Serial.println("ch2State: " + String(ch2State));
 
     ch3State = (uint8_t)EEPROM.read(494);
-    Serial.println("ch3State: " + String(ch3State));
     if (ch3State == 255) // if not have eeprom data use default value
     {
+        Serial.println("Load ch3State = " + String(ch3State) + ", ch3State not found in EEPROM, using default value");
         ch3State = 0;
     }
+    Serial.println("ch3State: " + String(ch3State));
 
     ch4State = (uint8_t)EEPROM.read(493);
-    Serial.println("ch4State: " + String(ch4State));
     if (ch4State == 255) // if not have eeprom data use default value
     {
+        Serial.println("Load ch4State = " + String(ch4State) + ", ch4State not found in EEPROM, using default value");
         ch4State = 0;
     }
+    Serial.println("ch4State: " + String(ch4State));
 
     EEPROM.end();
 
@@ -444,7 +496,9 @@ void setup()
     // -- ตั้งค่าการจัดการ updateServer
     iotWebConf.setupUpdateServer(
         [](const char *updatePath)
-        { httpUpdater.setup(&server, updatePath); },
+        {
+            httpUpdater.setup(&server, updatePath);
+        },
         [](const char *userName, char *password)
         {
             httpUpdater.updateCredentials(userName, password);
@@ -468,6 +522,7 @@ void setup()
     node.postTransmission(postTransmission);
     node.begin(ADDRESS, RS485Serial);
 
+    delay(1000);
     iotSetup();
 }
 
@@ -487,11 +542,13 @@ void loop()
         sampleUpdate++;
 
         time1sec();
+        onOffUpdate();
+        display_update(); // อัพเดทจอ OLED
+        outputControl();
 
         if (sampleUpdate >= 5)
         {
             readSensorData();
-            display_update(); // อัพเดทจอ OLED
 
             sampleUpdate = 0;
         }
@@ -500,60 +557,87 @@ void loop()
 
 void outputControl()
 {
-    if (ch1Timer)
+    displayStatus = "";
+
+    if (pumpTimer)
     {
         digitalWrite(PUMP, HIGH);
+
+        if (ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0)
+        {
+            displayStatus = "P" + String(pumpTimer);
+        }
+        else
+        {
+            displayStatus = "P";
+        }
+        pumpTimer--;
+    }
+    else if (!ch1Timer || !ch2Timer || !ch3Timer || !ch4Timer)
+    {
+        digitalWrite(PUMP, LOW);
+        displayStatus = "OFF";
+    }
+
+    if (ch1Timer)
+    {
         digitalWrite(CH1, HIGH);
-        displayStatus = "Pump+CH1 " + String(ch1Timer);
+        displayStatus += "+C1:" + String(ch1Timer);
         ch1Timer--;
     }
     else if (ch2Timer)
     {
-        digitalWrite(PUMP, HIGH);
         digitalWrite(CH1, LOW);
         digitalWrite(CH2, HIGH);
-        displayStatus = "Pump+CH2 " + String(ch2Timer);
+        displayStatus += "+C2:" + String(ch2Timer);
         ch2Timer--;
     }
     else if (ch3Timer)
     {
-        digitalWrite(PUMP, HIGH);
         digitalWrite(CH2, LOW);
         digitalWrite(CH3, HIGH);
-        displayStatus = "Pump+CH3 " + String(ch3Timer);
+        displayStatus += "+C3:" + String(ch3Timer);
         ch3Timer--;
     }
     else if (ch4Timer)
     {
-        digitalWrite(PUMP, HIGH);
         digitalWrite(CH3, LOW);
         digitalWrite(CH4, HIGH);
-        displayStatus = "Pump+CH4 " + String(ch4Timer);
+        displayStatus += "+C4:" + String(ch4Timer);
         ch4Timer--;
     }
-    else if (pumpTimer)
+    else
     {
-        digitalWrite(PUMP, LOW);
         digitalWrite(CH1, LOW);
         digitalWrite(CH2, LOW);
         digitalWrite(CH3, LOW);
         digitalWrite(CH4, LOW);
-        displayStatus = "OFF";
     }
+
+    Serial.println(displayStatus);
 }
 
+void onOffUpdate()
+{
+    // Calculate onTimer: set to 1 if any of ch1-ch4 is on, otherwise 0
+    bool thisState = (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0 || pumpTimer > 0) ? 1 : 0;
+
+    if (thisState != onState)
+    {
+        iot.eventUpdate("Start", thisState); // อัพเดท event ไปยัง server
+        onState = thisState;
+    }
+}
 // ------------------------------------------------------------------
 // Read sensor data based on the defined sensor model
 // ------------------------------------------------------------------
 void readSensorData()
 {
-    // Calculate onTimer: set to 1 if any of ch1-ch4 is on, otherwise 0
-    uint8_t onTimer = (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0 || pumpTimer > 0) ? 1 : 0;
 
 // Determine which sensor model is defined and execute accordingly
 #if defined(NOSENSOR_MODEL)
-    // No sensors - only send the onTimer state
-    float payload[numVariables] = {bool(onTimer)};
+    // No sensors - only send the onState state
+    float payload[numVariables] = {bool(onState)};
     iot.update(payload);
 #elif defined(HUMID_MODEL)
     // Only humidity sensor
@@ -677,42 +761,6 @@ void readSensorData()
 #endif
 }
 
-void preTransmission() /* transmission program when triggered*/
-{
-    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-
-    digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
-    digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/
-    delay(1);                   // When both RE and DE Pin are high, converter is allow to transmit communication
-}
-
-void postTransmission() /* Reception program when triggered*/
-{
-
-    delay(3);                   // When both RE and DE Pin are low, converter is allow to receive communication
-    digitalWrite(MAX485_RE, 0); /* put RE Pin to low*/
-    digitalWrite(MAX485_DE, 0); /* put DE Pin to low*/
-}
-
-float hexToFloat(uint32_t hex_value)
-{
-    union
-    {
-        uint32_t i;
-        float f;
-    } u;
-
-    u.i = hex_value;
-    return u.f;
-}
-
-void disConnect()
-{
-    pinMode(MAX485_RE, INPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    pinMode(MAX485_DE, INPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-}
-
 void display_update()
 {
     // แสดงสถานะการเชื่อมต่อ
@@ -772,8 +820,7 @@ void display_update()
         {
             displaytime = 5;
             prev_state = curr_state;
-            noti = "-State-\n\nwifi\nconnect\nsuccess\n" + String(WiFi.RSSI()) +
-                   " dBm";
+            noti = "-State-\n\nwifi\nconnect\nsuccess\n" + String(WiFi.RSSI()) + " dBm";
         }
     }
 
@@ -813,11 +860,13 @@ void display_update()
         oled.setTextSize(1);
         oled.setCursor(0, 0);
         oled.print("SmartFarm");
+
+        oled.setCursor(0, 40);
+        oled.print(displayStatus);
     }
 
     // แสดงไอคอนสถานการเชื่อมต่อ
-    if (curr_state == iotwebconf::NotConfigured ||
-        curr_state == iotwebconf::ApMode)
+    if (curr_state == iotwebconf::NotConfigured || curr_state == iotwebconf::ApMode)
         oled.drawBitmap(55, 0, wifi_ap, 9, 8, 1); // แสดงไอคอน AP Mode
     else if (curr_state == iotwebconf::Connecting)
     {
@@ -849,6 +898,42 @@ void display_update()
     oled.display(); // แสดงผลบนจอ OLED
 }
 
+void preTransmission() /* transmission program when triggered*/
+{
+    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+
+    digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
+    digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/
+    delay(1);                   // When both RE and DE Pin are high, converter is allow to transmit communication
+}
+
+void postTransmission() /* Reception program when triggered*/
+{
+
+    delay(3);                   // When both RE and DE Pin are low, converter is allow to receive communication
+    digitalWrite(MAX485_RE, 0); /* put RE Pin to low*/
+    digitalWrite(MAX485_DE, 0); /* put DE Pin to low*/
+}
+
+float hexToFloat(uint32_t hex_value)
+{
+    union
+    {
+        uint32_t i;
+        float f;
+    } u;
+
+    u.i = hex_value;
+    return u.f;
+}
+
+void disConnect()
+{
+    pinMode(MAX485_RE, INPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, INPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+}
+
 // ฟังก์ชันจัดการหน้าเว็บหลัก
 void handleRoot()
 {
@@ -873,7 +958,10 @@ void handleRoot()
 }
 
 // ฟังก์ชันที่ทำงานเมื่อบันทึกการตั้งค่า
-void configSaved() { Serial.println("Configuration was updated."); }
+void configSaved()
+{
+    Serial.println("Configuration was updated.");
+}
 
 // ฟังก์ชันที่ทำงานเมื่อเชื่อมต่อ WiFi สำเร็จ
 void wifiConnected()
@@ -899,13 +987,13 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
     bool valid = true;
 
     /*
-      int l = webRequestWrapper->arg(stringParam.getId()).length();
-      if (l < 3)
-      {
-        stringParam.errorMessage = "Please provide at least 3 characters for this
-      test!"; valid = false;
-      }
-    */
+        int l = webRequestWrapper->arg(stringParam.getId()).length();
+        if (l < 3)
+        {
+          stringParam.errorMessage = "Please provide at least 3 characters for this
+        test!"; valid = false;
+        }
+      */
     return valid;
 }
 
