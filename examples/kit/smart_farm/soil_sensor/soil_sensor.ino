@@ -187,7 +187,7 @@ uint8_t numVariables;
 
 float humidity, temperature, ph;
 uint32_t conductivity, nitrogen, phosphorus, potassium;
-uint8_t state; // 0-auto  1-timer  2-off
+uint8_t state; // 0-off  1-timer  2-auto
 uint16_t interval;
 uint16_t pumpTimer, ch1Timer, ch2Timer, ch3Timer, ch4Timer;
 String displayStatus;
@@ -195,6 +195,9 @@ String displayStatus;
 bool pumpState, ch1State, ch2State, ch3State, ch4State;
 bool pumpUse, ch1Use, ch2Use, ch3Use, ch4Use;
 bool onState;
+uint8_t humidLowCutoff, humidHighCutoff;
+
+
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
 {
@@ -204,76 +207,17 @@ void handleEvent(String event, String value)
         Serial.println("Start: " + value);
         if (value.toInt())
         {
-            onState = true;
-
-            uint8_t chNum = 0;
-
-            if (ch1Use)
-            {
-                ch1Timer = interval;
-                iot.eventUpdate("c1", 1);
-                chNum++;
-            }
-            if (ch2Use)
-            {
-                ch2Timer = interval;
-                chNum++;
-
-                if (!ch1Use)
-                    iot.eventUpdate("c2", 1);
-            }
-            if (ch3Use)
-            {
-                ch3Timer = interval;
-                chNum++;
-
-                if (!ch1Use && !ch2Use)
-                    iot.eventUpdate("c3", 1);
-            }
-            if (ch4Use)
-            {
-                ch4Timer = interval;
-                chNum++;
-
-                if (!ch1Use && !ch2Use && !ch3Use)
-                    iot.eventUpdate("c4", 1);
-            }
-
-            if (chNum == 0)
-                chNum = 1;
-
-            if (pumpUse)
-            {
-                iot.eventUpdate("P", 1);
-                pumpTimer = chNum * interval;
-            }
+            onAll();
         }
         else
-        {
-            digitalWrite(PUMP, LOW);
-            iot.eventUpdate("P", 0);
-            digitalWrite(CH1, LOW);
-            iot.eventUpdate("c1", 0);
-            digitalWrite(CH2, LOW);
-            iot.eventUpdate("c2", 0);
-            digitalWrite(CH3, LOW);
-            iot.eventUpdate("c3", 0);
-            digitalWrite(CH4, LOW);
-            iot.eventUpdate("c4", 0);
-            pumpTimer = 0;
-            ch1Timer = 0;
-            ch2Timer = 0;
-            ch3Timer = 0;
-            ch4Timer = 0;
-            onState = false;
-        }
+            offAll();
     }
     else if (event == "M")
     {
         Serial.println("Mode: " + value);
         if (value == "auto" || value == "null")
         {
-            state = 0;
+            state = 2;
         }
         else if (value == "timer")
         {
@@ -281,7 +225,7 @@ void handleEvent(String event, String value)
         }
         else if (value == "off")
         {
-            state = 2;
+            state = 0;
         }
 
         EEPROM.write(500, state);
@@ -406,13 +350,22 @@ void handleEvent(String event, String value)
         EEPROM.write(494, (uint8_t)ch3Use);
         EEPROM.commit();
     }
-    else if (event == "C4u")
+    else if (event == "Hl")
     {
-        Serial.println("CH4 use : " + value);
-        ch4Use = (bool)value.toInt();
+        Serial.println("Humid low cutoff : " + value);
+        humidLowCutoff = (uint8_t)value.toInt();
 
         // Save ch4State to EEPROM
-        EEPROM.write(493, (uint8_t)ch4Use);
+        EEPROM.write(489, (uint8_t)humidLowCutoff);
+        EEPROM.commit();
+    }
+    else if (event == "Hh")
+    {
+        Serial.println("Humid high cutoff : " + value);
+        humidHighCutoff = (uint8_t)value.toInt();
+
+        // Save ch4State to EEPROM
+        EEPROM.write(488, (uint8_t)humidHighCutoff);
         EEPROM.commit();
     }
     EEPROM.end();
@@ -436,7 +389,7 @@ void iotSetup()
     if (state == 255) // if not have eeprom data use default value
     {
         Serial.println("Load state = " + String(state) + ", state not found in EEPROM, using default value");
-        state = 2;
+        state = 0;
     }
     Serial.println("state: " + String(state));
 
@@ -479,6 +432,22 @@ void iotSetup()
         ch4Use = 0;
     }
     Serial.println("ch4Use: " + String(ch4Use));
+
+    humidLowCutoff = (uint8_t)EEPROM.read(489);
+    if (humidLowCutoff == 255) // if not have eeprom data use default value
+    {
+        Serial.println("Load humidLowCutoff = " + String(humidLowCutoff) + ", humidLowCutoff not found in EEPROM, using default value = 40%");
+        humidLowCutoff = 20;
+    }
+    Serial.println("humidLowCutoff: " + String(humidLowCutoff));
+
+    humidHighCutoff = (uint8_t)EEPROM.read(488);
+    if (humidHighCutoff == 255) // if not have eeprom data use default value
+    {
+        Serial.println("Load humidHighCutoff = " + String(humidHighCutoff) + ", humidHighCutoff not found in EEPROM, using default value = 60%");
+        humidHighCutoff = 30;
+    }
+    Serial.println("humidHighCutoff: " + String(humidHighCutoff));
 
     EEPROM.end();
 
@@ -717,6 +686,33 @@ void outputControl()
         digitalWrite(CH3, LOW);
         digitalWrite(CH4, LOW);
     }
+
+#if !defined(NOSENSOR_MODEL) // ถ้ามีเซนเซอร์
+
+    bool thisState = (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0 || pumpTimer > 0) ? 1 : 0;
+    if (thisState && state) // if on and timer or auto sata
+    {
+        if (humidity >= humidHighCutoff) // ถ้าค่าความชื้นสูงกว่าเกณฑ์
+        {
+            newInterval = interval - ch1Timer;
+            ch1Timer = 1;
+
+            if (ch2Timer)
+                ch2Timer = newInterval;
+            if (ch3Timer)
+                ch3Timer = newInterval;
+            if (ch4Timer)
+                ch4Timer = newInterval;
+
+            if (pumpUse)
+                pumpTimer = ch1Timer + ch2Timer + ch3Timer + ch4Timer;
+        }
+    }
+    else if (humidity <= humidLowCutoff && state == 2) // ถ้าค่าความชื้นต่ำกว่าเกณฑ์ and in auto mode
+    {
+        onAll();
+    }
+#endif
 
     Serial.println(displayStatus);
 }
@@ -1165,4 +1161,71 @@ void reboot()
     server.send(200, "text/plain", "rebooting");
     delay(1000);
     ESP.restart(); // รีสตาร์ท ESP
+}
+
+void offAll()
+{
+    digitalWrite(PUMP, LOW);
+    iot.eventUpdate("P", 0);
+    digitalWrite(CH1, LOW);
+    iot.eventUpdate("c1", 0);
+    digitalWrite(CH2, LOW);
+    iot.eventUpdate("c2", 0);
+    digitalWrite(CH3, LOW);
+    iot.eventUpdate("c3", 0);
+    digitalWrite(CH4, LOW);
+    iot.eventUpdate("c4", 0);
+    pumpTimer = 0;
+    ch1Timer = 0;
+    ch2Timer = 0;
+    ch3Timer = 0;
+    ch4Timer = 0;
+    onState = false;
+}
+
+void onAll()
+{
+    onState = true;
+
+    uint8_t chNum = 0;
+
+    if (ch1Use)
+    {
+        ch1Timer = interval;
+        iot.eventUpdate("c1", 1);
+        chNum++;
+    }
+    if (ch2Use)
+    {
+        ch2Timer = interval;
+        chNum++;
+
+        if (!ch1Use)
+            iot.eventUpdate("c2", 1);
+    }
+    if (ch3Use)
+    {
+        ch3Timer = interval;
+        chNum++;
+
+        if (!ch1Use && !ch2Use)
+            iot.eventUpdate("c3", 1);
+    }
+    if (ch4Use)
+    {
+        ch4Timer = interval;
+        chNum++;
+
+        if (!ch1Use && !ch2Use && !ch3Use)
+            iot.eventUpdate("c4", 1);
+    }
+
+    if (chNum == 0)
+        chNum = 1;
+
+    if (pumpUse)
+    {
+        iot.eventUpdate("P", 1);
+        pumpTimer = chNum * interval;
+    }
 }
