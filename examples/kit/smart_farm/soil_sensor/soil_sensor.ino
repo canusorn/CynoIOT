@@ -708,13 +708,14 @@ void outputControl()
     if (pumpDelayTimer)
     {
         pumpDelayTimer--;
-        displayStatus = "D" + String(pumpDelayTimer); // Show countdown
 
-        // When delay is finished, start the pump
-        if (pumpDelayTimer == 0 && pumpTimer > 0)
+        if (ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0)
         {
-            digitalWrite(PUMP, HIGH);
-            iot.eventUpdate("P", 1);
+            displayStatus = "D" + String(pumpDelayTimer);
+        }
+        else
+        {
+            displayStatus = "D+";
         }
     }
     // Normal pump operation after delay
@@ -723,13 +724,10 @@ void outputControl()
         digitalWrite(PUMP, HIGH);
 
         if (ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0)
-        {
             displayStatus = "P" + String(pumpTimer);
-        }
         else
-        {
             displayStatus = "P+";
-        }
+
         pumpTimer--;
     }
     else if (!pumpTimer)
@@ -737,7 +735,6 @@ void outputControl()
         digitalWrite(PUMP, LOW);
         if (!pumpTimer && !ch1Timer && !ch2Timer && !ch3Timer && !ch4Timer)
         {
-            digitalWrite(PUMP, LOW);
             displayStatus = "OFF";
         }
     }
@@ -749,15 +746,15 @@ void outputControl()
         ch1Timer--;
 
         // open next valve when overlapValveConst time
-        if (ch1Timer == overlapValveConst && ch2Timer)
+        if (ch1Timer <= overlapValveConst && ch2Timer)
         {
             digitalWrite(CH2, HIGH);
         }
-        else if(ch1Timer == overlapValveConst && ch3Timer)
+        else if (ch1Timer <= overlapValveConst && ch3Timer)
         {
             digitalWrite(CH3, HIGH);
         }
-        else if(ch1Timer == overlapValveConst && ch4Timer)
+        else if (ch1Timer <= overlapValveConst && ch4Timer)
         {
             digitalWrite(CH4, HIGH);
         }
@@ -770,11 +767,11 @@ void outputControl()
         ch2Timer--;
 
         // open next valve when overlapValveConst time
-        if (ch2Timer == overlapValveConst && ch3Timer)
+        if (ch2Timer <= overlapValveConst && ch3Timer)
         {
             digitalWrite(CH3, HIGH);
         }
-        else if(ch2Timer == overlapValveConst && ch4Timer)
+        else if (ch2Timer <= overlapValveConst && ch4Timer)
         {
             digitalWrite(CH4, HIGH);
         }
@@ -787,7 +784,7 @@ void outputControl()
         ch3Timer--;
 
         // open next valve when overlapValveConst time
-        if (ch3Timer == overlapValveConst && ch4Timer)
+        if (ch3Timer <= overlapValveConst && ch4Timer)
         {
             digitalWrite(CH4, HIGH);
         }
@@ -809,13 +806,13 @@ void outputControl()
 
 #if !defined(NOSENSOR_MODEL) // ถ้ามีเซนเซอร์
 
-    bool thisState = (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0 || pumpTimer > 0) ? 1 : 0;
+    bool thisState = (ch1Timer > 0 || pumpTimer > 0) ? 1 : 0;
     if (thisState && state) // if on and timer or auto sata
     {
         if (humidity >= humidHighCutoff) // ถ้าค่าความชื้นสูงกว่าเกณฑ์
         {
             uint8_t newInterval = interval - ch1Timer;
-            ch1Timer = 1;
+            ch1Timer = overlapValveConst + 1;
 
             if (ch2Timer && ch2Use)
                 ch2Timer = newInterval;
@@ -825,7 +822,7 @@ void outputControl()
                 ch4Timer = newInterval;
 
             if (pumpUse)
-                pumpTimer = ch1Timer + ch2Timer + ch3Timer + ch4Timer;
+                pumpTimer = ch1Timer + ch2Timer + ch3Timer + ch4Timer - pumpDelayConst;
         }
     }
     else if (humidity <= humidLowCutoff && state == 2) // ถ้าค่าความชื้นต่ำกว่าเกณฑ์ and in auto mode
@@ -1293,16 +1290,17 @@ void offAll()
     digitalWrite(CH4, LOW);
     iot.eventUpdate("c4", 0);
     pumpTimer = 0;
+    pumpDelayTimer = 0;
     ch1Timer = 0;
     ch2Timer = 0;
     ch3Timer = 0;
     ch4Timer = 0;
-    onState = false;
+    // onState = false;
 }
 
 void onAll()
 {
-    onState = true;
+    // onState = true;
 
     uint8_t chNum = 0;
 
@@ -1343,7 +1341,7 @@ void onAll()
     if (pumpUse)
     {
         iot.eventUpdate("P", 1);
-        pumpTimer = chNum * interval;
+        pumpTimer = chNum * interval - pumpDelayConst;
 
         // if use zone -> delay pump
         if (ch1Use || ch2Use || ch3Use || ch4Use)
