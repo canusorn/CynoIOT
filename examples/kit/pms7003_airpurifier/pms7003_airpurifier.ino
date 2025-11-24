@@ -174,8 +174,8 @@ uint8_t buttonPress;
 uint8_t state; // 0-auto  1-sleep  2-narmal   3-max
 
 #ifdef POWER_MODEL
-const uint8_t sleeppwm = 72, normalpwm = 120, maxpwm = 240;
-const uint8_t STARTPWM = 20;
+const uint8_t sleeppwm = 30, normalpwm = 120, maxpwm = 240;
+const uint8_t STARTPWM = 15;
 #elif defined(ECO_MODEL)
 const uint8_t sleeppwm = 190, normalpwm = 220, maxpwm = 255;
 const uint8_t STARTPWM = 150;
