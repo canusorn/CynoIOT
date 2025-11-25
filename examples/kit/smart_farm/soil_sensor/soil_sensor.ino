@@ -1,11 +1,11 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 // เลือกรุ่นที่ใช้งาน
-// #define NOSENSOR_MODEL
+#define NOSENSOR_MODEL
 // #define HUMID_MODEL
 // #define TEMP_HUMID_MODEL
 // #define TEMP_HUMID_EC_MODEL
-#define ALL_7IN1_MODEL
+// #define ALL_7IN1_MODEL
 
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
@@ -200,24 +200,37 @@ uint8_t pumpDelayTimer;
 bool onState;
 uint8_t humidLowCutoff, humidHighCutoff;
 
+// Enum for working mode states
+enum WorkingMode : uint8_t
+{
+    NO_WORKING = 1, // ไม่ได้ทำงาน
+    SEQUENCE = 2    // เรียงทีละโซน
+};
+
+WorkingMode workingMode = NO_WORKING;
+
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
 {
     EEPROM.begin(512);
-    if (event == "S") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
+    if (event == "SQ") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
     {
         Serial.println("Start: " + value);
         if (value.toInt())
         {
+            workingMode = SEQUENCE;
             onAll();
         }
         else
+        {
+            workingMode = NO_WORKING;
             offAll();
+        }
     }
     else if (event == "M")
     {
         Serial.println("Mode: " + value);
-        if (value == "auto" || value == "null")
+        if (value == "auto")
         {
             state = 2;
         }
@@ -225,7 +238,7 @@ void handleEvent(String event, String value)
         {
             state = 1;
         }
-        else if (value == "off")
+        else if (value == "off" || value == "null")
         {
             state = 0;
         }
@@ -236,7 +249,7 @@ void handleEvent(String event, String value)
     else if (event == "In")
     {
         Serial.println("Interval: " + value);
-        interval = (uint8_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน interval
+        interval = (uint16_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน interval
 
         uint16_t currentValue = (uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8);
         if (currentValue != interval)
@@ -251,22 +264,25 @@ void handleEvent(String event, String value)
             Serial.println("Value already matches, skipping write");
         }
     }
-    else if (event == "P")
+    else if (event == "P") // Pump
     {
-        if (value.toInt())
+        if (value.toInt() && workingMode == NO_WORKING)
         {
-            pumpTimer = interval;
             iot.eventUpdate("P", 1);
         }
-        else
+        else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
-            pumpTimer = 0;
             iot.eventUpdate("P", 0);
         }
+        else if (workingMode == SEQUENCE)
+        {
+            bool pumpState = digitalRead(PUMP);
+            iot.eventUpdate("P", pumpState);
+        }
     }
-    else if (event == "c1")
+    else if (event == "c1") // Channel 1
     {
-        if (ch1Use && value.toInt())
+        if (ch1Use && value.toInt() && workingMode == NO_WORKING)
         {
             ch1Timer = interval;
             iot.eventUpdate("c1", 1);
@@ -282,16 +298,21 @@ void handleEvent(String event, String value)
             ch4Timer = 0;
             digitalWrite(CH4, LOW);
         }
-        else
+        else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
             ch1Timer = 0;
             digitalWrite(CH1, LOW);
             iot.eventUpdate("c1", 0);
         }
+        else if (workingMode == SEQUENCE)
+        {
+            bool ch1State = digitalRead(CH1);
+            iot.eventUpdate("c1", ch1State);
+        }
     }
-    else if (event == "c2")
+    else if (event == "c2") // Channel 2
     {
-        if (ch2Use && value.toInt())
+        if (ch2Use && value.toInt() && workingMode == NO_WORKING)
         {
             ch2Timer = interval;
             iot.eventUpdate("c2", 1);
@@ -307,16 +328,21 @@ void handleEvent(String event, String value)
             ch4Timer = 0;
             digitalWrite(CH4, LOW);
         }
-        else
+        else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
             ch2Timer = 0;
             digitalWrite(CH2, LOW);
             iot.eventUpdate("c2", 0);
         }
+        else if (workingMode == SEQUENCE)
+        {
+            bool ch2State = digitalRead(CH2);
+            iot.eventUpdate("c2", ch2State);
+        }
     }
-    else if (event == "c3")
+    else if (event == "c3") // Channel 3
     {
-        if (ch3Use && value.toInt())
+        if (ch3Use && value.toInt() && workingMode == NO_WORKING)
         {
             ch3Timer = interval;
             iot.eventUpdate("c3", 1);
@@ -332,16 +358,21 @@ void handleEvent(String event, String value)
             ch4Timer = 0;
             digitalWrite(CH4, LOW);
         }
-        else
+        else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
             ch3Timer = 0;
             digitalWrite(CH3, LOW);
             iot.eventUpdate("c3", 0);
         }
+        else if (workingMode == SEQUENCE)
+        {
+            bool ch3State = digitalRead(CH3);
+            iot.eventUpdate("c3", ch3State);
+        }
     }
-    else if (event == "c4")
+    else if (event == "c4") // Channel 4
     {
-        if (ch4Use && value.toInt())
+        if (ch4Use && value.toInt() && workingMode == NO_WORKING)
         {
             ch4Timer = interval;
             iot.eventUpdate("c4", 1);
@@ -357,11 +388,16 @@ void handleEvent(String event, String value)
             ch3Timer = 0;
             digitalWrite(CH3, LOW);
         }
-        else
+        else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
             ch4Timer = 0;
             digitalWrite(CH4, LOW);
             iot.eventUpdate("c4", 0);
+        }
+        else if (workingMode == SEQUENCE)
+        {
+            bool ch4State = digitalRead(CH4);
+            iot.eventUpdate("c4", ch4State);
         }
     }
     else if (event == "Pu")
@@ -704,104 +740,107 @@ void outputControl()
 {
     displayStatus = "";
 
-    // Handle pump delay countdown
-    if (pumpDelayTimer)
+    if (workingMode == SEQUENCE)
     {
-        pumpDelayTimer--;
-
-        if (ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0)
+        // Handle pump delay countdown
+        if (pumpDelayTimer)
         {
-            displayStatus = "D" + String(pumpDelayTimer);
+            pumpDelayTimer--;
+
+            if (ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0)
+            {
+                displayStatus = "D" + String(pumpDelayTimer);
+            }
+            else
+            {
+                displayStatus = "D+";
+            }
         }
-        else
+        // Normal pump operation after delay
+        else if (pumpTimer)
         {
-            displayStatus = "D+";
+            digitalWrite(PUMP, HIGH);
+
+            if (ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0)
+                displayStatus = "P" + String(pumpTimer);
+            else
+                displayStatus = "P+";
+
+            pumpTimer--;
         }
-    }
-    // Normal pump operation after delay
-    else if (pumpTimer)
-    {
-        digitalWrite(PUMP, HIGH);
-
-        if (ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0)
-            displayStatus = "P" + String(pumpTimer);
-        else
-            displayStatus = "P+";
-
-        pumpTimer--;
-    }
-    else if (!pumpTimer)
-    {
-        digitalWrite(PUMP, LOW);
-        if (!pumpTimer && !ch1Timer && !ch2Timer && !ch3Timer && !ch4Timer)
+        else if (!pumpTimer)
         {
-            displayStatus = "OFF";
+            digitalWrite(PUMP, LOW);
+            if (!pumpTimer && !ch1Timer && !ch2Timer && !ch3Timer && !ch4Timer)
+            {
+                displayStatus = "OFF";
+            }
         }
-    }
 
-    if (ch1Timer)
-    {
-        digitalWrite(CH1, HIGH);
-        displayStatus += "C1:" + String(ch1Timer);
-        ch1Timer--;
-
-        // open next valve when overlapValveConst time
-        if (ch1Timer <= overlapValveConst && ch2Timer)
+        if (ch1Timer)
         {
+            digitalWrite(CH1, HIGH);
+            displayStatus += "C1:" + String(ch1Timer);
+            ch1Timer--;
+
+            // open next valve when overlapValveConst time
+            if (ch1Timer <= overlapValveConst && ch2Timer)
+            {
+                digitalWrite(CH2, HIGH);
+            }
+            else if (ch1Timer <= overlapValveConst && ch3Timer)
+            {
+                digitalWrite(CH3, HIGH);
+            }
+            else if (ch1Timer <= overlapValveConst && ch4Timer)
+            {
+                digitalWrite(CH4, HIGH);
+            }
+        }
+        else if (ch2Timer)
+        {
+            digitalWrite(CH1, LOW);
             digitalWrite(CH2, HIGH);
-        }
-        else if (ch1Timer <= overlapValveConst && ch3Timer)
-        {
-            digitalWrite(CH3, HIGH);
-        }
-        else if (ch1Timer <= overlapValveConst && ch4Timer)
-        {
-            digitalWrite(CH4, HIGH);
-        }
-    }
-    else if (ch2Timer)
-    {
-        digitalWrite(CH1, LOW);
-        digitalWrite(CH2, HIGH);
-        displayStatus += "C2:" + String(ch2Timer);
-        ch2Timer--;
+            displayStatus += "C2:" + String(ch2Timer);
+            ch2Timer--;
 
-        // open next valve when overlapValveConst time
-        if (ch2Timer <= overlapValveConst && ch3Timer)
+            // open next valve when overlapValveConst time
+            if (ch2Timer <= overlapValveConst && ch3Timer)
+            {
+                digitalWrite(CH3, HIGH);
+            }
+            else if (ch2Timer <= overlapValveConst && ch4Timer)
+            {
+                digitalWrite(CH4, HIGH);
+            }
+        }
+        else if (ch3Timer)
         {
+            digitalWrite(CH2, LOW);
             digitalWrite(CH3, HIGH);
-        }
-        else if (ch2Timer <= overlapValveConst && ch4Timer)
-        {
-            digitalWrite(CH4, HIGH);
-        }
-    }
-    else if (ch3Timer)
-    {
-        digitalWrite(CH2, LOW);
-        digitalWrite(CH3, HIGH);
-        displayStatus += "C3:" + String(ch3Timer);
-        ch3Timer--;
+            displayStatus += "C3:" + String(ch3Timer);
+            ch3Timer--;
 
-        // open next valve when overlapValveConst time
-        if (ch3Timer <= overlapValveConst && ch4Timer)
-        {
-            digitalWrite(CH4, HIGH);
+            // open next valve when overlapValveConst time
+            if (ch3Timer <= overlapValveConst && ch4Timer)
+            {
+                digitalWrite(CH4, HIGH);
+            }
         }
-    }
-    else if (ch4Timer)
-    {
-        digitalWrite(CH3, LOW);
-        digitalWrite(CH4, HIGH);
-        displayStatus += "C4:" + String(ch4Timer);
-        ch4Timer--;
-    }
-    else
-    {
-        digitalWrite(CH1, LOW);
-        digitalWrite(CH2, LOW);
-        digitalWrite(CH3, LOW);
-        digitalWrite(CH4, LOW);
+        else if (ch4Timer)
+        {
+            digitalWrite(CH3, LOW);
+            digitalWrite(CH4, HIGH);
+            displayStatus += "C4:" + String(ch4Timer);
+            ch4Timer--;
+        }
+        else
+        {
+            digitalWrite(CH1, LOW);
+            digitalWrite(CH2, LOW);
+            digitalWrite(CH3, LOW);
+            digitalWrite(CH4, LOW);
+        }
     }
 
 #if !defined(NOSENSOR_MODEL) // ถ้ามีเซนเซอร์
@@ -822,11 +861,12 @@ void outputControl()
                 ch4Timer = newInterval;
 
             if (pumpUse)
-                pumpTimer = ch1Timer + ch2Timer + ch3Timer + ch4Timer - pumpDelayConst;
+                pumpTimer = ch1Timer + ch2Timer + ch3Timer + ch4Timer - pumpDelayConst - 3;
         }
     }
     else if (humidity <= humidLowCutoff && state == 2) // ถ้าค่าความชื้นต่ำกว่าเกณฑ์ and in auto mode
     {
+        workingMode = SEQUENCE;
         onAll();
     }
 #endif
@@ -841,47 +881,52 @@ void onOffUpdate()
 
     if (thisState != onState)
     {
-        iot.eventUpdate("S", thisState); // อัพเดท event ไปยัง server
         onState = thisState;
+
+        if (workingMode == SEQUENCE && !thisState)
+            iot.eventUpdate("SQ", 0); // อัพเดท event ไปยัง server
     }
 
-    if (pumpTimer == 1)
+    if (workingMode == SEQUENCE)
     {
-        iot.eventUpdate("P", 0);
-    }
-    if (ch1Timer == 1)
-    {
-        iot.eventUpdate("c1", 0);
+        if (pumpTimer == 1)
+        {
+            iot.eventUpdate("P", 0);
+        }
+        if (ch1Timer == 1)
+        {
+            iot.eventUpdate("c1", 0);
 
-        if (ch2Timer)
-            iot.eventUpdate("c2", 1);
+            if (ch2Timer)
+                iot.eventUpdate("c2", 1);
 
-        else if (ch3Timer)
-            iot.eventUpdate("c3", 1);
+            else if (ch3Timer)
+                iot.eventUpdate("c3", 1);
 
-        else if (ch4Timer)
-            iot.eventUpdate("c4", 1);
-    }
-    if (ch2Timer == 1)
-    {
-        iot.eventUpdate("c2", 0);
+            else if (ch4Timer)
+                iot.eventUpdate("c4", 1);
+        }
+        if (ch2Timer == 1)
+        {
+            iot.eventUpdate("c2", 0);
 
-        if (ch3Timer)
-            iot.eventUpdate("c3", 1);
+            if (ch3Timer)
+                iot.eventUpdate("c3", 1);
 
-        else if (ch4Timer)
-            iot.eventUpdate("c4", 1);
-    }
-    if (ch3Timer == 1)
-    {
-        iot.eventUpdate("c3", 0);
+            else if (ch4Timer)
+                iot.eventUpdate("c4", 1);
+        }
+        if (ch3Timer == 1)
+        {
+            iot.eventUpdate("c3", 0);
 
-        if (ch4Timer)
-            iot.eventUpdate("c4", 1);
-    }
-    if (ch4Timer == 1)
-    {
-        iot.eventUpdate("c4", 0);
+            if (ch4Timer)
+                iot.eventUpdate("c4", 1);
+        }
+        if (ch4Timer == 1)
+        {
+            iot.eventUpdate("c4", 0);
+        }
     }
 }
 // ------------------------------------------------------------------
@@ -1240,13 +1285,13 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
     bool valid = true;
 
     /*
-          int l = webRequestWrapper->arg(stringParam.getId()).length();
-          if (l < 3)
-          {
-            stringParam.errorMessage = "Please provide at least 3 characters for this
-          test!"; valid = false;
-          }
-        */
+            int l = webRequestWrapper->arg(stringParam.getId()).length();
+            if (l < 3)
+            {
+              stringParam.errorMessage = "Please provide at least 3 characters for this
+            test!"; valid = false;
+            }
+          */
     return valid;
 }
 
@@ -1341,7 +1386,7 @@ void onAll()
     if (pumpUse)
     {
         iot.eventUpdate("P", 1);
-        pumpTimer = chNum * interval - pumpDelayConst;
+        pumpTimer = chNum * interval - pumpDelayConst - 3;
 
         // if use zone -> delay pump
         if (ch1Use || ch2Use || ch3Use || ch4Use)
