@@ -126,6 +126,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
 
 // -- ประกาศฟังก์ชัน
 void handleRoot();
+void setPopup(String msg, uint8_t timeout = 3);
 // -- ฟังก์ชัน Callback
 void wifiConnected();
 void configSaved();
@@ -192,6 +193,8 @@ uint16_t interval;
 uint32_t pumpTimer;
 uint16_t ch1Timer, ch2Timer, ch3Timer, ch4Timer;
 String displayStatus;
+String popupStatus;
+uint8_t popupShowTimer;
 
 bool pumpState, ch1State, ch2State, ch3State, ch4State;
 bool pumpUse, ch1Use, ch2Use, ch3Use, ch4Use;
@@ -213,18 +216,20 @@ WorkingMode workingMode = NO_WORKING;
 void handleEvent(String event, String value)
 {
     EEPROM.begin(512);
-    if (event == "SQ") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
+    if (event == "SQ") // ตรวจสอบว่าเป็น event ชื่อ "SQ" Sequence หรือไม่
     {
-        Serial.println("Start: " + value);
+        Serial.println("Sequence: " + value);
         if (value.toInt())
         {
             workingMode = SEQUENCE;
             onAll();
+            setPopup(String("Sequence\nStart\n") + value + String(" s"));
         }
         else
         {
             workingMode = NO_WORKING;
             offAll();
+            setPopup("Sequence\nStop");
         }
     }
     else if (event == "M")
@@ -233,14 +238,17 @@ void handleEvent(String event, String value)
         if (value == "auto")
         {
             state = 2;
+            setPopup("Set to\nAuto\nMode");
         }
         else if (value == "timer")
         {
             state = 1;
+            setPopup("Set to\nTimer\nMode");
         }
         else if (value == "off" || value == "null")
         {
             state = 0;
+            setPopup("Set to\nOff\nMode");
         }
 
         EEPROM.write(500, state);
@@ -249,6 +257,7 @@ void handleEvent(String event, String value)
     else if (event == "In")
     {
         Serial.println("Interval: " + value);
+        setPopup(String("Interval\nSet to\n") + value + String(" s"));
         interval = (uint16_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน interval
 
         uint16_t currentValue = (uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8);
@@ -268,142 +277,127 @@ void handleEvent(String event, String value)
     {
         if (value.toInt() && workingMode == NO_WORKING)
         {
+            digitalWrite(PUMP, HIGH);
             iot.eventUpdate("P", 1);
+            setPopup("Pump\nOn");
+
+            // for protection pump on without valve on
+            if (!ch1Timer && !ch2Timer && !ch3Timer && !ch4Timer &&
+                !digitalRead(CH1) && !digitalRead(CH2) && !digitalRead(CH3) && !digitalRead(CH4) && ch1Use)
+                digitalWrite(CH1, HIGH);
         }
         else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
+            pumpTimer = 0;
+            digitalWrite(PUMP, LOW);
             iot.eventUpdate("P", 0);
+            setPopup("Pump\nOff");
         }
         else if (workingMode == SEQUENCE)
         {
-            bool pumpState = digitalRead(PUMP);
-            iot.eventUpdate("P", pumpState);
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Pump ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "c1") // Channel 1
     {
         if (ch1Use && value.toInt() && workingMode == NO_WORKING)
         {
-            ch1Timer = interval;
+            digitalWrite(CH1, HIGH);
             iot.eventUpdate("c1", 1);
-
-            // skip other ch
-            iot.eventUpdate("c2", 0);
-            ch1Timer = 0;
-            digitalWrite(CH1, LOW);
-            iot.eventUpdate("c3", 0);
-            ch3Timer = 0;
-            digitalWrite(CH3, LOW);
-            iot.eventUpdate("c4", 0);
-            ch4Timer = 0;
-            digitalWrite(CH4, LOW);
+            setPopup("Ch1 On");
         }
         else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
             ch1Timer = 0;
             digitalWrite(CH1, LOW);
             iot.eventUpdate("c1", 0);
+            setPopup("Ch1 Off");
         }
         else if (workingMode == SEQUENCE)
         {
-            bool ch1State = digitalRead(CH1);
-            iot.eventUpdate("c1", ch1State);
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Ch1 ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "c2") // Channel 2
     {
         if (ch2Use && value.toInt() && workingMode == NO_WORKING)
         {
-            ch2Timer = interval;
+            digitalWrite(CH2, HIGH);
             iot.eventUpdate("c2", 1);
-
-            // skip ch1
-            iot.eventUpdate("c1", 0);
-            ch1Timer = 0;
-            digitalWrite(CH1, LOW);
-            iot.eventUpdate("c3", 0);
-            ch3Timer = 0;
-            digitalWrite(CH3, LOW);
-            iot.eventUpdate("c4", 0);
-            ch4Timer = 0;
-            digitalWrite(CH4, LOW);
+            setPopup("Ch2 On");
         }
         else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
             ch2Timer = 0;
             digitalWrite(CH2, LOW);
             iot.eventUpdate("c2", 0);
+            setPopup("Ch2 Off");
         }
         else if (workingMode == SEQUENCE)
         {
-            bool ch2State = digitalRead(CH2);
-            iot.eventUpdate("c2", ch2State);
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Ch2 ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "c3") // Channel 3
     {
         if (ch3Use && value.toInt() && workingMode == NO_WORKING)
         {
-            ch3Timer = interval;
+            digitalWrite(CH3, HIGH);
             iot.eventUpdate("c3", 1);
-
-            // skip ch1,ch2
-            iot.eventUpdate("c1", 0);
-            ch1Timer = 0;
-            digitalWrite(CH1, LOW);
-            iot.eventUpdate("c2", 0);
-            ch2Timer = 0;
-            digitalWrite(CH2, LOW);
-            iot.eventUpdate("c4", 0);
-            ch4Timer = 0;
-            digitalWrite(CH4, LOW);
+            setPopup("Ch3 On");
         }
         else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
             ch3Timer = 0;
             digitalWrite(CH3, LOW);
             iot.eventUpdate("c3", 0);
+            setPopup("Ch3 Off");
         }
         else if (workingMode == SEQUENCE)
         {
-            bool ch3State = digitalRead(CH3);
-            iot.eventUpdate("c3", ch3State);
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Ch3 ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "c4") // Channel 4
     {
         if (ch4Use && value.toInt() && workingMode == NO_WORKING)
         {
-            ch4Timer = interval;
+            digitalWrite(CH4, HIGH);
             iot.eventUpdate("c4", 1);
-
-            // skip ch1,ch2,ch3
-            iot.eventUpdate("c1", 0);
-            ch1Timer = 0;
-            digitalWrite(CH1, LOW);
-            iot.eventUpdate("c2", 0);
-            ch2Timer = 0;
-            digitalWrite(CH2, LOW);
-            iot.eventUpdate("c3", 0);
-            ch3Timer = 0;
-            digitalWrite(CH3, LOW);
+            setPopup("Ch4 On");
         }
         else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
             ch4Timer = 0;
             digitalWrite(CH4, LOW);
             iot.eventUpdate("c4", 0);
+            setPopup("Ch4 Off");
         }
         else if (workingMode == SEQUENCE)
         {
-            bool ch4State = digitalRead(CH4);
-            iot.eventUpdate("c4", ch4State);
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Ch4 ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "Pu")
     {
         Serial.println("Pump use : " + value);
         pumpUse = (bool)value.toInt();
+        setPopup(String("Pump\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save pumpState to EEPROM
         EEPROM.write(497, (uint8_t)pumpUse);
@@ -413,6 +407,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("CH1 use : " + value);
         ch1Use = (bool)value.toInt();
+        setPopup(String("Ch1\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save ch1State to EEPROM
         EEPROM.write(496, (uint8_t)ch1Use);
@@ -422,6 +417,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("CH2 use : " + value);
         ch2Use = (bool)value.toInt();
+        setPopup(String("Ch2\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save ch2State to EEPROM
         EEPROM.write(495, (uint8_t)ch2Use);
@@ -431,6 +427,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("CH3 use : " + value);
         ch3Use = (bool)value.toInt();
+        setPopup(String("Ch3\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save ch3State to EEPROM
         EEPROM.write(494, (uint8_t)ch3Use);
@@ -440,6 +437,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("CH4 use : " + value);
         ch4Use = (bool)value.toInt();
+        setPopup(String("Ch4\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save ch4State to EEPROM
         EEPROM.write(493, (uint8_t)ch4Use);
@@ -449,8 +447,9 @@ void handleEvent(String event, String value)
     {
         Serial.println("Humid low cutoff : " + value);
         humidLowCutoff = (uint8_t)value.toInt();
+        setPopup(String("Humid Low\nCutoff to\n") + value + String("%"));
 
-        // Save ch4State to EEPROM
+        // Save humidLowCutoff to EEPROM
         EEPROM.write(489, (uint8_t)humidLowCutoff);
         EEPROM.commit();
     }
@@ -458,8 +457,9 @@ void handleEvent(String event, String value)
     {
         Serial.println("Humid high cutoff : " + value);
         humidHighCutoff = (uint8_t)value.toInt();
+        setPopup(String("Humid High\nCutoff to\n") + value + String("%"));
 
-        // Save ch4State to EEPROM
+        // Save humidHighCutoff to EEPROM   
         EEPROM.write(488, (uint8_t)humidHighCutoff);
         EEPROM.commit();
     }
@@ -1143,6 +1143,16 @@ void display_update()
         oled.print(noti);
         Serial.println(noti);
     }
+    // แสดงข้อความแจ้งเตือน
+    else if (popupShowTimer)
+    {
+        popupShowTimer--;
+        oled.clearDisplay();
+        oled.setTextSize(1);
+        oled.setCursor(0, 0);
+        oled.print(popupStatus);
+        Serial.println(popupStatus);
+    }
     //------อัพเดทจอ OLED------
     else
     {
@@ -1394,4 +1404,10 @@ void onAll()
             pumpDelayTimer = pumpDelayConst;
         }
     }
+}
+
+void setPopup(String msg, uint8_t timeout)
+{
+    popupStatus = msg;
+    popupShowTimer = timeout;
 }
