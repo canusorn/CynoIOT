@@ -223,13 +223,13 @@ void handleEvent(String event, String value)
         {
             workingMode = SEQUENCE;
             onAll();
-            setPopup(String("Sequence\nStart\n") + value + String(" s"));
+            setPopup(String("Sequence\n\nStart\n\n") + value + String(" s"));
         }
         else
         {
             workingMode = NO_WORKING;
             offAll();
-            setPopup("Sequence\nStop");
+            setPopup("Sequence\n\nStop");
         }
     }
     else if (event == "M")
@@ -238,17 +238,17 @@ void handleEvent(String event, String value)
         if (value == "auto")
         {
             state = 2;
-            setPopup("Set to\nAuto\nMode");
+            setPopup("Set to\n\nAuto\n\nMode");
         }
         else if (value == "timer")
         {
             state = 1;
-            setPopup("Set to\nTimer\nMode");
+            setPopup("Set to\n\nTimer\n\nMode");
         }
         else if (value == "off" || value == "null")
         {
             state = 0;
-            setPopup("Set to\nOff\nMode");
+            setPopup("Set to\n\nOff\n\nMode");
         }
 
         EEPROM.write(500, state);
@@ -257,7 +257,7 @@ void handleEvent(String event, String value)
     else if (event == "In")
     {
         Serial.println("Interval: " + value);
-        setPopup(String("Interval\nSet to\n") + value + String(" s"));
+        setPopup(String("Interval\n\nSet to\n\n") + value + String(" s"));
         interval = (uint16_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน interval
 
         uint16_t currentValue = (uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8);
@@ -279,7 +279,7 @@ void handleEvent(String event, String value)
         {
             digitalWrite(PUMP, HIGH);
             iot.eventUpdate("P", 1);
-            setPopup("Pump\nOn");
+            setPopup("Pump\n\nOn");
 
             // for protection pump on without valve on
             if (!ch1Timer && !ch2Timer && !ch3Timer && !ch4Timer &&
@@ -291,7 +291,7 @@ void handleEvent(String event, String value)
             pumpTimer = 0;
             digitalWrite(PUMP, LOW);
             iot.eventUpdate("P", 0);
-            setPopup("Pump\nOff");
+            setPopup("Pump\n\nOff");
         }
         else if (workingMode == SEQUENCE)
         {
@@ -397,7 +397,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("Pump use : " + value);
         pumpUse = (bool)value.toInt();
-        setPopup(String("Pump\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
+        setPopup(String("Pump\n\nUse\n\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save pumpState to EEPROM
         EEPROM.write(497, (uint8_t)pumpUse);
@@ -407,7 +407,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("CH1 use : " + value);
         ch1Use = (bool)value.toInt();
-        setPopup(String("Ch1\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
+        setPopup(String("Ch1\n\nUse\n\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save ch1State to EEPROM
         EEPROM.write(496, (uint8_t)ch1Use);
@@ -417,7 +417,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("CH2 use : " + value);
         ch2Use = (bool)value.toInt();
-        setPopup(String("Ch2\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
+        setPopup(String("Ch2\n\nUse\n\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save ch2State to EEPROM
         EEPROM.write(495, (uint8_t)ch2Use);
@@ -427,7 +427,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("CH3 use : " + value);
         ch3Use = (bool)value.toInt();
-        setPopup(String("Ch3\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
+        setPopup(String("Ch3\n\nUse\n\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save ch3State to EEPROM
         EEPROM.write(494, (uint8_t)ch3Use);
@@ -437,7 +437,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("CH4 use : " + value);
         ch4Use = (bool)value.toInt();
-        setPopup(String("Ch4\nUse\n") + String(value.toInt() != 0 ? "On" : "Off"));
+        setPopup(String("Ch4\n\nUse\n\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Save ch4State to EEPROM
         EEPROM.write(493, (uint8_t)ch4Use);
@@ -447,7 +447,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("Humid low cutoff : " + value);
         humidLowCutoff = (uint8_t)value.toInt();
-        setPopup(String("Humid Low\nCutoff to\n") + value + String("%"));
+        setPopup(String("Humid Low\n\nCutoff to\n\n") + value + String("%"));
 
         // Save humidLowCutoff to EEPROM
         EEPROM.write(489, (uint8_t)humidLowCutoff);
@@ -457,9 +457,9 @@ void handleEvent(String event, String value)
     {
         Serial.println("Humid high cutoff : " + value);
         humidHighCutoff = (uint8_t)value.toInt();
-        setPopup(String("Humid High\nCutoff to\n") + value + String("%"));
+        setPopup(String("Humid High\n\nCutoff to\n\n") + value + String("%"));
 
-        // Save humidHighCutoff to EEPROM   
+        // Save humidHighCutoff to EEPROM
         EEPROM.write(488, (uint8_t)humidHighCutoff);
         EEPROM.commit();
     }
@@ -1367,6 +1367,13 @@ void onAll()
     }
     if (ch2Use)
     {
+
+        if (digitalRead(CH2))
+        {
+            digitalWrite(CH2, LOW);
+            iot.eventUpdate("c2", 0);
+        }
+
         ch2Timer = interval;
         chNum++;
 
@@ -1375,6 +1382,12 @@ void onAll()
     }
     if (ch3Use)
     {
+        if (digitalRead(CH3))
+        {
+            digitalWrite(CH3, LOW);
+            iot.eventUpdate("c3", 0);
+        }
+
         ch3Timer = interval;
         chNum++;
 
@@ -1383,6 +1396,12 @@ void onAll()
     }
     if (ch4Use)
     {
+        if (digitalRead(CH4))
+        {
+            digitalWrite(CH4, LOW);
+            iot.eventUpdate("c4", 0);
+        }
+
         ch4Timer = interval;
         chNum++;
 
