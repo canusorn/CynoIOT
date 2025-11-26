@@ -18,9 +18,9 @@ uint32_t previousTime;
 uint8_t pub2SubTime;
 
 #ifdef ESP8266
-const uint8_t bufferIO = 20*2;
+const uint8_t bufferIO = 20 * 2;
 #elif defined(ESP32)
-const uint8_t bufferIO = 40*2;
+const uint8_t bufferIO = 40 * 2;
 #endif
 String event[bufferIO], value[bufferIO], gpio[bufferIO];
 String automationList;
@@ -46,36 +46,48 @@ uint8_t getHour() { return (weektimestamp % 86400) / 3600; }
 uint8_t getMinute() { return ((weektimestamp % 86400) % 3600) / 60; }
 uint8_t getSecond() { return ((weektimestamp % 86400) % 3600) % 60; }
 
-void checkTimers() {
+void checkTimers()
+{
 
   // bool timerReadData = 1;
 
-  if (timerStr.length()) {
+  if (timerStr.length())
+  {
     // Reset all timer list entries
-    for (int i = 0; i < MAXTIMER; i++) {
+    for (int i = 0; i < MAXTIMER; i++)
+    {
       timerList[i] = "";
     }
+      // Split timer string by commas
+      int timerIndex = 0;
+      int startPos = 0;
 
-    // Split timer string by commas
-    int timerIndex = 0;
-    int startPos = 0;
-    int endPos = timerStr.indexOf(',');
 
-    // Process all timer entries except the last one
-    while (endPos != -1 && timerIndex < MAXTIMER) {
-      timerList[timerIndex++] = timerStr.substring(startPos, endPos);
-      startPos = endPos + 1;
-      endPos = timerStr.indexOf(',', startPos);
+    if (timerStr != "no")
+    {
+      int endPos = timerStr.indexOf(',');
+
+      // Process all timer entries except the last one
+      while (endPos != -1 && timerIndex < MAXTIMER)
+      {
+        timerList[timerIndex++] = timerStr.substring(startPos, endPos);
+        startPos = endPos + 1;
+        endPos = timerStr.indexOf(',', startPos);
+      }
+
+      // Process the last timer entry if there's space
+      if (timerIndex < MAXTIMER && startPos < timerStr.length())
+      {
+        timerList[timerIndex] = timerStr.substring(startPos);
+      }
+
+      // Clear the original timer string after processing
+      timerStr = "";
+      // _numTimer = 0;
+    }else{
+      DEBUGLN("Clear timer");
     }
-
-    // Process the last timer entry if there's space
-    if (timerIndex < MAXTIMER && startPos < timerStr.length()) {
-      timerList[timerIndex] = timerStr.substring(startPos);
-    }
-
-    // Clear the original timer string after processing
     timerStr = "";
-    // _numTimer = 0;
   }
 
   // if (_numTimer == -1)
@@ -83,14 +95,18 @@ void checkTimers() {
 
   uint8_t eventIndex, gpioIndex;
 
-  for (uint _numTimer = 0; _numTimer < MAXTIMER; _numTimer++) {
-    if (timerList[_numTimer].length()) {
+  for (uint _numTimer = 0; _numTimer < MAXTIMER; _numTimer++)
+  {
+    if (timerList[_numTimer].length())
+    {
 
-      while (event[eventIndex].length() != 0) {
+      while (event[eventIndex].length() != 0)
+      {
         eventIndex++;
       }
 
-      while (gpio[gpioIndex].length() != 0) {
+      while (gpio[gpioIndex].length() != 0)
+      {
         gpioIndex++;
       }
 
@@ -105,7 +121,8 @@ void checkTimers() {
       int sixthColon = timerList[_numTimer].indexOf(':', fifthColon + 1);
 
       if (firstColon != -1 && secondColon != -1 && thirdColon != -1 &&
-          fourthColon != -1 && fifthColon != -1) {
+          fourthColon != -1 && fifthColon != -1)
+      {
 
         String timestamp = timerList[_numTimer].substring(0, firstColon);
         String repeat =
@@ -123,22 +140,31 @@ void checkTimers() {
         // DEBUGLN("check timer " + timestamp + " compare to " +
         // String(getDaytimestamps())); Check if this timer matches current
         // timestamp
-        if (timestamp.toInt() == getDaytimestamps()) {
-          if (repeat == "w" && daysOfWeek.length()) {
+        if (timestamp.toInt() == getDaytimestamps())
+        {
+          if (repeat == "w" && daysOfWeek.length())
+          {
             DEBUGLN("timer trig weekly");
             String thisdayOfWeek = String(cynoiotInstance.getDayofWeek());
-            if (daysOfWeek.indexOf(thisdayOfWeek) != -1) {
-              if (actionType == "g") {
-                if (mode == "d") {
-                  if (gpio[gpioIndex].length() == 0) {
+            if (daysOfWeek.indexOf(thisdayOfWeek) != -1)
+            {
+              if (actionType == "g")
+              {
+                if (mode == "d")
+                {
+                  if (gpio[gpioIndex].length() == 0)
+                  {
                     gpio[gpioIndex] = String(target + "digit" + value);
                   }
                   // else
                   // {
                   //     timerReadData = 0;
                   // }
-                } else if (mode == "p") {
-                  if (gpio[gpioIndex].length() == 0) {
+                }
+                else if (mode == "p")
+                {
+                  if (gpio[gpioIndex].length() == 0)
+                  {
                     gpio[gpioIndex] = String(target + "pwm" + value);
                   }
                   // else
@@ -147,8 +173,10 @@ void checkTimers() {
                   // }
                 }
 #ifdef ESP32
-                else if (mode == "a") {
-                  if (gpio[gpioIndex].length() == 0) {
+                else if (mode == "a")
+                {
+                  if (gpio[gpioIndex].length() == 0)
+                  {
                     gpio[gpioIndex] = String(target + "DAC" + value);
                   }
                   // else
@@ -157,28 +185,38 @@ void checkTimers() {
                   // }
                 }
 #endif
-              } else if (actionType == "e") {
+              }
+              else if (actionType == "e")
+              {
                 DEBUGLN("Timer(Weekly) trig Event " + target + " value " +
                         value);
                 event[eventIndex] = target;
                 ::value[eventIndex] = value;
               }
             }
-          } else if (repeat == "e") {
+          }
+          else if (repeat == "e")
+          {
 
-            if (actionType == "g") {
-              if (mode == "d") {
+            if (actionType == "g")
+            {
+              if (mode == "d")
+              {
                 DEBUGLN("Timer trig digital Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0) {
+                if (gpio[gpioIndex].length() == 0)
+                {
                   gpio[gpioIndex] = String(target + ":digit:" + value);
                 }
                 // else
                 // {
                 //     timerReadData = 0;
                 // }
-              } else if (mode == "p") {
+              }
+              else if (mode == "p")
+              {
                 DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0) {
+                if (gpio[gpioIndex].length() == 0)
+                {
                   gpio[gpioIndex] = String(target + ":pwm:" + value);
                 }
                 // else
@@ -187,9 +225,11 @@ void checkTimers() {
                 // }
               }
 #ifdef ESP32
-              else if (mode == "a") {
+              else if (mode == "a")
+              {
                 DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0) {
+                if (gpio[gpioIndex].length() == 0)
+                {
                   gpio[gpioIndex] = String(target + ":DAC:" + value);
                 }
                 // else
@@ -198,25 +238,35 @@ void checkTimers() {
                 // }
               }
 #endif
-            } else if (actionType == "e") {
+            }
+            else if (actionType == "e")
+            {
               DEBUGLN("Timer trig Event " + target + " value " + value);
               event[eventIndex] = target;
               ::value[eventIndex] = value;
             }
-          } else if (repeat == "o") {
-            if (actionType == "g") {
-              if (mode == "d") {
+          }
+          else if (repeat == "o")
+          {
+            if (actionType == "g")
+            {
+              if (mode == "d")
+              {
                 DEBUGLN("Timer trig digital Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0) {
+                if (gpio[gpioIndex].length() == 0)
+                {
                   gpio[gpioIndex] = String(target + ":digit:" + value);
                 }
                 // else
                 // {
                 //     timerReadData = 0;
                 // }
-              } else if (mode == "p") {
+              }
+              else if (mode == "p")
+              {
                 DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0) {
+                if (gpio[gpioIndex].length() == 0)
+                {
                   gpio[gpioIndex] = String(target + ":pwm:" + value);
                 }
                 // else
@@ -225,9 +275,11 @@ void checkTimers() {
                 // }
               }
 #ifdef ESP32
-              else if (mode == "a") {
+              else if (mode == "a")
+              {
                 DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0) {
+                if (gpio[gpioIndex].length() == 0)
+                {
                   gpio[gpioIndex] = String(target + ":DAC:" + value);
                 }
                 // else
@@ -236,7 +288,9 @@ void checkTimers() {
                 // }
               }
 #endif
-            } else if (actionType == "e") {
+            }
+            else if (actionType == "e")
+            {
               DEBUGLN("Timer trig Event " + target + " value " + value);
               event[eventIndex] = target;
               ::value[eventIndex] = value;
@@ -248,7 +302,8 @@ void checkTimers() {
             timerList[_numTimer] = "";
 
             // shift timer list
-            for (int i = _numTimer; i < MAXTIMER - 1; i++) {
+            for (int i = _numTimer; i < MAXTIMER - 1; i++)
+            {
               timerList[i] = timerList[i + 1];
             }
             // }
@@ -269,11 +324,13 @@ void checkTimers() {
 }
 
 // Callback function for the ticker
-void everySecondCallback() {
+void everySecondCallback()
+{
   weektimestamp++;
   // _numTimer = 0; // timer ready to read
 
-  if (weektimestamp >= 604801) {
+  if (weektimestamp >= 604801)
+  {
     weektimestamp = 0;
   }
 
@@ -284,7 +341,8 @@ void everySecondCallback() {
 
 Cynoiot::Cynoiot() {}
 
-bool Cynoiot::connect(String email) {
+bool Cynoiot::connect(String email)
+{
   uint8_t ArrayLength =
       email.length() + 1; // The +1 is for the 0x00h Terminator
   char email_c[ArrayLength];
@@ -292,15 +350,19 @@ bool Cynoiot::connect(String email) {
 
   return connect(email_c, DEFAULT_SERVER);
 }
-bool Cynoiot::connect(const char email[]) {
+bool Cynoiot::connect(const char email[])
+{
   return connect(email, DEFAULT_SERVER);
 }
-bool Cynoiot::connect(const char email[], const char server[]) {
-  if (_email.length() == 0) {
+bool Cynoiot::connect(const char email[], const char server[])
+{
+  if (_email.length() == 0)
+  {
     _email = email;
   }
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
     return false;
   }
 
@@ -316,14 +378,16 @@ bool Cynoiot::connect(const char email[], const char server[]) {
 
   uint32_t currentMillis = millis();
   if (currentMillis - _lastReConnect > RECONNECT_SERVER_TIME ||
-      _lastReConnect == 0) {
+      _lastReConnect == 0)
+  {
     net.setInsecure();
     DEBUGLN("\nConnecting to " + String(server));
     this->_lastReConnect = currentMillis;
     client.connect(ClientID, email, this->_secret);
   }
 
-  if (!status() && this->_connected) {
+  if (!status() && this->_connected)
+  {
     DEBUGLN("Server disconnect ,reconnecting.");
     this->_connected = false;
     this->_Subscribed = false;
@@ -332,7 +396,8 @@ bool Cynoiot::connect(const char email[], const char server[]) {
   // {
   // DEBUG(".");
   // }
-  else if (status() && !this->_connected) {
+  else if (status() && !this->_connected)
+  {
     this->_connected = true;
     DEBUGLN("\nServer Connected!");
     this->_Subscribed = false;
@@ -345,10 +410,14 @@ bool Cynoiot::connect(const char email[], const char server[]) {
 
     int retrievedValue = EEPROM.read(511);
     // Serial.println("EEPROM: " + String(retrievedValue));
-    if (retrievedValue != 0) {
-      if (retrievedValue == 1) {
+    if (retrievedValue != 0)
+    {
+      if (retrievedValue == 1)
+      {
         publish("OTA success", "/" + getClientId() + "/ota/status");
-      } else if (retrievedValue == 2) {
+      }
+      else if (retrievedValue == 2)
+      {
         publish("OTA failed", "/" + getClientId() + "/ota/status");
       }
 
@@ -360,7 +429,8 @@ bool Cynoiot::connect(const char email[], const char server[]) {
 
 #ifdef CYNOIOT_DEBUG
   uint32_t timetoconnect = millis() - currentMillis;
-  if (timetoconnect > 1000) {
+  if (timetoconnect > 1000)
+  {
     DEBUGLN("Reconnecting time : " + String(timetoconnect) + " ms");
   }
 #endif
@@ -368,10 +438,13 @@ bool Cynoiot::connect(const char email[], const char server[]) {
   return this->_connected;
 }
 
-void Cynoiot::handle() {
+void Cynoiot::handle()
+{
 
-  for (uint8_t i = 0; i < bufferIO; i++) {
-    if (event[i].length() && value[i].length()) {
+  for (uint8_t i = 0; i < bufferIO; i++)
+  {
+    if (event[i].length() && value[i].length())
+    {
       // DEBUGLN("Event flag found " + event[i] + " value " + value[i]);
       triggerEvent(event[i], value[i]);
       eventUpdate(event[i], value[i]);
@@ -379,14 +452,16 @@ void Cynoiot::handle() {
       value[i] = "";
     }
 
-    if (gpio[i].length()) {
+    if (gpio[i].length())
+    {
       parsePinsString(gpio[i]);
 
       gpio[i] = "";
     }
   }
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
     return;
   }
 
@@ -394,7 +469,8 @@ void Cynoiot::handle() {
 
   // run every 1 second
   uint32_t currentTime = millis();
-  if (currentTime - previousTime >= 1000) {
+  if (currentTime - previousTime >= 1000)
+  {
     previousTime = currentTime;
 
     checkSubscription();
@@ -410,23 +486,28 @@ void Cynoiot::handle() {
   }
 
   // if subscriped flag
-  if (!this->_Subscribed && status() && this->_connected) {
+  if (!this->_Subscribed && status() && this->_connected)
+  {
     this->_Subscribed = subscribe();
   }
 
-  if (needOTA.length()) {
+  if (needOTA.length())
+  {
     client.disconnect();
     updateOTA(needOTA);
     needOTA = "";
   }
 
-  if (!status()) {
+  if (!status())
+  {
     connect(_email);
   }
 }
 
-void Cynoiot::checkUpdateTimestamps() {
-  if (nexttimeupdate % 40 == 0 && nexttimeupdate <= 200) {
+void Cynoiot::checkUpdateTimestamps()
+{
+  if (nexttimeupdate % 40 == 0 && nexttimeupdate <= 200)
+  {
     DEBUGLN("request update timestamps");
     String payload = "";
     String topic = "/" + getClientId() + "/gettimestamps";
@@ -434,14 +515,18 @@ void Cynoiot::checkUpdateTimestamps() {
   }
 }
 
-bool Cynoiot::subscribe() {
+bool Cynoiot::subscribe()
+{
   bool isSubscribed = client.subscribe("/" + getClientId() + "/#");
   // client.subscribe("/ESP8266-2802776_ECFABC2AC458/#");
-  if (isSubscribed) {
+  if (isSubscribed)
+  {
     DEBUGLN("subscripted! to /" + getClientId() + "/#");
     pub2SubTime = 0;
     return true;
-  } else {
+  }
+  else
+  {
     DEBUGLN("not subscripted!");
     return false;
   }
@@ -449,27 +534,33 @@ bool Cynoiot::subscribe() {
 
 bool Cynoiot::status() { return client.connected(); }
 
-void Cynoiot::setkeyname(String keyname[], uint8_t numElements) {
+void Cynoiot::setkeyname(String keyname[], uint8_t numElements)
+{
 
   this->_numElements = numElements;
 
-  for (uint8_t i = 0; i < this->_numElements; i++) {
+  for (uint8_t i = 0; i < this->_numElements; i++)
+  {
     this->_var[i] = keyname[i];
   }
 }
 
-int getDecimalPlacesForDisplay(float value) {
+int getDecimalPlacesForDisplay(float value)
+{
   String s = String(value, 3); // Convert to string with high precision
   int dotIndex = s.indexOf('.');
-  if (dotIndex == -1) {
+  if (dotIndex == -1)
+  {
     return 0; // No decimal point, it's an integer
   }
 
   int decimalCount = 0;
   // Iterate from the end of the string backwards to find the last non-zero
   // digit
-  for (int i = s.length() - 1; i > dotIndex; i--) {
-    if (s.charAt(i) != '0') {
+  for (int i = s.length() - 1; i > dotIndex; i--)
+  {
+    if (s.charAt(i) != '0')
+    {
       decimalCount = i - dotIndex;
       break;
     }
@@ -477,9 +568,11 @@ int getDecimalPlacesForDisplay(float value) {
   return decimalCount;
 }
 
-void Cynoiot::update(float val[]) {
+void Cynoiot::update(float val[])
+{
   String payload = "{";
-  for (uint8_t i = 0; i < this->_numElements; i++) {
+  for (uint8_t i = 0; i < this->_numElements; i++)
+  {
     if (i)
       payload += ",";
 
@@ -493,7 +586,8 @@ void Cynoiot::update(float val[]) {
   DEBUGLN("Payload:" + payload);
 
   if (millis() - this->_lastPublish < MAX_PUBLISH_TIME - 100 &&
-      this->_lastPublish) {
+      this->_lastPublish)
+  {
     Serial.println(F("Update too fast"));
     return;
   }
@@ -502,7 +596,8 @@ void Cynoiot::update(float val[]) {
 }
 
 void Cynoiot::publish(String payload) { publish(payload, getPublishTopic()); }
-void Cynoiot::publish(String payload, String topic) {
+void Cynoiot::publish(String payload, String topic)
+{
   uint8_t ArrayLength =
       payload.length() + 1; // The +1 is for the 0x00h Terminator
   char payload_c[ArrayLength];
@@ -512,7 +607,8 @@ void Cynoiot::publish(String payload, String topic) {
   char topic_c[ArrayLength];
   topic.toCharArray(topic_c, ArrayLength);
 
-  if (topic != getPublishTopic()) {
+  if (topic != getPublishTopic())
+  {
     lastMsgPublish = payload;
   }
 
@@ -521,11 +617,13 @@ void Cynoiot::publish(String payload, String topic) {
   pub2SubTime++;
 }
 
-String Cynoiot::getPublishTopic() {
+String Cynoiot::getPublishTopic()
+{
   return String("/" + getClientId() + "/data/update");
 }
 
-String Cynoiot::getClientId() {
+String Cynoiot::getClientId()
+{
 
 #ifdef ESP8266
 
@@ -541,7 +639,8 @@ String Cynoiot::getClientId() {
 #elif defined(ESP32)
   uint32_t chipId = 0;
 
-  for (int i = 0; i < 41; i = i + 8) {
+  for (int i = 0; i < 41; i = i + 8)
+  {
     chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
   }
   // DEBUGLN("ESP32 Chip model = " + String(ESP.getChipModel()) + "Rev " +
@@ -559,7 +658,8 @@ String Cynoiot::getClientId() {
 }
 
 #ifdef ESP8266
-int Cynoiot::getPinNumber(String pinId) {
+int Cynoiot::getPinNumber(String pinId)
+{
   if (pinId == "D0")
     return D0; // GPIO 16
   if (pinId == "D1")
@@ -582,9 +682,11 @@ int Cynoiot::getPinNumber(String pinId) {
 }
 
 // Convert GPIO number to D pin format
-String Cynoiot::getDpin(int pin) {
+String Cynoiot::getDpin(int pin)
+{
   String pinStr;
-  switch (pin) {
+  switch (pin)
+  {
   case 16:
     pinStr = "D0";
     break;
@@ -619,19 +721,23 @@ String Cynoiot::getDpin(int pin) {
 }
 #endif
 
-void Cynoiot::parsePinsString(const String &input) {
+void Cynoiot::parsePinsString(const String &input)
+{
   // Split the input string by commas
   int startPos = 0;
   int endPos = input.indexOf(',');
 
-  while (endPos != -1) {
+  while (endPos != -1)
+  {
     String segment = input.substring(startPos, endPos);
     int firstColon = segment.indexOf(':');
     int secondColon = segment.indexOf(':', firstColon + 1);
     int thirdColon = segment.indexOf(':', secondColon + 1);
 
-    if (firstColon != -1 && secondColon != -1) {
-      if (segment.substring(0, firstColon) != "Event") {
+    if (firstColon != -1 && secondColon != -1)
+    {
+      if (segment.substring(0, firstColon) != "Event")
+      {
         pinHandle(segment.substring(0, firstColon),
                   segment.substring(firstColon + 1, secondColon),
                   segment.substring(secondColon + 1, thirdColon));
@@ -642,7 +748,9 @@ void Cynoiot::parsePinsString(const String &input) {
         gpioUpdate(segment.substring(0, firstColon).toInt(),
                    segment.substring(secondColon + 1, thirdColon).toInt());
 #endif
-      } else if (segment.substring(0, firstColon) == "Event") {
+      }
+      else if (segment.substring(0, firstColon) == "Event")
+      {
         // DEBUGLN("Event run" + segment.substring(thirdColon + 1) + " " +
         // segment.substring(secondColon + 1, thirdColon));
         triggerEvent(segment.substring(thirdColon + 1),
@@ -660,8 +768,10 @@ void Cynoiot::parsePinsString(const String &input) {
   int secondColon = segment.indexOf(':', firstColon + 1);
   int thirdColon = segment.indexOf(':', secondColon + 1);
 
-  if (firstColon != -1 && secondColon != -1) {
-    if (segment.substring(0, firstColon) != "Event") {
+  if (firstColon != -1 && secondColon != -1)
+  {
+    if (segment.substring(0, firstColon) != "Event")
+    {
       pinHandle(segment.substring(0, firstColon),
                 segment.substring(firstColon + 1, secondColon),
                 segment.substring(secondColon + 1, thirdColon));
@@ -672,7 +782,9 @@ void Cynoiot::parsePinsString(const String &input) {
       gpioUpdate(segment.substring(0, firstColon).toInt(),
                  segment.substring(secondColon + 1, thirdColon).toInt());
 #endif
-    } else if (segment.substring(0, firstColon) == "Event") {
+    }
+    else if (segment.substring(0, firstColon) == "Event")
+    {
       // DEBUGLN("Event run" + segment.substring(thirdColon + 1) + " " +
       // segment.substring(secondColon + 1, thirdColon));
       triggerEvent(segment.substring(thirdColon + 1),
@@ -682,7 +794,8 @@ void Cynoiot::parsePinsString(const String &input) {
 }
 
 void Cynoiot::pinHandle(const String &pins, const String &modes,
-                        const String &values) {
+                        const String &values)
+{
   // DEBUGLN("Control gpio : " + pins);
   // DEBUGLN("pin int : " + String(pins.toInt()));
 
@@ -692,9 +805,12 @@ void Cynoiot::pinHandle(const String &pins, const String &modes,
   char buff[str_len];
   pins.toCharArray(buff, str_len);
 
-  if (buff[0] == 'D') {
+  if (buff[0] == 'D')
+  {
     pin = getPinNumber(pins);
-  } else {
+  }
+  else
+  {
     pin = pins.toInt();
   }
 #else
@@ -702,24 +818,32 @@ void Cynoiot::pinHandle(const String &pins, const String &modes,
 #endif
 
   // digit pwm dac get
-  if (modes == "digit") {
-    if (values == "high" || values == "on" || values == "1") {
+  if (modes == "digit")
+  {
+    if (values == "high" || values == "on" || values == "1")
+    {
       digitalWrite(pin, HIGH);
-    } else {
+    }
+    else
+    {
       digitalWrite(pin, LOW);
     }
     pinMode(pin, OUTPUT);
-  } else if (modes == "pwm") {
+  }
+  else if (modes == "pwm")
+  {
     analogWrite(pin, values.toInt());
   }
 #if defined(ESP32) && !defined(ESP32S2) && !defined(ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C3)
-  else if (modes == "DAC") {
+  else if (modes == "DAC")
+  {
     dacWrite(pin, values.toInt());
   }
 #endif
 }
 
-void Cynoiot::messageReceived(String &topic, String &payload) {
+void Cynoiot::messageReceived(String &topic, String &payload)
+{
   String _topic = cynoiotInstance.getPublishTopic();
   String _clientid = cynoiotInstance.getClientId();
   pub2SubTime = 0;
@@ -727,19 +851,23 @@ void Cynoiot::messageReceived(String &topic, String &payload) {
   // DEBUG("Received topic: " + topic);
   // DEBUGLN("\tReceived payload: " + payload);
 
-  if (topic == _topic) {
+  if (topic == _topic)
+  {
     DEBUGLN("Done updating");
     return;
   }
 
-  if (lastMsgPublish == payload) {
+  if (lastMsgPublish == payload)
+  {
     lastMsgPublish = "";
     return;
   }
 
-  if (topic == "/" + _clientid + "/io") {
+  if (topic == "/" + _clientid + "/io")
+  {
     uint8_t gpioIndex;
-    while (gpio[gpioIndex].length() != 0) {
+    while (gpio[gpioIndex].length() != 0)
+    {
       gpioIndex++;
     }
 
@@ -751,11 +879,14 @@ void Cynoiot::messageReceived(String &topic, String &payload) {
   //     DEBUGLN("Init: " + payload);
   //     cynoiotInstance.parsePinsString(payload);
   // }
-  else if (topic.startsWith("/" + _clientid + "/ota/start")) {
+  else if (topic.startsWith("/" + _clientid + "/ota/start"))
+  {
     // DEBUGLN("OTA update to : " + payload);
     needOTA = payload;
     // cynoiotInstance.updateOTA(payload);
-  } else if (topic.startsWith("/" + _clientid + "/timestamps")) {
+  }
+  else if (topic.startsWith("/" + _clientid + "/timestamps"))
+  {
     weektimestamp = payload.toInt();
     DEBUGLN("Timestamps: " + String(weektimestamp));
 
@@ -768,14 +899,19 @@ void Cynoiot::messageReceived(String &topic, String &payload) {
     nexttimeupdate = random(3600, 7200);
 
     // _numTimer = 0;
-  } else if (topic == "/" + _clientid + "/event") {
-    if (payload.startsWith("Event:")) {
+  }
+  else if (topic == "/" + _clientid + "/event")
+  {
+    if (payload.startsWith("Event:"))
+    {
       int firstColon = payload.indexOf(':');
       int secondColon = payload.indexOf(':', firstColon + 1);
 
-      if (firstColon != -1 && secondColon != -1) {
+      if (firstColon != -1 && secondColon != -1)
+      {
         uint8_t eventIndex;
-        while (event[eventIndex].length() != 0) {
+        while (event[eventIndex].length() != 0)
+        {
           eventIndex++;
         }
 
@@ -786,13 +922,19 @@ void Cynoiot::messageReceived(String &topic, String &payload) {
         return;
       }
     }
-  } else if (topic == "/" + _clientid + "/automation") {
+  }
+  else if (topic == "/" + _clientid + "/automation")
+  {
 
     automationList = payload;
-  } else if (topic.startsWith("/" + _clientid + "/timer")) {
+  }
+  else if (topic.startsWith("/" + _clientid + "/timer"))
+  {
     DEBUGLN("Update new timer : " + payload);
     timerStr = payload;
-  } else {
+  }
+  else
+  {
     DEBUGLN("incoming: " + topic + " - " + payload);
   }
 
@@ -802,15 +944,18 @@ void Cynoiot::messageReceived(String &topic, String &payload) {
   // or push to a queue and handle it in the loop after calling `client.loop()`.
 }
 
-void Cynoiot::checkSubscription() {
+void Cynoiot::checkSubscription()
+{
   // check received my publish message
-  if (pub2SubTime) {
+  if (pub2SubTime)
+  {
     pub2SubTime++;
 
     if (pub2SubTime >= this->_noSubTime - 1)
       DEBUGLN("pub to Sub Time:" + String(pub2SubTime) + " s");
 
-    if (pub2SubTime >= this->_noSubTime) {
+    if (pub2SubTime >= this->_noSubTime)
+    {
       this->_Subscribed = false;
       DEBUGLN("No Subscripe for : " + String(pub2SubTime) + " s");
       DEBUGLN("Resubscripe ....");
@@ -819,63 +964,69 @@ void Cynoiot::checkSubscription() {
   }
 }
 
-void Cynoiot::setTemplate(String templateName) {
+void Cynoiot::setTemplate(String templateName)
+{
   this->_template = templateName;
 }
-void Cynoiot::setTemplate(String templateName, uint8_t version) {
+void Cynoiot::setTemplate(String templateName, uint8_t version)
+{
   this->_template = templateName;
   this->_templateVersion = version;
 }
 
-void Cynoiot::templatePublish() {
+void Cynoiot::templatePublish()
+{
   String topic = "/" + getClientId() + "/template/name";
   uint8_t ArrayLength =
       topic.length() + 1; // The +1 is for the 0x00h Terminator
   char topic_c[ArrayLength];
   topic.toCharArray(topic_c, ArrayLength);
 
-  if (this->_template != "") {
+  if (this->_template != "")
+  {
     String templateVersion = this->_template + "," + String(_templateVersion);
     ArrayLength =
         templateVersion.length() + 1; // The +1 is for the 0x00h Terminator
     char payload_c[ArrayLength];
     templateVersion.toCharArray(payload_c, ArrayLength);
     client.publish(topic_c, payload_c);
-  } else {
+  }
+  else
+  {
     const char payload[2] = "0";
     client.publish(topic_c, payload);
   }
 }
 
-void Cynoiot::updateOTA(String otafile) {
+void Cynoiot::updateOTA(String otafile)
+{
   DEBUGLN("updateOTA: " + otafile);
 
   EEPROM.begin(512);
 
 #ifdef ESP8266
-  ESPhttpUpdate.onStart([]() {
+  ESPhttpUpdate.onStart([]()
+                        {
     Serial.println("OTA: HTTP update process started");
-    everySecond.detach();
-  });
+    everySecond.detach(); });
 
-  ESPhttpUpdate.onEnd([]() {
+  ESPhttpUpdate.onEnd([]()
+                      {
     Serial.println("OTA: HTTP update process finished");
     EEPROM.write(511, 1); // 1 is update success
     EEPROM.commit();
-    EEPROM.end();
-  });
+    EEPROM.end(); });
 
-  ESPhttpUpdate.onProgress([](int cur, int total) {
-    Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur,
-                  total);
-  });
+  ESPhttpUpdate.onProgress([](int cur, int total)
+                           { Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur,
+                                           total); });
 
-  ESPhttpUpdate.onError([](int err) {
+  ESPhttpUpdate.onError([](int err)
+                        {
     Serial.printf("OTA: HTTP update fatal error code %d\n", err);
     EEPROM.write(511, 2); // 2 is failed
     EEPROM.commit();
-    EEPROM.end();
-  });
+    EEPROM.end(); });
 
   // WiFiClientSecure clientOTA;
   // clientOTA.setInsecure();
@@ -893,27 +1044,26 @@ void Cynoiot::updateOTA(String otafile) {
   // "http://192.168.0.101:3000/api/ota/" + otafile + "/update");
 
 #elif defined(ESP32)
-  httpUpdate.onStart([]() {
+  httpUpdate.onStart([]()
+                     {
     Serial.println("OTA: HTTP update process started");
-    everySecond.detach();
-  });
+    everySecond.detach(); });
 
-  httpUpdate.onEnd([]() {
+  httpUpdate.onEnd([]()
+                   {
     Serial.println("OTA: HTTP update process finished");
     EEPROM.write(511, 1); // 1 is update success
-    EEPROM.commit();
-  });
+    EEPROM.commit(); });
 
-  httpUpdate.onProgress([](int cur, int total) {
-    Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur,
-                  total);
-  });
+  httpUpdate.onProgress([](int cur, int total)
+                        { Serial.printf("OTA: HTTP update process at %d of %d bytes...\n", cur,
+                                        total); });
 
-  httpUpdate.onError([](int err) {
+  httpUpdate.onError([](int err)
+                     {
     Serial.printf("OTA: HTTP update fatal error code %d\n", err);
     EEPROM.write(511, 2); // 2 is failed
-    EEPROM.commit();
-  });
+    EEPROM.commit(); });
 
   NetworkClientSecure client;
   client.setInsecure();
@@ -921,7 +1071,8 @@ void Cynoiot::updateOTA(String otafile) {
       client, "https://cynoiot.com/api/ota/" + otafile + "/update");
 #endif
 
-  switch (ret) {
+  switch (ret)
+  {
   case HTTP_UPDATE_FAILED:
 
 #ifdef ESP8266
@@ -949,48 +1100,59 @@ void Cynoiot::updateOTA(String otafile) {
   ESP.restart();
 }
 
-void Cynoiot::debug(String msg) {
+void Cynoiot::debug(String msg)
+{
   publish(msg, "/" + getClientId() + "/debug");
 }
 
-void Cynoiot::setEventCallback(EventCallbackFunction callback) {
+void Cynoiot::setEventCallback(EventCallbackFunction callback)
+{
   _eventCallback = callback;
 }
 
-void Cynoiot::triggerEvent(String event, String value) {
-  if (_eventCallback != NULL) {
+void Cynoiot::triggerEvent(String event, String value)
+{
+  if (_eventCallback != NULL)
+  {
     _eventCallback(event, value);
   }
 }
 
-void Cynoiot::eventUpdate(String event, String value) {
+void Cynoiot::eventUpdate(String event, String value)
+{
 
   String eventStr = "Event:" + event + ":" + value;
   String topic = "/" + getClientId() + "/eventact";
   publish(eventStr, topic);
 }
 
-void Cynoiot::eventUpdate(String event, int value) {
+void Cynoiot::eventUpdate(String event, int value)
+{
   String eventStr = "Event:" + event + ":" + String(value);
   String topic = "/" + getClientId() + "/eventact";
   publish(eventStr, topic);
 }
 
-void Cynoiot::gpioUpdate(int pin, String value) {
+void Cynoiot::gpioUpdate(int pin, String value)
+{
   // DEBUGLN("gpioUpdate: " + String(pin) + " " + value);
   int value_int = value.toInt();
   if (value == "on" || value == "ON" || value == "HIGH" || value == "high" ||
-      value == "1") {
+      value == "1")
+  {
     value_int = 1;
-  } else if (value == "off" || value == "OFF" || value == "LOW" ||
-             value == "low" || value == "0") {
+  }
+  else if (value == "off" || value == "OFF" || value == "LOW" ||
+           value == "low" || value == "0")
+  {
     value_int = 0;
   }
 
   gpioUpdate(pin, value_int);
 }
 
-void Cynoiot::gpioUpdate(int pin, int value) {
+void Cynoiot::gpioUpdate(int pin, int value)
+{
 #ifdef ESP8266
   String pinStr = getDpin(pin);
   String payload = pinStr + ":act:" + String(value);
@@ -1002,7 +1164,8 @@ void Cynoiot::gpioUpdate(int pin, int value) {
   publish(payload, topic);
 }
 
-void Cynoiot::gpioUpdate(String pin, int value) {
+void Cynoiot::gpioUpdate(String pin, int value)
+{
   String payload = pin + ":act:" + String(value);
   String topic = "/" + getClientId() + "/ioact";
   publish(payload, topic);
@@ -1010,11 +1173,13 @@ void Cynoiot::gpioUpdate(String pin, int value) {
 
 uint32_t Cynoiot::getTime() { return weektimestamp; }
 
-void Cynoiot::printTimeDetails() {
+void Cynoiot::printTimeDetails()
+{
   // Calculate days since Sunday (0-6)
   uint32_t daysSinceSunday = ::getDayofWeek();
 
-  if (daysSinceSunday == 0) {
+  if (daysSinceSunday == 0)
+  {
     return;
   }
 
@@ -1024,7 +1189,7 @@ void Cynoiot::printTimeDetails() {
   uint8_t seconds = ::getSecond();
 
   // Array of day names
-  const char *days[] = {"Sunday",   "Monday", "Tuesday", "Wednesday",
+  const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday",
                         "Thursday", "Friday", "Saturday"};
 
   // Print formatted time details
@@ -1051,17 +1216,22 @@ uint8_t Cynoiot::getHour() { return ::getHour(); }
 uint8_t Cynoiot::getMinute() { return ::getMinute(); }
 uint8_t Cynoiot::getSecond() { return ::getSecond(); }
 
-void Cynoiot::handleTimestamp() {
+void Cynoiot::handleTimestamp()
+{
   // handle update timestamp
-  if (nexttimeupdate) {
+  if (nexttimeupdate)
+  {
     nexttimeupdate--;
-  } else {
+  }
+  else
+  {
     nexttimeupdate = random(3600, 7200);
   }
 }
 
 // Structure to track time-limited automation actions
-struct AutomationTimeout {
+struct AutomationTimeout
+{
   String actionType;
   String target;
   String mode;
@@ -1075,14 +1245,16 @@ struct AutomationTimeout {
 static AutomationTimeout timeoutTracking[10];
 static int timeoutCount = 0;
 
-void Cynoiot::handleAutomation(String variable, float value) {
+void Cynoiot::handleAutomation(String variable, float value)
+{
   // Format: event,gpio : var : operator : value_th : event_name,gpio : mode :
   // value [: timeLimit] [: timeLimit value]
   // Components: [0]actionType
   // [1]variable [2]operator [3]threshold [4]target [5]mode [6]value
   // [7]timeLimit [8]timeoutValue
 
-  if (automationList.length() == 0) {
+  if (automationList.length() == 0)
+  {
     return;
   }
 
@@ -1090,18 +1262,23 @@ void Cynoiot::handleAutomation(String variable, float value) {
   int startPos = 0;
   int endPos = automationList.indexOf(',');
 
-  while (endPos != -1 || startPos < automationList.length()) {
+  while (endPos != -1 || startPos < automationList.length())
+  {
     String rule;
-    if (endPos != -1) {
+    if (endPos != -1)
+    {
       rule = automationList.substring(startPos, endPos);
       startPos = endPos + 1;
       endPos = automationList.indexOf(',', startPos);
-    } else {
+    }
+    else
+    {
       rule = automationList.substring(startPos);
       startPos = automationList.length();
     }
 
-    if (rule.length() == 0) {
+    if (rule.length() == 0)
+    {
       continue;
     }
 
@@ -1112,12 +1289,16 @@ void Cynoiot::handleAutomation(String variable, float value) {
     int lastPos = 0;
 
     // Split by colons
-    while (colonPos != -1 && componentCount < 9) {
+    while (colonPos != -1 && componentCount < 9)
+    {
       colonPos = rule.indexOf(':', lastPos);
-      if (colonPos != -1) {
+      if (colonPos != -1)
+      {
         components[componentCount] = rule.substring(lastPos, colonPos);
         lastPos = colonPos + 1;
-      } else {
+      }
+      else
+      {
         components[componentCount] = rule.substring(lastPos);
       }
       componentCount++;
@@ -1125,7 +1306,8 @@ void Cynoiot::handleAutomation(String variable, float value) {
 
     // Minimum 7 components required (actionType, variable, operator, threshold,
     // target, mode, value)
-    if (componentCount < 7) {
+    if (componentCount < 7)
+    {
       DEBUGLN("Automation rule invalid - insufficient components: " + rule);
       continue;
     }
@@ -1151,28 +1333,41 @@ void Cynoiot::handleAutomation(String variable, float value) {
     timeoutValue.trim();
 
     // Check if this rule applies to the current variable
-    if (ruleVariable != variable) {
+    if (ruleVariable != variable)
+    {
       continue;
     }
 
     // Evaluate condition
     bool conditionMet = false;
-    if (operatorStr == ">") {
+    if (operatorStr == ">")
+    {
       conditionMet = (value > threshold);
-    } else if (operatorStr == "<") {
+    }
+    else if (operatorStr == "<")
+    {
       conditionMet = (value < threshold);
-    } else if (operatorStr == ">=") {
+    }
+    else if (operatorStr == ">=")
+    {
       conditionMet = (value >= threshold);
-    } else if (operatorStr == "<=") {
+    }
+    else if (operatorStr == "<=")
+    {
       conditionMet = (value <= threshold);
-    } else if (operatorStr == "==") {
+    }
+    else if (operatorStr == "==")
+    {
       conditionMet = (value == threshold);
-    } else {
+    }
+    else
+    {
       DEBUGLN("Automation rule invalid operator: " + operatorStr);
       continue;
     }
 
-    if (conditionMet) {
+    if (conditionMet)
+    {
       DEBUGLN("Automation condition met: " + variable + " " + operatorStr +
               " " + String(threshold) + " (value: " + String(value) + ")");
 
@@ -1180,9 +1375,11 @@ void Cynoiot::handleAutomation(String variable, float value) {
       executeAutomationAction(actionType, target, mode, actionValue);
 
       // Handle time limit if specified
-      if (timeLimit.length() > 0 && timeoutValue.length() > 0) {
+      if (timeLimit.length() > 0 && timeoutValue.length() > 0)
+      {
         int timeLimitSeconds = timeLimit.toInt();
-        if (timeLimitSeconds > 0 && timeoutCount < 10) {
+        if (timeLimitSeconds > 0 && timeoutCount < 10)
+        {
           // Add to timeout tracking
           timeoutTracking[timeoutCount].actionType = actionType;
           timeoutTracking[timeoutCount].target = target;
@@ -1206,51 +1403,69 @@ void Cynoiot::handleAutomation(String variable, float value) {
 }
 
 void Cynoiot::executeAutomationAction(String actionType, String target,
-                                      String mode, String value) {
-  if (actionType == "gpio" || actionType == "g") {
+                                      String mode, String value)
+{
+  if (actionType == "gpio" || actionType == "g")
+  {
     // GPIO control action
     uint8_t gpioIndex = 0;
-    while (gpio[gpioIndex].length() != 0 && gpioIndex < bufferIO) {
+    while (gpio[gpioIndex].length() != 0 && gpioIndex < bufferIO)
+    {
       gpioIndex++;
     }
 
-    if (gpioIndex < bufferIO) {
+    if (gpioIndex < bufferIO)
+    {
       String gpioCommand = target + ":" + mode + ":" + value;
       gpio[gpioIndex] = gpioCommand;
 
       DEBUGLN("Automation GPIO: " + gpioCommand);
-    } else {
+    }
+    else
+    {
       DEBUGLN("Automation GPIO buffer full");
     }
-  } else if (actionType == "event" || actionType == "e") {
+  }
+  else if (actionType == "event" || actionType == "e")
+  {
     // Event emit action (mode parameter not used for events)
     uint8_t eventIndex = 0;
-    while (event[eventIndex].length() != 0 && eventIndex < bufferIO) {
+    while (event[eventIndex].length() != 0 && eventIndex < bufferIO)
+    {
       eventIndex++;
     }
 
-    if (eventIndex < bufferIO) {
+    if (eventIndex < bufferIO)
+    {
       event[eventIndex] = target;
       ::value[eventIndex] = value;
 
       DEBUGLN("Automation Event: " + target + " value: " + value);
-    } else {
+    }
+    else
+    {
       DEBUGLN("Automation Event buffer full");
     }
-  } else {
+  }
+  else
+  {
     DEBUGLN("Unknown automation action type: " + actionType);
   }
 }
 
-void Cynoiot::checkAutomationTimeouts() {
+void Cynoiot::checkAutomationTimeouts()
+{
   unsigned long currentTime = millis();
 
-  for (int i = 0; i < timeoutCount; i++) {
-    if (timeoutTracking[i].active) {
+  for (int i = 0; i < timeoutCount; i++)
+  {
+    if (timeoutTracking[i].active)
+    {
       // Check if timeout period has elapsed
       unsigned long elapsedTime = currentTime - timeoutTracking[i].startTime;
 
-      if (elapsedTime >= timeoutTracking[i].timeoutDuration) {
+      if (elapsedTime >= timeoutTracking[i].timeoutDuration)
+      {
         // Execute timeout action
         executeAutomationAction(
             timeoutTracking[i].actionType, timeoutTracking[i].target,
@@ -1267,9 +1482,12 @@ void Cynoiot::checkAutomationTimeouts() {
 
   // Clean up inactive timeouts
   int activeCount = 0;
-  for (int i = 0; i < timeoutCount; i++) {
-    if (timeoutTracking[i].active) {
-      if (activeCount != i) {
+  for (int i = 0; i < timeoutCount; i++)
+  {
+    if (timeoutTracking[i].active)
+    {
+      if (activeCount != i)
+      {
         timeoutTracking[activeCount] = timeoutTracking[i];
       }
       activeCount++;
