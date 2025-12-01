@@ -213,6 +213,11 @@ enum WorkingMode : uint8_t
 
 WorkingMode workingMode = NO_WORKING;
 
+// Flags for handling reconnection during sequence
+bool isInSequence = false;
+bool justReconnected = false;
+bool backendConnected = false;
+
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
 void handleEvent(String event, String value)
 {
@@ -223,12 +228,14 @@ void handleEvent(String event, String value)
         if (value == "1" && !digitalRead(PUMP) && workingMode == NO_WORKING)
         {
             workingMode = SEQUENCE;
+            isInSequence = true;
             onAll();
             setPopup("Sequence\n\nStart");
         }
-        else if (value == "0" && digitalRead(PUMP) && workingMode == SEQUENCE)
+        else if (value == "0" && workingMode == SEQUENCE)
         {
             workingMode = NO_WORKING;
+            isInSequence = false;
             offAll();
             setPopup("Sequence\n\nStop");
         }
@@ -276,6 +283,13 @@ void handleEvent(String event, String value)
     }
     else if (event == "P") // Pump
     {
+        // If we're in a sequence and just reconnected, ignore conflicting state from backend
+        if (isInSequence && justReconnected)
+        {
+            // Skip processing this event to avoid conflicts with current sequence state
+            return;
+        }
+        
         if (value.toInt() && workingMode == NO_WORKING)
         {
             digitalWrite(PUMP, HIGH);
@@ -296,6 +310,7 @@ void handleEvent(String event, String value)
             if (value.toInt() == 0)
             {
                 workingMode = NO_WORKING;
+                isInSequence = false;
                 digitalWrite(PUMP, LOW);
                 iot.eventUpdate("SQ", 0);
                 setPopup("Sequence\n\nStop");
@@ -304,6 +319,13 @@ void handleEvent(String event, String value)
     }
     else if (event == "c1") // Channel 1
     {
+        // If we're in a sequence and just reconnected, ignore conflicting state from backend
+        if (isInSequence && justReconnected)
+        {
+            // Skip processing this event to avoid conflicts with current sequence state
+            return;
+        }
+        
         if (ch1Use && value.toInt() && workingMode == NO_WORKING)
         {
             digitalWrite(CH1, HIGH);
@@ -331,6 +353,13 @@ void handleEvent(String event, String value)
     }
     else if (event == "c2") // Channel 2
     {
+        // If we're in a sequence and just reconnected, ignore conflicting state from backend
+        if (isInSequence && justReconnected)
+        {
+            // Skip processing this event to avoid conflicts with current sequence state
+            return;
+        }
+        
         if (ch2Use && value.toInt() && workingMode == NO_WORKING)
         {
             digitalWrite(CH2, HIGH);
@@ -358,6 +387,13 @@ void handleEvent(String event, String value)
     }
     else if (event == "c3") // Channel 3
     {
+        // If we're in a sequence and just reconnected, ignore conflicting state from backend
+        if (isInSequence && justReconnected)
+        {
+            // Skip processing this event to avoid conflicts with current sequence state
+            return;
+        }
+        
         if (ch3Use && value.toInt() && workingMode == NO_WORKING)
         {
             digitalWrite(CH3, HIGH);
@@ -385,6 +421,13 @@ void handleEvent(String event, String value)
     }
     else if (event == "c4") // Channel 4
     {
+        // If we're in a sequence and just reconnected, ignore conflicting state from backend
+        if (isInSequence && justReconnected)
+        {
+            // Skip processing this event to avoid conflicts with current sequence state
+            return;
+        }
+        
         if (ch4Use && value.toInt() && workingMode == NO_WORKING)
         {
             digitalWrite(CH4, HIGH);
@@ -733,6 +776,40 @@ void loop()
     MDNS.update(); // อัพเดท mDNS
 #endif
 
+    // Check for backend connection state changes
+    bool currentBackendState = iot.status();
+    if (currentBackendState != backendConnected)
+    {
+        if (currentBackendState) // Just connected to backend
+        {
+            backendConnected = true;
+            
+            // If we're in a sequence, set justReconnected flag to ignore conflicting state
+            if (isInSequence)
+            {
+                justReconnected = true;
+                Serial.println("Reconnected to backend during sequence, ignoring conflicting state");
+                
+                // Update backend with our current actual state
+                iot.eventUpdate("SQ", 1);
+                iot.eventUpdate("P", digitalRead(PUMP));
+                iot.eventUpdate("c1", digitalRead(CH1));
+                iot.eventUpdate("c2", digitalRead(CH2));
+                iot.eventUpdate("c3", digitalRead(CH3));
+                iot.eventUpdate("c4", digitalRead(CH4));
+                
+                // Clear the justReconnected flag after a short delay
+                // This gives time for any pending events from backend to be processed and ignored
+                delay(1000);
+                justReconnected = false;
+            }
+        }
+        else // Disconnected from backend
+        {
+            backendConnected = false;
+        }
+    }
+
     uint32_t currentMillis = millis();
     if (currentMillis - previousMillis >= 1000) /* for every x seconds, run the codes below*/
     {
@@ -925,6 +1002,7 @@ void onOffUpdate()
             ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0 && pumpTimer == 0)
         {
             workingMode = NO_WORKING; // Exit sequence mode
+            isInSequence = false; // Update sequence flag
             iot.eventUpdate("SQ", 0); // อัพเดท event ไปยัง server
         }
     }
@@ -970,6 +1048,16 @@ void onOffUpdate()
             iot.eventUpdate("c4", 0);
         }
     }
+
+    // Serial Debug
+    Serial.println("----- Debug -----");
+    Serial.print("onState: ");
+    Serial.println(onState);
+    Serial.println("ch1Timer: "+String(ch1Timer) + "s  digitalRead(CH1): " + String(digitalRead(CH1)));
+    Serial.println("ch2Timer: "+String(ch2Timer) + "s  digitalRead(CH2): " + String(digitalRead(CH2)));
+    Serial.println("ch3Timer: "+String(ch3Timer) + "s  digitalRead(CH3): " + String(digitalRead(CH3)));
+    Serial.println("ch4Timer: "+String(ch4Timer) + "s  digitalRead(CH4): " + String(digitalRead(CH4)));
+    Serial.println("pumpTimer: "+String(pumpTimer) + "s  digitalRead(PUMP): " + String(digitalRead(PUMP)));
 }
 // ------------------------------------------------------------------
 // Read sensor data based on the defined sensor model
