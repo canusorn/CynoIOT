@@ -183,22 +183,47 @@ const uint8_t STARTPWM = 150;
 uint8_t oledOn = 1;
 
 // ตัวแปรสำหรับ soft start PWM
-int16_t currentPWM = 0; // ค่า PWM ปัจจุบัน
-int16_t targetPWM = 0;  // ค่า PWM เป้าหมาย
+int16_t currentPWM = 0;        // ค่า PWM ปัจจุบัน
+int16_t targetPWM = 0;         // ค่า PWM เป้าหมาย
 const uint16_t PWM_DELAY = 50; // 50ms
 unsigned long lastPWMTimer = 0;
 const uint8_t PWM_STEP_SIZE = 3; // ขนาดของการเปลี่ยนแปลง PWM ต่อขั้นตอน
+
+// EMA Filter variables
+const float EMA_ALPHA = 0.2; // ค่าสำหรับ EMA filter (0.0-1.0), ค่าที่สูงขึ้นจะให้น้ำหนักกับค่าล่าสุดมากขึ้น
+float emaPM1_0 = 0.0;        // EMA สำหรับ PM1.0
+float emaPM2_5 = 0.0;        // EMA สำหรับ PM2.5
+float emaPM10_0 = 0.0;       // EMA สำหรับ PM10.0
+bool emaInitialized = false; // ตัวแปรเช็คว่า EMA ได้ถูกเริ่มต้นแล้วหรือไม่
+
+// ฟังก์ชันสำหรับ EMA filter
+float updateEMA(float currentEMA, float newValue, float alpha)
+{
+  return alpha * newValue + (1.0 - alpha) * currentEMA;
+}
+
+// ฟังก์ชันเริ่มต้นค่า EMA
+void initializeEMA()
+{
+  if (!emaInitialized && !isnan(data.PM_AE_UG_1_0))
+  {
+    emaPM1_0 = data.PM_AE_UG_1_0;
+    emaPM2_5 = data.PM_AE_UG_2_5;
+    emaPM10_0 = data.PM_AE_UG_10_0;
+    emaInitialized = true;
+  }
+}
 
 // ฟังก์ชันที่เรียกใช้ทุก 20ms เพื่อจัดการ soft start PWM
 void handleSoftStartPWM()
 {
   unsigned long currentMillis = millis();
-  
+
   // ตรวจสอบว่าผ่าน 20ms แล้วหรือยัง
   if (currentMillis - lastPWMTimer >= PWM_DELAY)
   {
     lastPWMTimer = currentMillis;
-    
+
     // ปรับค่า currentPWM ถ้าต่างจากค่าเป้าหมาย
     if (currentPWM < targetPWM)
     {
@@ -217,11 +242,11 @@ void handleSoftStartPWM()
     // Serial.println("currentPWM: " + String(currentPWM));
 
     // ตั้งค่า PWM ใหม่
-  #ifdef ESP8266
+#ifdef ESP8266
     analogWrite(PURIFIER, currentPWM);
-  #elif defined(ESP32)
+#elif defined(ESP32)
     ledcWrite(PURIFIER, currentPWM);
-  #endif
+#endif
   }
 }
 
@@ -480,13 +505,22 @@ void loop()
   {
     sensorNotDetect = 0; // รีเซ็ตตัวนับเมื่ออ่านข้อมูลได้
 
+    // เริ่มต้นค่า EMA ในครั้งแรกที่อ่านข้อมูลได้
+    initializeEMA();
+
+    // อัพเดทค่า EMA สำหรับทุกตัวแปร PM
+    emaPM1_0 = updateEMA(emaPM1_0, data.PM_AE_UG_1_0, EMA_ALPHA);
+    emaPM2_5 = updateEMA(emaPM2_5, data.PM_AE_UG_2_5, EMA_ALPHA);
+    emaPM10_0 = updateEMA(emaPM10_0, data.PM_AE_UG_10_0, EMA_ALPHA);
+
     display_update(); // อัพเดทจอ OLED
 
     if (state == 0)
     {
-      if ((data.PM_AE_UG_2_5 > purifierStartValue))
+      // ใช้ค่า EMA สำหรับ PM2.5 ในการควบคุมพัดลม
+      if ((emaPM2_5 > purifierStartValue))
       {
-        fanPWM = map(data.PM_AE_UG_2_5, purifierStartValue, purifierMaxValue,
+        fanPWM = map(emaPM2_5, purifierStartValue, purifierMaxValue,
                      STARTPWM, 255);
         if (fanPWM < 0)
           fanPWM = 0;
@@ -540,9 +574,8 @@ void loop()
       else if (rpm > 100)
         rpm = 100;
 
-      //  อัพเดทค่าใหม่ในรูปแบบ array
-      float val[numVariables] = {data.PM_AE_UG_1_0, data.PM_AE_UG_2_5,
-                                 data.PM_AE_UG_10_0, rpm};
+      //  อัพเดทค่าใหม่ในรูปแบบ array (ใช้ค่า EMA ที่ผ่านการกรองแล้ว)
+      float val[numVariables] = {(int)emaPM1_0, (int)emaPM2_5, (int)emaPM10_0, rpm};
 
       iot.update(val); // ส่งข้อมูลไปยังเซิร์ฟเวอร์
     }
@@ -705,13 +738,13 @@ void display_update()
           // แสดงค่า PM จากเซ็นเซอร์ - PM2.5 เป็นตัวใหญ่ PM1.0 และ PM10.0 เป็นตัวเล็ก
           oled.clearDisplay();
 
-          // PM2.5 as big text in the center
+          // PM2.5 as big text in the center (ใช้ค่า EMA ที่ผ่านการกรองแล้ว)
           oled.setTextSize(3);
-          if (data.PM_AE_UG_2_5 < 9)
+          if (emaPM2_5 < 9)
             oled.setCursor(20, 15);
-          else if (data.PM_AE_UG_2_5 < 99)
+          else if (emaPM2_5 < 99)
             oled.setCursor(15, 15);
-          else if (data.PM_AE_UG_2_5 < 999)
+          else if (emaPM2_5 < 999)
             oled.setCursor(10, 15);
           else
           {
@@ -719,7 +752,7 @@ void display_update()
             oled.setCursor(0, 15);
           }
 
-          oled.print(data.PM_AE_UG_2_5);
+          oled.print((int)emaPM2_5); // แสดงค่า EMA โดยปัดเศษ
 
           // Title at top
           oled.setTextSize(1);
@@ -731,20 +764,20 @@ void display_update()
         }
         else
         {
-          // แสดงค่า PM จากเซ็นเซอร์
+          // แสดงค่า PM จากเซ็นเซอร์ (ใช้ค่า EMA ที่ผ่านการกรองแล้ว)
           oled.clearDisplay();
           oled.setTextSize(1);
           oled.setCursor(0, 0);
           oled.println("PM(ug/m3)");
           oled.setCursor(0, 15);
           oled.print(" 1.0 : ");
-          oled.print(data.PM_AE_UG_1_0);
+          oled.print((int)emaPM1_0); // แสดงค่า EMA โดยปัดเศษ
           oled.setCursor(0, 26);
           oled.print(" 2.5 : ");
-          oled.print(data.PM_AE_UG_2_5);
+          oled.print((int)emaPM2_5); // แสดงค่า EMA โดยปัดเศษ
           oled.setCursor(0, 37);
           oled.print("10.0 : ");
-          oled.print(data.PM_AE_UG_10_0);
+          oled.print((int)emaPM10_0); // แสดงค่า EMA โดยปัดเศษ
         }
       }
       // แสดงข้อความเมื่อไม่พบเซ็นเซอร์
@@ -799,11 +832,19 @@ void display_update()
   if (sensorNotDetect < updateValue)
   {
     Serial.print("PM 1.0 (ug/m3): ");
-    Serial.println(data.PM_AE_UG_1_0);
+    Serial.print(data.PM_AE_UG_1_0);
+    Serial.print(" -> EMA: ");
+    Serial.println(emaPM1_0);
+
     Serial.print("PM 2.5 (ug/m3): ");
-    Serial.println(data.PM_AE_UG_2_5);
+    Serial.print(data.PM_AE_UG_2_5);
+    Serial.print(" -> EMA: ");
+    Serial.println(emaPM2_5);
+
     Serial.print("PM 10.0 (ug/m3): ");
-    Serial.println(data.PM_AE_UG_10_0);
+    Serial.print(data.PM_AE_UG_10_0);
+    Serial.print(" -> EMA: ");
+    Serial.println(emaPM10_0);
   }
   else
   {
