@@ -872,6 +872,13 @@ void outputControl()
     {
         pumpOnProtectionTimer = 0;
     }
+
+    //debug serial print
+    Serial.println("----------------------------------");
+    Serial.println("param   \tch1\tch2\tch3\tch4\tpump");
+    Serial.println("time    \t" + String(ch1Timer) + "\t" + String(ch2Timer) + "\t" + String(ch3Timer) + "\t" + String(ch4Timer) + "\t" + String(pumpTimer));
+    Serial.println("state   \t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
+    Serial.println("----------------------------------");
 }
 
 void onOffUpdate()
