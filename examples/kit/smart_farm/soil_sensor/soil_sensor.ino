@@ -291,10 +291,7 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            workingMode = NO_WORKING;
-            digitalWrite(PUMP, value.toInt() != 0);
-            iot.eventUpdate("SQ", 0);
-            setPopup(String("Pump ") + String(value.toInt() != 0 ? "On" : "Off"));
+            iot.eventUpdate("SQ", digitalRead(PUMP));
         }
     }
     else if (event == "c1") // Channel 1
@@ -314,10 +311,7 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            workingMode = NO_WORKING;
-            digitalWrite(PUMP, value.toInt() != 0);
-            iot.eventUpdate("SQ", 0);
-            setPopup(String("Ch1 ") + String(value.toInt() != 0 ? "On" : "Off"));
+            iot.eventUpdate("c1", digitalRead(CH1));
         }
     }
     else if (event == "c2") // Channel 2
@@ -337,10 +331,7 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            workingMode = NO_WORKING;
-            digitalWrite(PUMP, value.toInt() != 0);
-            iot.eventUpdate("SQ", 0);
-            setPopup(String("Ch2 ") + String(value.toInt() != 0 ? "On" : "Off"));
+            iot.eventUpdate("c2", digitalRead(CH2));
         }
     }
     else if (event == "c3") // Channel 3
@@ -360,10 +351,7 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            workingMode = NO_WORKING;
-            digitalWrite(PUMP, value.toInt() != 0);
-            iot.eventUpdate("SQ", 0);
-            setPopup(String("Ch3 ") + String(value.toInt() != 0 ? "On" : "Off"));
+            iot.eventUpdate("c3", digitalRead(CH3));
         }
     }
     else if (event == "c4") // Channel 4
@@ -383,10 +371,7 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            workingMode = NO_WORKING;
-            digitalWrite(PUMP, value.toInt() != 0);
-            iot.eventUpdate("SQ", 0);
-            setPopup(String("Ch4 ") + String(value.toInt() != 0 ? "On" : "Off"));
+            iot.eventUpdate("c4", digitalRead(CH4));
         }
     }
     else if (event == "Pu")
