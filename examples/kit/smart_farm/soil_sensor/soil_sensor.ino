@@ -219,7 +219,7 @@ void handleEvent(String event, String value)
     EEPROM.begin(512);
     if (event == "SQ") // ตรวจสอบว่าเป็น event ชื่อ "SQ" Sequence หรือไม่
     {
-        Serial.println("Sequence Start");
+        Serial.println("Sequence: " + value);
         if (value == "1" && !digitalRead(PUMP) && workingMode == NO_WORKING)
         {
             workingMode = SEQUENCE;
@@ -291,15 +291,10 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            // Don't exit sequence mode for pump events during sequence initialization
-            // Only exit if explicitly requested to stop the sequence
-            if (value.toInt() == 0)
-            {
-                workingMode = NO_WORKING;
-                digitalWrite(PUMP, LOW);
-                iot.eventUpdate("SQ", 0);
-                setPopup("Sequence\n\nStop");
-            }
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Pump ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "c1") // Channel 1
@@ -319,14 +314,10 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            // Don't exit sequence mode for channel events during sequence initialization
-            // Only update the channel state as needed
-            if (value.toInt() == 0)
-            {
-                ch1Timer = 0;
-                digitalWrite(CH1, LOW);
-                iot.eventUpdate("c1", 0);
-            }
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Ch1 ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "c2") // Channel 2
@@ -346,14 +337,10 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            // Don't exit sequence mode for channel events during sequence initialization
-            // Only update the channel state as needed
-            if (value.toInt() == 0)
-            {
-                ch2Timer = 0;
-                digitalWrite(CH2, LOW);
-                iot.eventUpdate("c2", 0);
-            }
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Ch2 ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "c3") // Channel 3
@@ -373,14 +360,10 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            // Don't exit sequence mode for channel events during sequence initialization
-            // Only update the channel state as needed
-            if (value.toInt() == 0)
-            {
-                ch3Timer = 0;
-                digitalWrite(CH3, LOW);
-                iot.eventUpdate("c3", 0);
-            }
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Ch3 ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "c4") // Channel 4
@@ -400,14 +383,10 @@ void handleEvent(String event, String value)
         }
         else if (workingMode == SEQUENCE)
         {
-            // Don't exit sequence mode for channel events during sequence initialization
-            // Only update the channel state as needed
-            if (value.toInt() == 0)
-            {
-                ch4Timer = 0;
-                digitalWrite(CH4, LOW);
-                iot.eventUpdate("c4", 0);
-            }
+            workingMode = NO_WORKING;
+            digitalWrite(PUMP, value.toInt() != 0);
+            iot.eventUpdate("SQ", 0);
+            setPopup(String("Ch4 ") + String(value.toInt() != 0 ? "On" : "Off"));
         }
     }
     else if (event == "Pu")
@@ -919,14 +898,8 @@ void onOffUpdate()
     {
         onState = thisState;
 
-        // Only send SQ=0 when sequence is actually complete (all timers are zero)
-        // and we were previously in SEQUENCE mode
-        if (workingMode == SEQUENCE && !thisState && 
-            ch1Timer == 0 && ch2Timer == 0 && ch3Timer == 0 && ch4Timer == 0 && pumpTimer == 0)
-        {
-            workingMode = NO_WORKING; // Exit sequence mode
+        if (workingMode == SEQUENCE && !thisState)
             iot.eventUpdate("SQ", 0); // อัพเดท event ไปยัง server
-        }
     }
 
     if (workingMode == SEQUENCE)
@@ -1471,8 +1444,4 @@ void setPopup(String msg, uint8_t timeout)
 {
     popupStatus = msg;
     popupShowTimer = timeout;
-
-    // Serial.println("********************");
-    // Serial.println(">>" + msg);
-    // Serial.println("********************");
 }
