@@ -219,13 +219,13 @@ void handleEvent(String event, String value)
     if (event == "SQ") // ตรวจสอบว่าเป็น event ชื่อ "SQ" Sequence หรือไม่
     {
         Serial.println("Sequence: " + value);
-        if (value.toInt())
+        if (value == "1" && !digitalRead(PUMP) && workingMode == NO_WORKING)
         {
             workingMode = SEQUENCE;
             onAll();
-            setPopup(String("Sequence\n\nStart\n\n") + value + String(" s"));
+            setPopup("Sequence\n\nStart");
         }
-        else
+        else if (value == "0" && digitalRead(PUMP) && workingMode == SEQUENCE)
         {
             workingMode = NO_WORKING;
             offAll();
