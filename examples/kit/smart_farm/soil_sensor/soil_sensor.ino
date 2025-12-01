@@ -202,6 +202,7 @@ const uint8_t pumpDelayConst = 5, overlapValveConst = 5;
 uint8_t pumpDelayTimer;
 bool onState;
 uint8_t humidLowCutoff, humidHighCutoff;
+uint8_t pumpOnProtectionTimer;
 
 // Enum for working mode states
 enum WorkingMode : uint8_t
@@ -280,11 +281,6 @@ void handleEvent(String event, String value)
             digitalWrite(PUMP, HIGH);
             iot.eventUpdate("P", 1);
             setPopup("Pump\n\nOn");
-
-            // for protection pump on without valve on
-            if (!ch1Timer && !ch2Timer && !ch3Timer && !ch4Timer &&
-                !digitalRead(CH1) && !digitalRead(CH2) && !digitalRead(CH3) && !digitalRead(CH4) && ch1Use)
-                digitalWrite(CH1, HIGH);
         }
         else if (value.toInt() == 0 && workingMode == NO_WORKING)
         {
@@ -734,6 +730,11 @@ void loop()
             sampleUpdate = 0;
         }
     }
+
+    // for protection pump on without valve on
+    if (digitalRead(PUMP) && !ch1Timer && !ch2Timer && !ch3Timer && !ch4Timer &&
+        !digitalRead(CH1) && !digitalRead(CH2) && !digitalRead(CH3) && !digitalRead(CH4) && ch1Use)
+        digitalWrite(CH1, HIGH);
 }
 
 void outputControl()
@@ -871,7 +872,21 @@ void outputControl()
     }
 #endif
 
-    Serial.println(displayStatus);
+    // protection for forget to close valve
+
+    if (digitalRead(PUMP))
+    {
+        pumpOnProtectionTimer++;
+        if (pumpOnProtectionTimer >= interval * 5)
+        {
+            pumpOnProtectionTimer = 0;
+            offAll();
+        }
+    }
+    else
+    {
+        pumpOnProtectionTimer = 0;
+    }
 }
 
 void onOffUpdate()
