@@ -1,11 +1,11 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 // เลือกรุ่นที่ใช้งาน
-#define NOSENSOR_MODEL
+// #define NOSENSOR_MODEL
 // #define HUMID_MODEL
 // #define TEMP_HUMID_MODEL
 // #define TEMP_HUMID_EC_MODEL
-// #define ALL_7IN1_MODEL
+#define ALL_7IN1_MODEL
 
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
@@ -200,9 +200,9 @@ bool pumpState, ch1State, ch2State, ch3State, ch4State;
 bool pumpUse, ch1Use, ch2Use, ch3Use, ch4Use;
 const uint8_t pumpDelayConst = 5, overlapValveConst = 5;
 uint8_t pumpDelayTimer;
-bool onState;
+uint32_t onState;
 uint8_t humidLowCutoff, humidHighCutoff;
-uint8_t pumpOnProtectionTimer;
+uint32_t pumpOnProtectionTimer;
 
 // Enum for working mode states
 enum WorkingMode : uint8_t
@@ -220,17 +220,19 @@ void handleEvent(String event, String value)
     if (event == "SQ") // ตรวจสอบว่าเป็น event ชื่อ "SQ" Sequence หรือไม่
     {
         Serial.println("Sequence: " + value);
-        if (value == "1" && !digitalRead(PUMP) && workingMode == NO_WORKING)
+        if (value == "1" && workingMode == NO_WORKING)
         {
             workingMode = SEQUENCE;
             onAll();
             setPopup("Sequence\n\nStart");
         }
-        else if (value == "0" && digitalRead(PUMP) && workingMode == SEQUENCE)
+        else if (value == "0" && workingMode == SEQUENCE)
         {
             workingMode = NO_WORKING;
             offAll();
             setPopup("Sequence\n\nStop");
+        }else{
+            iot.debug("value: " + value  + "  workingmode: " + String(workingMode));
         }
     }
     else if (event == "M")
@@ -707,6 +709,7 @@ void loop()
         onOffUpdate();
         display_update(); // อัพเดทจอ OLED
         outputControl();
+        readOnState();
 
         if (sampleUpdate >= 5)
         {
@@ -850,7 +853,7 @@ void outputControl()
                 pumpTimer = ch1Timer + ch2Timer + ch3Timer + ch4Timer - pumpDelayConst - 3;
         }
     }
-    else if (humidity <= humidLowCutoff && state == 2) // ถ้าค่าความชื้นต่ำกว่าเกณฑ์ and in auto mode
+    else if (humidity <= humidLowCutoff && state == 2 && workingMode == NO_WORKING) // ถ้าค่าความชื้นต่ำกว่าเกณฑ์ and in auto mode and not already working
     {
         workingMode = SEQUENCE;
         onAll();
@@ -858,7 +861,6 @@ void outputControl()
 #endif
 
     // protection for forget to close valve
-
     if (digitalRead(PUMP))
     {
         pumpOnProtectionTimer++;
@@ -873,12 +875,12 @@ void outputControl()
         pumpOnProtectionTimer = 0;
     }
 
-    //debug serial print
-    Serial.println("----------------------------------");
-    Serial.println("param   \tch1\tch2\tch3\tch4\tpump");
-    Serial.println("time    \t" + String(ch1Timer) + "\t" + String(ch2Timer) + "\t" + String(ch3Timer) + "\t" + String(ch4Timer) + "\t" + String(pumpTimer));
-    Serial.println("state   \t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
-    Serial.println("----------------------------------");
+    // debug serial print
+    Serial.println("---------------------------------------------------------");
+    Serial.println("param\tch1\tch2\tch3\tch4\tpump");
+    Serial.println("time \t" + String(ch1Timer) + "\t" + String(ch2Timer) + "\t" + String(ch3Timer) + "\t" + String(ch4Timer) + "\t" + String(pumpTimer));
+    Serial.println("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
+    Serial.println("---------------------------------------------------------");
 }
 
 void onOffUpdate()
@@ -886,9 +888,10 @@ void onOffUpdate()
     // Calculate onTimer: set to 1 if any of ch1-ch4 is on, otherwise 0
     bool thisState = (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0 || pumpTimer > 0) ? 1 : 0;
 
-    if (thisState != onState)
+    if (thisState != bool(onState))
     {
-        onState = thisState;
+        // onState = thisState;
+        readOnState();
 
         if (workingMode == SEQUENCE && !thisState)
             iot.eventUpdate("SQ", 0); // อัพเดท event ไปยัง server
@@ -945,7 +948,7 @@ void readSensorData()
 // Determine which sensor model is defined and execute accordingly
 #if defined(NOSENSOR_MODEL)
     // No sensors - only send the onState state
-    float payload[numVariables] = {bool(onState)};
+    float payload[numVariables] = {onState};
     iot.update(payload);
 #elif defined(HUMID_MODEL)
     // Only humidity sensor
@@ -960,7 +963,7 @@ void readSensorData()
         Serial.print(humidity);
         Serial.println(" %RH");
 
-        float payload[numVariables] = {bool(onState), humidity};
+        float payload[numVariables] = {onState, humidity};
         iot.update(payload);
     }
     else
@@ -985,7 +988,7 @@ void readSensorData()
         Serial.print(temperature);
         Serial.println(" °C");
 
-        float payload[numVariables] = {bool(onState), humidity, temperature};
+        float payload[numVariables] = {onState, humidity, temperature};
         iot.update(payload);
     }
     else
@@ -1014,7 +1017,7 @@ void readSensorData()
         Serial.print(conductivity);
         Serial.println(" µS/cm");
 
-        float payload[numVariables] = {bool(onState), humidity, temperature, conductivity};
+        float payload[numVariables] = {onState, humidity, temperature, conductivity};
         iot.update(payload);
     }
     else
@@ -1058,7 +1061,7 @@ void readSensorData()
         Serial.print(potassium);
         Serial.println(" mg/kg");
 
-        float payload[numVariables] = {bool(onState), humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
+        float payload[numVariables] = {onState, humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
         iot.update(payload);
     }
     else
@@ -1158,7 +1161,7 @@ void display_update()
         oled.setTextSize(1);
         oled.setCursor(0, 0);
         oled.print(popupStatus);
-        Serial.println(popupStatus);
+        // Serial.println(popupStatus);
     }
     //------อัพเดทจอ OLED------
     else
@@ -1436,4 +1439,17 @@ void setPopup(String msg, uint8_t timeout)
 {
     popupStatus = msg;
     popupShowTimer = timeout;
+}
+
+void readOnState()
+{
+
+    if (ch1Use && (ch1Timer > 0 || ch2Timer > 0 || ch3Timer > 0 || ch4Timer > 0))
+        onState = ch1Timer + ch2Timer + ch3Timer + ch4Timer;
+
+    else if (!ch1Use && pumpUse && pumpTimer > 0)
+        onState = pumpTimer;
+
+    else
+        onState = pumpOnProtectionTimer;
 }
