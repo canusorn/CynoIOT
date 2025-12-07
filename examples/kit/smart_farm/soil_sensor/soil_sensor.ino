@@ -1,11 +1,11 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 // เลือกรุ่นที่ใช้งาน
-#define NOSENSOR_MODEL
+// #define NOSENSOR_MODEL
 // #define HUMID_MODEL
 // #define TEMP_HUMID_MODEL
 // #define TEMP_HUMID_EC_MODEL
-// #define ALL_7IN1_MODEL
+#define ALL_7IN1_MODEL
 
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
@@ -753,9 +753,8 @@ void loop()
         sampleUpdate++;
 
         time1sec();
-        updateSequenceFlow();
-        updateDisplay(); // อัพเดทจอ OLED
         updateSystemState();
+        updateDisplay(); // อัพเดทจอ OLED
 
         if (sampleUpdate >= 5)
         {
@@ -825,6 +824,9 @@ void updateSystemState()
             {
                 chState[1] = 1;
             }
+
+            if (chTimer[0] == 0)
+                chState[0] = 0;
         }
         else if (chTimer[1])
         {
@@ -838,6 +840,9 @@ void updateSystemState()
             {
                 chState[2] = 1;
             }
+
+            if (chTimer[1] == 0)
+                chState[1] = 0;
         }
         else if (chTimer[2])
         {
@@ -851,6 +856,9 @@ void updateSystemState()
             {
                 chState[3] = 1;
             }
+
+            if (chTimer[2] == 0)
+                chState[2] = 0;
         }
         else if (chTimer[3])
         {
@@ -858,13 +866,15 @@ void updateSystemState()
             chState[3] = 1;
             displayStatus += "C4:" + String(chTimer[3]);
             chTimer[3]--;
+
+            if (chTimer[3] == 0)
+                chState[3] = 0;
         }
-        else
+
+        if (!pumpTimer && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3])
         {
-            chState[0] = 0;
-            chState[1] = 0;
-            chState[2] = 0;
-            chState[3] = 0;
+            workingMode = NO_WORKING;
+            iot.eventUpdate("SQ", 0);
         }
     }
 
@@ -919,55 +929,6 @@ void updateSystemState()
     Serial.println("---------------------------------------------------------");
 }
 
-void updateSequenceFlow()
-{
-    if (workingMode == SEQUENCE)
-    {
-        // if (pumpTimer == 1)
-        // {
-        //     iot.eventUpdate("P", 0);
-        // }
-
-        // if (chTimer[0] == 1)
-        // {
-        //     iot.eventUpdate("c1", 0);
-
-        //     if (chTimer[1]) // have next valve
-        //         iot.eventUpdate("c2", 1);
-        //     else // is last valve
-        //         iot.eventUpdate("SQ", 0);
-        // }
-        // if (chTimer[1] == 1)
-        // {
-        //     iot.eventUpdate("c2", 0);
-
-        //     if (chTimer[2]) // have next valve
-        //         iot.eventUpdate("c3", 1);
-        //     else // is last valve
-        //         iot.eventUpdate("SQ", 0);
-        // }
-        // if (chTimer[2] == 1)
-        // {
-        //     iot.eventUpdate("c3", 0);
-
-        //     if (chTimer[3]) // have next valve
-        //         iot.eventUpdate("c4", 1);
-        //     else // is last valve
-        //         iot.eventUpdate("SQ", 0);
-        // }
-        // if (chTimer[3] == 1)
-        // {
-        //     iot.eventUpdate("c4", 0);
-        //     iot.eventUpdate("SQ", 0);
-        // }
-
-        if (!pumpTimer && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3])
-        {
-            workingMode = NO_WORKING;
-            iot.eventUpdate("SQ", 0);
-        }
-    }
-}
 // ------------------------------------------------------------------
 // Read sensor data based on the defined sensor model
 // ------------------------------------------------------------------
@@ -1338,10 +1299,13 @@ void updateHardwareOutputs()
     }
     if (digitalRead(CH4) != chState[3])
     {
-        // Serial.println("ch4 change to " + String(chState[3]));
+        Serial.println("ch4 change to " + String(chState[3]));
         digitalWrite(CH4, chState[3]);
         iot.eventUpdate("c4", chState[3]);
     }
+    // else{
+    // Serial.println("ch4 not change, read:" + String(digitalRead(CH4)) + " ,state:" + String(chState[3]));
+    // }
 }
 
 // read timer to show
