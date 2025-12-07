@@ -446,8 +446,8 @@ void Cynoiot::handle()
     if (event[i].length() && value[i].length())
     {
       // DEBUGLN("Event flag found " + event[i] + " value " + value[i]);
-      triggerEvent(event[i], value[i]);
       eventUpdate(event[i], value[i]);
+      triggerEvent(event[i], value[i]);
       event[i] = "";
       value[i] = "";
     }
