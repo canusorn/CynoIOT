@@ -127,7 +127,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
 
 // -- ประกาศฟังก์ชัน
 void handleRoot();
-void setPopup(String msg, uint8_t timeout = 3);
+void showPopupMessage(String msg, uint8_t timeout = 3);
 // -- ฟังก์ชัน Callback
 void wifiConnected();
 void configSaved();
@@ -228,7 +228,7 @@ void handleEvent(String event, String value)
         // iot.debug("Event SQ received with value: " + value);
         if (value == "1" && workingMode == NO_WORKING)
         {
-            onSeq();
+            startSequenceMode();
             iot.debug("Sequence mode started by event SQ");
         }
         else if (value == "0")
@@ -238,7 +238,7 @@ void handleEvent(String event, String value)
         }
         else
         {
-            // iot.debug("Invalid value: " + value + "  workingmode: " + String(workingMode));
+            iot.debug("Invalid value: " + value + "  workingmode: " + String(workingMode));
         }
     }
     else if (event == "M")
@@ -248,13 +248,13 @@ void handleEvent(String event, String value)
         if (value == "auto")
         {
             globalMode = AUTO;
-            setPopup("Set to\n\nAuto\n\nMode");
+            showPopupMessage("Set to\n\nAuto\n\nMode");
             iot.debug("Mode set to Auto by event M");
         }
         else // if (value == "off" || value == "null")
         {
             globalMode = OFF;
-            setPopup("Set to\n\nOff\n\nMode");
+            showPopupMessage("Set to\n\nOff\n\nMode");
             iot.debug("Mode set to Off by event M");
         }
 
@@ -275,7 +275,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("Interval: " + value);
         // iot.debug("Event In received with value: " + value);
-        setPopup(String("Interval\n\nSet to\n\n") + value + String(" s"));
+        showPopupMessage(String("Interval\n\nSet to\n\n") + value + String(" s"));
         interval = (uint16_t)value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน interval
         // iot.debug("Interval set to: " + String(interval) + " seconds");
 
@@ -303,7 +303,7 @@ void handleEvent(String event, String value)
             {
                 pumpState = 1;
                 iot.eventUpdate("P", 1);
-                setPopup("Pump\n\nOn");
+                showPopupMessage("Pump\n\nOn");
                 iot.debug("Pump turned ON from event");
             }
             else if (value == "0")
@@ -311,7 +311,7 @@ void handleEvent(String event, String value)
                 pumpTimer = 0;
                 pumpState = 0;
                 iot.eventUpdate("P", 0);
-                setPopup("Pump\n\nOff");
+                showPopupMessage("Pump\n\nOff");
                 iot.debug("Pump turned OFF from event");
             }
         }
@@ -332,7 +332,7 @@ void handleEvent(String event, String value)
             {
                 chState[0] = 1;
                 iot.eventUpdate("c1", 1);
-                setPopup("Ch1 On");
+                showPopupMessage("Ch1 On");
                 iot.debug("Channel 1 turned ON from event");
             }
             else if (value.toInt() == 0)
@@ -340,7 +340,7 @@ void handleEvent(String event, String value)
                 chTimer[0] = 0;
                 chState[0] = 0;
                 iot.eventUpdate("c1", 0);
-                setPopup("Ch1 Off");
+                showPopupMessage("Ch1 Off");
                 iot.debug("Channel 1 turned OFF from event");
             }
         }
@@ -359,7 +359,7 @@ void handleEvent(String event, String value)
             {
                 chState[1] = 1;
                 iot.eventUpdate("c2", 1);
-                setPopup("Ch2 On");
+                showPopupMessage("Ch2 On");
                 iot.debug("Channel 2 turned ON from event");
             }
             else if (value.toInt() == 0)
@@ -367,7 +367,7 @@ void handleEvent(String event, String value)
                 chTimer[1] = 0;
                 chState[1] = 0;
                 iot.eventUpdate("c2", 0);
-                setPopup("Ch2 Off");
+                showPopupMessage("Ch2 Off");
                 iot.debug("Channel 2 turned OFF from event");
             }
         }
@@ -386,7 +386,7 @@ void handleEvent(String event, String value)
             {
                 chState[2] = 1;
                 iot.eventUpdate("c3", 1);
-                setPopup("Ch3 On");
+                showPopupMessage("Ch3 On");
                 iot.debug("Channel 3 turned ON from event");
             }
             else if (value.toInt() == 0)
@@ -394,7 +394,7 @@ void handleEvent(String event, String value)
                 chTimer[2] = 0;
                 chState[2] = 0;
                 iot.eventUpdate("c3", 0);
-                setPopup("Ch3 Off");
+                showPopupMessage("Ch3 Off");
                 iot.debug("Channel 3 turned OFF from event");
             }
         }
@@ -413,7 +413,7 @@ void handleEvent(String event, String value)
             {
                 chState[3] = 1;
                 iot.eventUpdate("c4", 1);
-                setPopup("Ch4 On");
+                showPopupMessage("Ch4 On");
                 iot.debug("Channel 4 turned ON");
             }
             else if (value.toInt() == 0)
@@ -421,7 +421,7 @@ void handleEvent(String event, String value)
                 chTimer[3] = 0;
                 chState[3] = 0;
                 iot.eventUpdate("c4", 0);
-                setPopup("Ch4 Off");
+                showPopupMessage("Ch4 Off");
                 iot.debug("Channel 4 turned OFF");
             }
         }
@@ -435,7 +435,7 @@ void handleEvent(String event, String value)
     {
         Serial.println("Pump use : " + value);
         pumpUse = (bool)value.toInt();
-        setPopup(String("Pump\n\nUse\n\n") + String(value.toInt() != 0 ? "On" : "Off"));
+        showPopupMessage(String("Pump\n\nUse\n\n") + String(value.toInt() != 0 ? "On" : "Off"));
 
         // Check if value is different before writing to EEPROM
         uint8_t currentPumpUse = EEPROM.read(497);
@@ -455,7 +455,7 @@ void handleEvent(String event, String value)
         Serial.println("CH use : " + value + "ch");
         // iot.debug("Event C1u received with value: " + value);
         chUse = value.toInt();
-        setPopup(String("Ch\n\nUse\n\n") + String(value.toInt()));
+        showPopupMessage(String("Ch\n\nUse\n\n") + String(value.toInt()));
         // iot.debug("Channel use set to: " + String(ch1Use ? "On" : "Off"));
 
         // Check if value is different before writing to EEPROM
@@ -476,7 +476,7 @@ void handleEvent(String event, String value)
         Serial.println("Humid low cutoff : " + value);
         // iot.debug("Event Hl received with value: " + value);
         humidLowCutoff = (uint8_t)value.toInt();
-        setPopup(String("Humid Low\n\nCutoff to\n\n") + value + String("%"));
+        showPopupMessage(String("Humid Low\n\nCutoff to\n\n") + value + String("%"));
         // iot.debug("Humidity low cutoff set to: " + String(humidLowCutoff) + "%");
 
         // Check if value is different before writing to EEPROM
@@ -497,7 +497,7 @@ void handleEvent(String event, String value)
         Serial.println("Humid high cutoff : " + value);
         // iot.debug("Event Hh received with value: " + value);
         humidHighCutoff = (uint8_t)value.toInt();
-        setPopup(String("Humid High\n\nCutoff to\n\n") + value + String("%"));
+        showPopupMessage(String("Humid High\n\nCutoff to\n\n") + value + String("%"));
         // iot.debug("Humidity high cutoff set to: " + String(humidHighCutoff) + "%");
 
         // Check if value is different before writing to EEPROM
@@ -753,13 +753,13 @@ void loop()
         sampleUpdate++;
 
         time1sec();
-        flowControl();
-        display_update(); // อัพเดทจอ OLED
-        stateControl();
+        updateSequenceFlow();
+        updateDisplay(); // อัพเดทจอ OLED
+        updateSystemState();
 
         if (sampleUpdate >= 5)
         {
-            readSensorData();
+            readAndSendSensorData();
             sampleUpdate = 0;
         }
     }
@@ -770,10 +770,10 @@ void loop()
         chState[0] = 1;
     }
 
-    output();
+    updateHardwareOutputs();
 }
 
-void stateControl()
+void updateSystemState()
 {
     displayStatus = "";
 
@@ -892,7 +892,7 @@ void stateControl()
     //     else if (humidity <= humidLowCutoff && state == 2 && workingMode == NO_WORKING) // ถ้าค่าความชื้นต่ำกว่าเกณฑ์ and in auto mode and not already working
     //     {
     //         workingMode = SEQUENCE;
-    //         onSeq();
+    //         startSequenceMode();
     //     }
     // #endif
 
@@ -919,7 +919,7 @@ void stateControl()
     Serial.println("---------------------------------------------------------");
 }
 
-void flowControl()
+void updateSequenceFlow()
 {
     if (workingMode == SEQUENCE)
     {
@@ -935,7 +935,7 @@ void flowControl()
 
             if (chTimer[1]) // have next valve
                 iot.eventUpdate("c2", 1);
-            else // is last value
+            else // is last valve
                 iot.eventUpdate("SQ", 0);
         }
         if (chTimer[1] == 1)
@@ -944,7 +944,7 @@ void flowControl()
 
             if (chTimer[2]) // have next valve
                 iot.eventUpdate("c3", 1);
-            else // is last value
+            else // is last valve
                 iot.eventUpdate("SQ", 0);
         }
         if (chTimer[2] == 1)
@@ -953,7 +953,7 @@ void flowControl()
 
             if (chTimer[3]) // have next valve
                 iot.eventUpdate("c4", 1);
-            else // is last value
+            else // is last valve
                 iot.eventUpdate("SQ", 0);
         }
         if (chTimer[3] == 1)
@@ -961,14 +961,19 @@ void flowControl()
             iot.eventUpdate("c4", 0);
             iot.eventUpdate("SQ", 0);
         }
+
+        if (!pumpTimer && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3])
+        {
+            workingMode = NO_WORKING;
+        }
     }
 }
 // ------------------------------------------------------------------
 // Read sensor data based on the defined sensor model
 // ------------------------------------------------------------------
-void readSensorData()
+void readAndSendSensorData()
 {
-    uint32_t onState = readOnState();
+    uint32_t onState = getSystemState();
 // Determine which sensor model is defined and execute accordingly
 #if defined(NOSENSOR_MODEL)
     // No sensors - only send the onState state
@@ -1096,7 +1101,7 @@ void readSensorData()
 #endif
 }
 
-void display_update()
+void updateDisplay()
 {
     // แสดงสถานะการเชื่อมต่อ
     iotwebconf::NetworkState curr_state = iotWebConf.getState();
@@ -1250,6 +1255,111 @@ void display_update()
     oled.display(); // แสดงผลบนจอ OLED
 }
 
+void offSeq()
+{
+    workingMode = NO_WORKING;
+    pumpState = 0;
+    pumpTimer = 0;
+    pumpDelayTimer = 0;
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        chState[i] = 0;
+        chTimer[i] = 0;
+    }
+    showPopupMessage("Sequence\n\nStop");
+}
+
+// start sequence mode
+void startSequenceMode()
+{
+    workingMode = SEQUENCE;
+    if (chUse)
+    {
+        for (uint8_t i = 0; i < chUse; i++)
+        {
+            chTimer[i] = interval;
+        }
+    }
+
+    if (pumpUse)
+    {
+        pumpTimer = chUse * interval - pumpDelayConst - 3;
+
+        // if use zone -> delay pump
+        if (chUse)
+        {
+            pumpDelayTimer = pumpDelayConst;
+            pumpTimer = chUse * interval - pumpDelayConst - 3;
+        }
+        else
+            pumpTimer = interval;
+    }
+    showPopupMessage("Sequence\n\nStart");
+}
+
+void showPopupMessage(String msg, uint8_t timeout)
+{
+    popupStatus = msg;
+    popupShowTimer = timeout;
+}
+
+// set output from flag
+void updateHardwareOutputs()
+{
+    if (digitalRead(PUMP) != pumpState)
+    {
+        // Serial.println("pump change to " + String(pumpState));
+        digitalWrite(PUMP, pumpState);
+        iot.eventUpdate("P", pumpState);
+    }
+    // else
+    // {
+    //     Serial.println("pump not change ,read:" + String(digitalRead(PUMP)) + " ,state:" + String(pumpState));
+    // }
+
+    // Check and update each channel individually
+    if (digitalRead(CH1) != chState[0])
+    {
+        // Serial.println("ch1 change to " + String(chState[0]));
+        digitalWrite(CH1, chState[0]);
+        iot.eventUpdate("c1", chState[0]);
+    }
+    if (digitalRead(CH2) != chState[1])
+    {
+        // Serial.println("ch2 change to " + String(chState[1]));
+        digitalWrite(CH2, chState[1]);
+        iot.eventUpdate("c2", chState[1]);
+    }
+    if (digitalRead(CH3) != chState[2])
+    {
+        // Serial.println("ch3 change to " + String(chState[2]));
+        digitalWrite(CH3, chState[2]);
+        iot.eventUpdate("c3", chState[2]);
+    }
+    if (digitalRead(CH4) != chState[3])
+    {
+        // Serial.println("ch4 change to " + String(chState[3]));
+        digitalWrite(CH4, chState[3]);
+        iot.eventUpdate("c4", chState[3]);
+    }
+}
+
+// read timer to show
+uint32_t getSystemState()
+{
+    uint32_t onState = 0;
+    if (chUse && (chTimer[0] > 0 || chTimer[1] > 0 || chTimer[2] > 0 || chTimer[3] > 0))
+        onState = chTimer[0] + chTimer[1] + chTimer[2] + chTimer[3];
+
+    else if (!chUse && pumpUse && pumpTimer > 0)
+        onState = pumpTimer;
+
+    else
+        onState = pumpOnProtectionTimer;
+
+    return onState;
+}
+
 void preTransmission() /* transmission program when triggered*/
 {
     pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
@@ -1362,109 +1472,4 @@ void reboot()
     server.send(200, "text/plain", "rebooting");
     delay(1000);
     ESP.restart(); // รีสตาร์ท ESP
-}
-
-void offSeq()
-{
-    workingMode = NO_WORKING;
-    pumpState = 0;
-    pumpTimer = 0;
-    pumpDelayTimer = 0;
-    for (uint8_t i = 0; i < 4; i++)
-    {
-        chState[i] = 0;
-        chTimer[i] = 0;
-    }
-    setPopup("Sequence\n\nStop");
-}
-
-// start sequence mode
-void onSeq()
-{
-    workingMode = SEQUENCE;
-    if (chUse)
-    {
-        for (uint8_t i = 0; i < chUse; i++)
-        {
-            chTimer[i] = interval;
-        }
-    }
-
-    if (pumpUse)
-    {
-        pumpTimer = chUse * interval - pumpDelayConst - 3;
-
-        // if use zone -> delay pump
-        if (chUse)
-        {
-            pumpDelayTimer = pumpDelayConst;
-            pumpTimer = chUse * interval - pumpDelayConst - 3;
-        }
-        else
-            pumpTimer = interval;
-    }
-    setPopup("Sequence\n\nStart");
-}
-
-void setPopup(String msg, uint8_t timeout)
-{
-    popupStatus = msg;
-    popupShowTimer = timeout;
-}
-
-// set output from flag
-void output()
-{
-    if (digitalRead(PUMP) != pumpState)
-    {
-        // Serial.println("pump change to " + String(pumpState));
-        digitalWrite(PUMP, pumpState);
-        iot.eventUpdate("P", pumpState);
-    }
-    // else
-    // {
-    //     Serial.println("pump not change ,read:" + String(digitalRead(PUMP)) + " ,state:" + String(pumpState));
-    // }
-
-    // Check and update each channel individually
-    if (digitalRead(CH1) != chState[0])
-    {
-        // Serial.println("ch1 change to " + String(chState[0]));
-        digitalWrite(CH1, chState[0]);
-        iot.eventUpdate("c1", chState[0]);
-    }
-    if (digitalRead(CH2) != chState[1])
-    {
-        // Serial.println("ch2 change to " + String(chState[1]));
-        digitalWrite(CH2, chState[1]);
-        iot.eventUpdate("c2", chState[1]);
-    }
-    if (digitalRead(CH3) != chState[2])
-    {
-        // Serial.println("ch3 change to " + String(chState[2]));
-        digitalWrite(CH3, chState[2]);
-        iot.eventUpdate("c3", chState[2]);
-    }
-    if (digitalRead(CH4) != chState[3])
-    {
-        // Serial.println("ch4 change to " + String(chState[3]));
-        digitalWrite(CH4, chState[3]);
-        iot.eventUpdate("c4", chState[3]);
-    }
-}
-
-// read timer to show
-uint32_t readOnState()
-{
-    uint32_t onState = 0;
-    if (chUse && (chTimer[0] > 0 || chTimer[1] > 0 || chTimer[2] > 0 || chTimer[3] > 0))
-        onState = chTimer[0] + chTimer[1] + chTimer[2] + chTimer[3];
-
-    else if (!chUse && pumpUse && pumpTimer > 0)
-        onState = pumpTimer;
-
-    else
-        onState = pumpOnProtectionTimer;
-
-    return onState;
 }
