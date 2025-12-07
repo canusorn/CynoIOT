@@ -923,48 +923,48 @@ void updateSequenceFlow()
 {
     if (workingMode == SEQUENCE)
     {
-        if (pumpTimer == 1)
-        {
-            iot.eventUpdate("P", 0);
-            iot.eventUpdate("SQ", 0);
-        }
+        // if (pumpTimer == 1)
+        // {
+        //     iot.eventUpdate("P", 0);
+        // }
 
-        if (chTimer[0] == 1)
-        {
-            iot.eventUpdate("c1", 0);
+        // if (chTimer[0] == 1)
+        // {
+        //     iot.eventUpdate("c1", 0);
 
-            if (chTimer[1]) // have next valve
-                iot.eventUpdate("c2", 1);
-            else // is last valve
-                iot.eventUpdate("SQ", 0);
-        }
-        if (chTimer[1] == 1)
-        {
-            iot.eventUpdate("c2", 0);
+        //     if (chTimer[1]) // have next valve
+        //         iot.eventUpdate("c2", 1);
+        //     else // is last valve
+        //         iot.eventUpdate("SQ", 0);
+        // }
+        // if (chTimer[1] == 1)
+        // {
+        //     iot.eventUpdate("c2", 0);
 
-            if (chTimer[2]) // have next valve
-                iot.eventUpdate("c3", 1);
-            else // is last valve
-                iot.eventUpdate("SQ", 0);
-        }
-        if (chTimer[2] == 1)
-        {
-            iot.eventUpdate("c3", 0);
+        //     if (chTimer[2]) // have next valve
+        //         iot.eventUpdate("c3", 1);
+        //     else // is last valve
+        //         iot.eventUpdate("SQ", 0);
+        // }
+        // if (chTimer[2] == 1)
+        // {
+        //     iot.eventUpdate("c3", 0);
 
-            if (chTimer[3]) // have next valve
-                iot.eventUpdate("c4", 1);
-            else // is last valve
-                iot.eventUpdate("SQ", 0);
-        }
-        if (chTimer[3] == 1)
-        {
-            iot.eventUpdate("c4", 0);
-            iot.eventUpdate("SQ", 0);
-        }
+        //     if (chTimer[3]) // have next valve
+        //         iot.eventUpdate("c4", 1);
+        //     else // is last valve
+        //         iot.eventUpdate("SQ", 0);
+        // }
+        // if (chTimer[3] == 1)
+        // {
+        //     iot.eventUpdate("c4", 0);
+        //     iot.eventUpdate("SQ", 0);
+        // }
 
         if (!pumpTimer && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3])
         {
             workingMode = NO_WORKING;
+            iot.eventUpdate("SQ", 0);
         }
     }
 }
