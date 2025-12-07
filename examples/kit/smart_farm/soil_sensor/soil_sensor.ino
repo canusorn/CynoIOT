@@ -1273,10 +1273,6 @@ void updateHardwareOutputs()
         digitalWrite(PUMP, pumpState);
         iot.eventUpdate("P", pumpState);
     }
-    // else
-    // {
-    //     Serial.println("pump not change ,read:" + String(digitalRead(PUMP)) + " ,state:" + String(pumpState));
-    // }
 
     // Check and update each channel individually
     if (digitalRead(CH1) != chState[0])
@@ -1299,13 +1295,10 @@ void updateHardwareOutputs()
     }
     if (digitalRead(CH4) != chState[3])
     {
-        Serial.println("ch4 change to " + String(chState[3]));
+        // Serial.println("ch4 change to " + String(chState[3]));
         digitalWrite(CH4, chState[3]);
         iot.eventUpdate("c4", chState[3]);
     }
-    // else{
-    // Serial.println("ch4 not change, read:" + String(digitalRead(CH4)) + " ,state:" + String(chState[3]));
-    // }
 }
 
 // read timer to show
