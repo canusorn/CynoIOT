@@ -515,6 +515,18 @@ void Cynoiot::checkUpdateTimestamps()
   }
 }
 
+void Cynoiot::requestInitData()
+{
+  if (!_initRequested)
+  {
+    DEBUGLN("requesting init data");
+    String payload = "";
+    String topic = "/" + getClientId() + "/get/init";
+    publish(payload, topic);
+    _initRequested = true;
+  }
+}
+
 bool Cynoiot::subscribe()
 {
   bool isSubscribed = client.subscribe("/" + getClientId() + "/#");
@@ -523,6 +535,7 @@ bool Cynoiot::subscribe()
   {
     DEBUGLN("subscripted! to /" + getClientId() + "/#");
     pub2SubTime = 0;
+    requestInitData(); // Request init data after successful subscription
     return true;
   }
   else

@@ -53,6 +53,7 @@ private:
   String _template = "";
   uint8_t _templateVersion = 0;
   EventCallbackFunction _eventCallback = NULL; // Store the callback function
+  bool _initRequested = false; // Flag to track if init data has been requested
 
   String getPublishTopic();
   bool subscribe();
@@ -77,6 +78,7 @@ private:
 
   void templatePublish();
   void checkUpdateTimestamps();
+  void requestInitData();
 
 public:
   Cynoiot();
