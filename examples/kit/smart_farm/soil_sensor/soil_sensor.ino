@@ -878,48 +878,34 @@ void updateSystemState()
         }
     }
 
-    // #if !defined(NOSENSOR_MODEL) // ถ้ามีเซนเซอร์
+#if !defined(NOSENSOR_MODEL) // ถ้ามีเซนเซอร์
 
-    //     bool thisState = (ch1Timer > 0 || pumpTimer > 0) ? 1 : 0;
-    //     if (thisState && state) // if on and timer or auto sata
-    //     {
-    //         if (humidity >= humidHighCutoff) // ถ้าค่าความชื้นสูงกว่าเกณฑ์
-    //         {
-    //             uint8_t newInterval = interval - ch1Timer;
-    //             ch1Timer = overlapValveConst + 1;
-
-    //             if (ch2Timer && ch2Use)
-    //                 ch2Timer = newInterval;
-    //             if (ch3Timer && ch3Use)
-    //                 ch3Timer = newInterval;
-    //             if (ch4Timer && ch4Use)
-    //                 ch4Timer = newInterval;
-
-    //             if (pumpUse)
-    //                 pumpTimer = ch1Timer + ch2Timer + ch3Timer + ch4Timer - pumpDelayConst - 3;
-    //         }
-    //     }
-    //     else if (humidity <= humidLowCutoff && state == 2 && workingMode == NO_WORKING) // ถ้าค่าความชื้นต่ำกว่าเกณฑ์ and in auto mode and not already working
-    //     {
-    //         workingMode = SEQUENCE;
-    //         startSequenceMode();
-    //     }
-    // #endif
-
-    // protection for forget to close valve
-    if (digitalRead(PUMP))
+    if ((chTimer[0] || (pumpTimer && !chUse)) && workingMode == SEQUENCE) // if on and timer or auto mode
     {
-        pumpOnProtectionTimer++;
-        if (pumpOnProtectionTimer >= interval * 5)
+        if (humidity >= humidHighCutoff) // ถ้าค่าความชื้นสูงกว่าเกณฑ์
         {
-            pumpOnProtectionTimer = 0;
-            offSeq();
+            // Stop valve 1 (channel 1) immediately
+            uint16_t valve1Time = interval - chTimer[0];
+            chTimer[0] = overlapValveConst + 1;
+
+            // Set other valves to the same time as valve 1 had
+            if (chUse >= 2 && chTimer[1] > 0)
+                chTimer[1] = valve1Time;
+            if (chUse >= 3 && chTimer[2] > 0)
+                chTimer[2] = valve1Time;
+            if (chUse >= 4 && chTimer[3] > 0)
+                chTimer[3] = valve1Time;
+
+            if (pumpUse)
+                pumpTimer = chTimer[0] + chTimer[1] + chTimer[2] + chTimer[3] - pumpDelayConst - 3;
         }
     }
+
     else
     {
         pumpOnProtectionTimer = 0;
     }
+#endif
 
     // debug serial print
     Serial.println("---------------------------------------------------------");
