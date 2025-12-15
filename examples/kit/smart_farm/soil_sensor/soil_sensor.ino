@@ -770,13 +770,13 @@ void loop()
         }
     }
 
+    updateHardwareOutputs();
+
     // for protection pump on without valve on
     if (digitalRead(PUMP) && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3] && !digitalRead(CH1) && !digitalRead(CH2) && !digitalRead(CH3) && !digitalRead(CH4) && chUse)
     {
         chState[0] = 1;
     }
-
-    updateHardwareOutputs();
 }
 
 void updateSystemState()
@@ -791,12 +791,12 @@ void updateSystemState()
         {
             // Debug output
             // iot.debug("HUMIDITY CUTOFF TRIGGERED: humidity=" + String(humidity) + ", cutoff=" + String(humidHighCutoff) + ", chTimer[0]=" + String(chTimer[0]));
-            
+
             // Stop valve 1 (channel 1) immediately
             uint16_t valve1Time = interval - chTimer[0];
             chTimer[0] = overlapValveConst + 1;
             humidityCutoffApplied = true; // Mark that cutoff has been applied
-            
+
             // iot.debug("AFTER CUTOFF: chTimer[0]=" + String(chTimer[0]) + ", valve1Time=" + String(valve1Time));
 
             // Set other valves to the same time as valve 1 had
@@ -808,9 +808,15 @@ void updateSystemState()
                 chTimer[3] = valve1Time;
 
             if (pumpUse)
-                pumpTimer = chTimer[0] + chTimer[1] + chTimer[2] + chTimer[3] - pumpDelayConst - 3;
+            {
+                int32_t pumpNewTimer = chTimer[0] + chTimer[1] + chTimer[2] + chTimer[3] - pumpDelayConst - 3;
+                if (pumpNewTimer < 0)
+                    pumpTimer = 0;
+                else
+                    pumpTimer = pumpNewTimer;
+            }
         }
-        else if (humidity < humidHighCutoff-3)
+        else if (humidity < humidHighCutoff - 3)
         {
             humidityCutoffApplied = false; // Reset flag when humidity drops below cutoff
         }
@@ -872,7 +878,11 @@ void updateSystemState()
             }
 
             if (chTimer[0] == 0)
+            {
+                iot.debug("set chTimer[0] to off");
                 chState[0] = 0;
+            }
+            iot.debug("chTimer[0] is " + String(chTimer[0]));
         }
         else if (chTimer[1])
         {
@@ -924,13 +934,13 @@ void updateSystemState()
         }
     }
 
-
-
     // debug serial print
     Serial.println("---------------------------------------------------------");
     Serial.println("param\tch1\tch2\tch3\tch4\tpump");
     Serial.println("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
+    iot.debug("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
     Serial.println("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
+    // iot.debug("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
     Serial.println("---------------------------------------------------------");
 }
 
@@ -1033,7 +1043,7 @@ void readAndSendSensorData()
     {
         float rawHumidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
         float rawTemperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
-        uint32_t rawConductivity = node.getResponseBuffer(2);       // µS/cm
+        uint32_t rawConductivity = node.getResponseBuffer(2);    // µS/cm
         humidity = applyEmaFilter(rawHumidity, emaHumidity, !emaInitialized);
         temperature = applyEmaFilter(rawTemperature, emaTemperature, !emaInitialized);
         conductivity = (uint32_t)applyEmaFilterInt(rawConductivity, emaConductivity, !emaInitialized);
@@ -1075,12 +1085,12 @@ void readAndSendSensorData()
     {
         float rawHumidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
         float rawTemperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
-        uint32_t rawConductivity = node.getResponseBuffer(2);       // µS/cm
+        uint32_t rawConductivity = node.getResponseBuffer(2);    // µS/cm
         float rawPh = node.getResponseBuffer(3) / 10.0;          // 0.1 pH
-        uint32_t rawNitrogen = node.getResponseBuffer(4);           // mg/kg
-        uint32_t rawPhosphorus = node.getResponseBuffer(5);         // mg/kg
-        uint32_t rawPotassium = node.getResponseBuffer(6);          // mg/kg
-        
+        uint32_t rawNitrogen = node.getResponseBuffer(4);        // mg/kg
+        uint32_t rawPhosphorus = node.getResponseBuffer(5);      // mg/kg
+        uint32_t rawPotassium = node.getResponseBuffer(6);       // mg/kg
+
         // Apply EMA filter to all sensor readings
         humidity = applyEmaFilter(rawHumidity, emaHumidity, !emaInitialized);
         temperature = applyEmaFilter(rawTemperature, emaTemperature, !emaInitialized);
@@ -1089,7 +1099,7 @@ void readAndSendSensorData()
         nitrogen = (uint32_t)applyEmaFilterInt(rawNitrogen, emaNitrogen, !emaInitialized);
         phosphorus = (uint32_t)applyEmaFilterInt(rawPhosphorus, emaPhosphorus, !emaInitialized);
         potassium = (uint32_t)applyEmaFilterInt(rawPotassium, emaPotassium, !emaInitialized);
-        
+
         // Update EMA variables
         emaHumidity = humidity;
         emaTemperature = temperature;
@@ -1339,7 +1349,10 @@ void startSequenceMode()
         if (chUse)
         {
             pumpDelayTimer = pumpDelayConst;
-            pumpTimer = chUse * interval - pumpDelayConst - 3;
+            if (int32_t(chUse * interval - pumpDelayConst - 3) < 0)
+                pumpTimer = 0;
+            else
+                pumpTimer = chUse * interval - pumpDelayConst - 3;
         }
         else
             pumpTimer = interval;
@@ -1367,6 +1380,7 @@ void updateHardwareOutputs()
     if (digitalRead(CH1) != chState[0])
     {
         // Serial.println("ch1 change to " + String(chState[0]));
+        // iot.debug("ch1 change to " + String(chState[0]));
         digitalWrite(CH1, chState[0]);
         iot.eventUpdate("c1", chState[0]);
     }
