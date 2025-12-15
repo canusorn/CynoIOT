@@ -952,9 +952,10 @@ float applyEmaFilter(float currentValue, float emaValue, bool firstReading = fal
 {
     if (firstReading || !emaInitialized)
     {
-        return currentValue; // Initialize with first reading
+        return round(currentValue * 10) / 10.0; // Initialize with first reading rounded to 1 decimal
     }
-    return EMA_ALPHA * currentValue + (1.0 - EMA_ALPHA) * emaValue;
+    float filteredValue = EMA_ALPHA * currentValue + (1.0 - EMA_ALPHA) * emaValue;
+    return round(filteredValue * 10) / 10.0; // Round to 1 decimal place
 }
 
 // EMA filter function for integer sensor readings
@@ -962,9 +963,10 @@ float applyEmaFilterInt(uint32_t currentValue, float emaValue, bool firstReading
 {
     if (firstReading || !emaInitialized)
     {
-        return (float)currentValue; // Initialize with first reading
+        return round((float)currentValue * 10) / 10.0; // Initialize with first reading rounded to 1 decimal
     }
-    return EMA_ALPHA * (float)currentValue + (1.0 - EMA_ALPHA) * emaValue;
+    float filteredValue = EMA_ALPHA * (float)currentValue + (1.0 - EMA_ALPHA) * emaValue;
+    return round(filteredValue * 10) / 10.0; // Round to 1 decimal place
 }
 
 void readAndSendSensorData()
@@ -988,7 +990,7 @@ void readAndSendSensorData()
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
-        Serial.print(humidity);
+        Serial.print(humidity, 1);
         Serial.print(" %RH (raw: ");
         Serial.print(rawHumidity);
         Serial.println(")");
@@ -1017,12 +1019,12 @@ void readAndSendSensorData()
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
-        Serial.print(humidity);
+        Serial.print(humidity, 1);
         Serial.print(" %RH (raw: ");
         Serial.print(rawHumidity);
         Serial.println(")");
         Serial.print("Temperature: ");
-        Serial.print(temperature);
+        Serial.print(temperature, 1);
         Serial.print(" °C (raw: ");
         Serial.print(rawTemperature);
         Serial.println(")");
@@ -1054,17 +1056,17 @@ void readAndSendSensorData()
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
-        Serial.print(humidity);
+        Serial.print(humidity, 1);
         Serial.print(" %RH (raw: ");
         Serial.print(rawHumidity);
         Serial.println(")");
         Serial.print("Temperature: ");
-        Serial.print(temperature);
+        Serial.print(temperature, 1);
         Serial.print(" °C (raw: ");
         Serial.print(rawTemperature);
         Serial.println(")");
         Serial.print("Conductivity: ");
-        Serial.print(conductivity);
+        Serial.print(conductivity, 1);
         Serial.print(" µS/cm (raw: ");
         Serial.print(rawConductivity);
         Serial.println(")");
@@ -1112,37 +1114,37 @@ void readAndSendSensorData()
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
-        Serial.print(humidity);
+        Serial.print(humidity, 1);
         Serial.print(" %RH (raw: ");
         Serial.print(rawHumidity);
         Serial.println(")");
         Serial.print("Temperature: ");
-        Serial.print(temperature);
+        Serial.print(temperature, 1);
         Serial.print(" °C (raw: ");
         Serial.print(rawTemperature);
         Serial.println(")");
         Serial.print("Conductivity: ");
-        Serial.print(conductivity);
+        Serial.print(conductivity, 1);
         Serial.print(" µS/cm (raw: ");
         Serial.print(rawConductivity);
         Serial.println(")");
         Serial.print("pH        : ");
-        Serial.print(ph);
+        Serial.print(ph, 1);
         Serial.print(" (raw: ");
         Serial.print(rawPh);
         Serial.println(")");
         Serial.print("Nitrogen  : ");
-        Serial.print(nitrogen);
+        Serial.print(nitrogen, 1);
         Serial.print(" mg/kg (raw: ");
         Serial.print(rawNitrogen);
         Serial.println(")");
         Serial.print("Phosphorus: ");
-        Serial.print(phosphorus);
+        Serial.print(phosphorus, 1);
         Serial.print(" mg/kg (raw: ");
         Serial.print(rawPhosphorus);
         Serial.println(")");
         Serial.print("Potassium : ");
-        Serial.print(potassium);
+        Serial.print(potassium, 1);
         Serial.print(" mg/kg (raw: ");
         Serial.print(rawPotassium);
         Serial.println(")");
