@@ -189,6 +189,12 @@ uint8_t numVariables = 0;
 
 float humidity = 0, temperature = 0, ph = 0;
 uint32_t conductivity = 0, nitrogen = 0, phosphorus = 0, potassium = 0;
+
+// EMA filter variables with 0.1 smoothing factor
+float emaHumidity = 0, emaTemperature = 0, emaPh = 0;
+float emaConductivity = 0, emaNitrogen = 0, emaPhosphorus = 0, emaPotassium = 0;
+const float EMA_ALPHA = 0.1; // Smoothing factor for EMA filter
+bool emaInitialized = false;
 uint16_t interval = 600;
 uint32_t pumpTimer = 0;
 uint16_t chTimer[4] = {0, 0, 0, 0};
@@ -918,6 +924,26 @@ void updateSystemState()
 // ------------------------------------------------------------------
 // Read sensor data based on the defined sensor model
 // ------------------------------------------------------------------
+// EMA filter function for smoothing sensor readings
+float applyEmaFilter(float currentValue, float emaValue, bool firstReading = false)
+{
+    if (firstReading || !emaInitialized)
+    {
+        return currentValue; // Initialize with first reading
+    }
+    return EMA_ALPHA * currentValue + (1.0 - EMA_ALPHA) * emaValue;
+}
+
+// EMA filter function for integer sensor readings
+float applyEmaFilterInt(uint32_t currentValue, float emaValue, bool firstReading = false)
+{
+    if (firstReading || !emaInitialized)
+    {
+        return (float)currentValue; // Initialize with first reading
+    }
+    return EMA_ALPHA * (float)currentValue + (1.0 - EMA_ALPHA) * emaValue;
+}
+
 void readAndSendSensorData()
 {
     uint32_t onState = getSystemState();
@@ -932,12 +958,17 @@ void readAndSendSensorData()
     disConnect();
     if (result == node.ku8MBSuccess)
     {
-        humidity = node.getResponseBuffer(0) / 10.0; // 0.1 %RH
+        float rawHumidity = node.getResponseBuffer(0) / 10.0; // 0.1 %RH
+        humidity = applyEmaFilter(rawHumidity, emaHumidity, !emaInitialized);
+        emaHumidity = humidity;
+        emaInitialized = true;
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
         Serial.print(humidity);
-        Serial.println(" %RH");
+        Serial.print(" %RH (raw: ");
+        Serial.print(rawHumidity);
+        Serial.println(")");
 
         float payload[numVariables] = {onState, humidity};
         iot.update(payload);
@@ -953,16 +984,25 @@ void readAndSendSensorData()
     disConnect();
     if (result == node.ku8MBSuccess)
     {
-        humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
-        temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+        float rawHumidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+        float rawTemperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+        humidity = applyEmaFilter(rawHumidity, emaHumidity, !emaInitialized);
+        temperature = applyEmaFilter(rawTemperature, emaTemperature, !emaInitialized);
+        emaHumidity = humidity;
+        emaTemperature = temperature;
+        emaInitialized = true;
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
         Serial.print(humidity);
-        Serial.println(" %RH");
+        Serial.print(" %RH (raw: ");
+        Serial.print(rawHumidity);
+        Serial.println(")");
         Serial.print("Temperature: ");
         Serial.print(temperature);
-        Serial.println(" °C");
+        Serial.print(" °C (raw: ");
+        Serial.print(rawTemperature);
+        Serial.println(")");
 
         float payload[numVariables] = {onState, humidity, temperature};
         iot.update(payload);
@@ -978,20 +1018,33 @@ void readAndSendSensorData()
     disConnect();
     if (result == node.ku8MBSuccess)
     {
-        humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
-        temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
-        conductivity = node.getResponseBuffer(2);       // µS/cm
+        float rawHumidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+        float rawTemperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+        uint32_t rawConductivity = node.getResponseBuffer(2);       // µS/cm
+        humidity = applyEmaFilter(rawHumidity, emaHumidity, !emaInitialized);
+        temperature = applyEmaFilter(rawTemperature, emaTemperature, !emaInitialized);
+        conductivity = (uint32_t)applyEmaFilterInt(rawConductivity, emaConductivity, !emaInitialized);
+        emaHumidity = humidity;
+        emaTemperature = temperature;
+        emaConductivity = conductivity;
+        emaInitialized = true;
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
         Serial.print(humidity);
-        Serial.println(" %RH");
+        Serial.print(" %RH (raw: ");
+        Serial.print(rawHumidity);
+        Serial.println(")");
         Serial.print("Temperature: ");
         Serial.print(temperature);
-        Serial.println(" °C");
+        Serial.print(" °C (raw: ");
+        Serial.print(rawTemperature);
+        Serial.println(")");
         Serial.print("Conductivity: ");
         Serial.print(conductivity);
-        Serial.println(" µS/cm");
+        Serial.print(" µS/cm (raw: ");
+        Serial.print(rawConductivity);
+        Serial.println(")");
 
         float payload[numVariables] = {onState, humidity, temperature, conductivity};
         iot.update(payload);
@@ -1007,35 +1060,69 @@ void readAndSendSensorData()
     disConnect();
     if (result == node.ku8MBSuccess)
     {
-        humidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
-        temperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
-        conductivity = node.getResponseBuffer(2);       // µS/cm
-        ph = node.getResponseBuffer(3) / 10.0;          // 0.1 pH
-        nitrogen = node.getResponseBuffer(4);           // mg/kg
-        phosphorus = node.getResponseBuffer(5);         // mg/kg
-        potassium = node.getResponseBuffer(6);          // mg/kg
+        float rawHumidity = node.getResponseBuffer(0) / 10.0;    // 0.1 %RH
+        float rawTemperature = node.getResponseBuffer(1) / 10.0; // 0.1 °C
+        uint32_t rawConductivity = node.getResponseBuffer(2);       // µS/cm
+        float rawPh = node.getResponseBuffer(3) / 10.0;          // 0.1 pH
+        uint32_t rawNitrogen = node.getResponseBuffer(4);           // mg/kg
+        uint32_t rawPhosphorus = node.getResponseBuffer(5);         // mg/kg
+        uint32_t rawPotassium = node.getResponseBuffer(6);          // mg/kg
+        
+        // Apply EMA filter to all sensor readings
+        humidity = applyEmaFilter(rawHumidity, emaHumidity, !emaInitialized);
+        temperature = applyEmaFilter(rawTemperature, emaTemperature, !emaInitialized);
+        conductivity = (uint32_t)applyEmaFilterInt(rawConductivity, emaConductivity, !emaInitialized);
+        ph = applyEmaFilter(rawPh, emaPh, !emaInitialized);
+        nitrogen = (uint32_t)applyEmaFilterInt(rawNitrogen, emaNitrogen, !emaInitialized);
+        phosphorus = (uint32_t)applyEmaFilterInt(rawPhosphorus, emaPhosphorus, !emaInitialized);
+        potassium = (uint32_t)applyEmaFilterInt(rawPotassium, emaPotassium, !emaInitialized);
+        
+        // Update EMA variables
+        emaHumidity = humidity;
+        emaTemperature = temperature;
+        emaConductivity = conductivity;
+        emaPh = ph;
+        emaNitrogen = nitrogen;
+        emaPhosphorus = phosphorus;
+        emaPotassium = potassium;
+        emaInitialized = true;
 
         Serial.println("----- Soil Parameters -----");
         Serial.print("Humidity  : ");
         Serial.print(humidity);
-        Serial.println(" %RH");
+        Serial.print(" %RH (raw: ");
+        Serial.print(rawHumidity);
+        Serial.println(")");
         Serial.print("Temperature: ");
         Serial.print(temperature);
-        Serial.println(" °C");
+        Serial.print(" °C (raw: ");
+        Serial.print(rawTemperature);
+        Serial.println(")");
         Serial.print("Conductivity: ");
         Serial.print(conductivity);
-        Serial.println(" µS/cm");
+        Serial.print(" µS/cm (raw: ");
+        Serial.print(rawConductivity);
+        Serial.println(")");
         Serial.print("pH        : ");
-        Serial.println(ph);
+        Serial.print(ph);
+        Serial.print(" (raw: ");
+        Serial.print(rawPh);
+        Serial.println(")");
         Serial.print("Nitrogen  : ");
         Serial.print(nitrogen);
-        Serial.println(" mg/kg");
+        Serial.print(" mg/kg (raw: ");
+        Serial.print(rawNitrogen);
+        Serial.println(")");
         Serial.print("Phosphorus: ");
         Serial.print(phosphorus);
-        Serial.println(" mg/kg");
+        Serial.print(" mg/kg (raw: ");
+        Serial.print(rawPhosphorus);
+        Serial.println(")");
         Serial.print("Potassium : ");
         Serial.print(potassium);
-        Serial.println(" mg/kg");
+        Serial.print(" mg/kg (raw: ");
+        Serial.print(rawPotassium);
+        Serial.println(")");
 
         float payload[numVariables] = {onState, humidity, temperature, conductivity, ph, nitrogen, phosphorus, potassium};
         iot.update(payload);
