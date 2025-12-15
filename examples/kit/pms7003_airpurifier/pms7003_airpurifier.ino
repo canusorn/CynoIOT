@@ -190,7 +190,7 @@ unsigned long lastPWMTimer = 0;
 const uint8_t PWM_STEP_SIZE = 3; // ขนาดของการเปลี่ยนแปลง PWM ต่อขั้นตอน
 
 // EMA Filter variables
-const float EMA_ALPHA = 0.2; // ค่าสำหรับ EMA filter (0.0-1.0), ค่าที่สูงขึ้นจะให้น้ำหนักกับค่าล่าสุดมากขึ้น
+const float EMA_ALPHA = 0.1; // ค่าสำหรับ EMA filter (0.0-1.0), ค่าที่สูงขึ้นจะให้น้ำหนักกับค่าล่าสุดมากขึ้น
 float emaPM1_0 = 0.0;        // EMA สำหรับ PM1.0
 float emaPM2_5 = 0.0;        // EMA สำหรับ PM2.5
 float emaPM10_0 = 0.0;       // EMA สำหรับ PM10.0
