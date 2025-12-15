@@ -199,6 +199,7 @@ uint16_t interval = 600;
 uint32_t pumpTimer = 0;
 uint16_t chTimer[4] = {0, 0, 0, 0};
 bool pumpState = false, chState[4] = {false, false, false, false};
+bool humidityCutoffApplied = false;
 String displayStatus = "";
 String popupStatus = "";
 uint8_t popupShowTimer = 0;
@@ -782,6 +783,45 @@ void updateSystemState()
 {
     displayStatus = "";
 
+#if !defined(NOSENSOR_MODEL) // ถ้ามีเซนเซอร์
+    // Handle humidity cutoff before timer decrement logic
+    if ((chTimer[0] || (pumpTimer && !chUse)) && workingMode == SEQUENCE) // if on and timer or auto mode
+    {
+        if (humidity >= humidHighCutoff && !humidityCutoffApplied) // ถ้าค่าความชื้นสูงกว่าเกณฑ์และยังไม่เคยถูกปรับ
+        {
+            // Debug output
+            // iot.debug("HUMIDITY CUTOFF TRIGGERED: humidity=" + String(humidity) + ", cutoff=" + String(humidHighCutoff) + ", chTimer[0]=" + String(chTimer[0]));
+            
+            // Stop valve 1 (channel 1) immediately
+            uint16_t valve1Time = interval - chTimer[0];
+            chTimer[0] = overlapValveConst + 1;
+            humidityCutoffApplied = true; // Mark that cutoff has been applied
+            
+            // iot.debug("AFTER CUTOFF: chTimer[0]=" + String(chTimer[0]) + ", valve1Time=" + String(valve1Time));
+
+            // Set other valves to the same time as valve 1 had
+            if (chUse >= 2 && chTimer[1] > 0)
+                chTimer[1] = valve1Time;
+            if (chUse >= 3 && chTimer[2] > 0)
+                chTimer[2] = valve1Time;
+            if (chUse >= 4 && chTimer[3] > 0)
+                chTimer[3] = valve1Time;
+
+            if (pumpUse)
+                pumpTimer = chTimer[0] + chTimer[1] + chTimer[2] + chTimer[3] - pumpDelayConst - 3;
+        }
+        else if (humidity < humidHighCutoff-3)
+        {
+            humidityCutoffApplied = false; // Reset flag when humidity drops below cutoff
+        }
+    }
+    else
+    {
+        pumpOnProtectionTimer = 0;
+        humidityCutoffApplied = false; // Reset flag when not in sequence mode
+    }
+#endif
+
     if (workingMode == SEQUENCE)
     {
         // Handle pump delay countdown
@@ -884,34 +924,7 @@ void updateSystemState()
         }
     }
 
-#if !defined(NOSENSOR_MODEL) // ถ้ามีเซนเซอร์
 
-    if ((chTimer[0] || (pumpTimer && !chUse)) && workingMode == SEQUENCE) // if on and timer or auto mode
-    {
-        if (humidity >= humidHighCutoff) // ถ้าค่าความชื้นสูงกว่าเกณฑ์
-        {
-            // Stop valve 1 (channel 1) immediately
-            uint16_t valve1Time = interval - chTimer[0];
-            chTimer[0] = overlapValveConst + 1;
-
-            // Set other valves to the same time as valve 1 had
-            if (chUse >= 2 && chTimer[1] > 0)
-                chTimer[1] = valve1Time;
-            if (chUse >= 3 && chTimer[2] > 0)
-                chTimer[2] = valve1Time;
-            if (chUse >= 4 && chTimer[3] > 0)
-                chTimer[3] = valve1Time;
-
-            if (pumpUse)
-                pumpTimer = chTimer[0] + chTimer[1] + chTimer[2] + chTimer[3] - pumpDelayConst - 3;
-        }
-    }
-
-    else
-    {
-        pumpOnProtectionTimer = 0;
-    }
-#endif
 
     // debug serial print
     Serial.println("---------------------------------------------------------");
@@ -1306,6 +1319,8 @@ void offSeq()
 // start sequence mode
 void startSequenceMode()
 {
+    // iot.debug("START SEQUENCE MODE: humidity=" + String(humidity) + ", cutoff=" + String(humidHighCutoff));
+    humidityCutoffApplied = false;
     workingMode = SEQUENCE;
     if (chUse)
     {
@@ -1313,6 +1328,7 @@ void startSequenceMode()
         {
             chTimer[i] = interval;
         }
+        // iot.debug("TIMERS SET: chTimer[0]=" + String(chTimer[0]) + ", interval=" + String(interval));
     }
 
     if (pumpUse)
