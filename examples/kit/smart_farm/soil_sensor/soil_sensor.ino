@@ -879,10 +879,10 @@ void updateSystemState()
 
             if (chTimer[0] == 0)
             {
-                iot.debug("set chTimer[0] to off");
+                // iot.debug("set chTimer[0] to off");
                 chState[0] = 0;
             }
-            iot.debug("chTimer[0] is " + String(chTimer[0]));
+            // iot.debug("chTimer[0] is " + String(chTimer[0]));
         }
         else if (chTimer[1])
         {
@@ -938,7 +938,7 @@ void updateSystemState()
     Serial.println("---------------------------------------------------------");
     Serial.println("param\tch1\tch2\tch3\tch4\tpump");
     Serial.println("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
-    iot.debug("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
+    // iot.debug("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
     Serial.println("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
     // iot.debug("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
     Serial.println("---------------------------------------------------------");
