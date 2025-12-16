@@ -1,13 +1,22 @@
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
-#include <ESP8266WiFi.h>
+#ifdef ESP8266
 #include <ESP8266HTTPClient.h>
-#include <WiFiClient.h>
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
-#include <Ticker.h>
-#include <Wire.h>
-#include <EEPROM.h>
+
+// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
+#elif defined(ESP32)
+#include <ESPmDNS.h>
+#include <HTTPUpdateServer.h>
+#include <NetworkClient.h>
+#include <WebServer.h>
+#include <WiFi.h>
+#endif
+
+#include <EEPROM.h> // EEPROM library for storing data
+#include <Wire.h>   // Wire library for I2C communication
 
 // IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
 #include <IotWebConf.h>
@@ -25,9 +34,6 @@ const char wifiInitialApPassword[] = "iotbundle";
 
 #define STRING_LEN 128
 #define NUMBER_LEN 32
-
-// timer interrupt
-Ticker timestamp;
 
 // Static HTML stored in flash memory
 const char htmlTemplate[] PROGMEM = R"rawliteral(
@@ -66,17 +72,28 @@ void wifiConnected();
 void configSaved();
 bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
-// SR04 Ultrasonic Sensor Pins
-#ifdef ESP32
-#define TRIG_PIN 4 // GPIO4 for ESP32
-#define ECHO_PIN 2 // GPIO2 for ESP32
-#define TDS_PIN 34 // ADC1_CH6 for ESP32 (only ADC1 pins available)
-#define RSTPIN 8
-#else
+// ตั้งค่า pin สำหรับเซ็นเซอร์และขา OUTPUT
+#ifdef ESP8266
 #define TRIG_PIN D5 // D5 for ESP8266
 #define ECHO_PIN D6 // D6 for ESP8266
 #define TDS_PIN A0  // A0 for ESP8266
-#define RSTPIN D8   // Define RSTPIN for ESP8266
+
+#define RSTPIN D8 // Define RSTPIN for ESP8266
+
+#elif defined(ESP32)
+#define RSTPIN 8
+
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+#define TRIG_PIN 18
+#define ECHO_PIN 21
+#define TDS_PIN 4 // ADC1_CH0 for ESP32S2
+
+#else
+#define TRIG_PIN 4 // GPIO4 for ESP32
+#define ECHO_PIN 2 // GPIO2 for ESP32
+#define TDS_PIN 34 // ADC1_CH6 for ESP32 (only ADC1 pins available)
+#endif
+
 #endif
 
 // TDS sensor calibration
@@ -89,9 +106,16 @@ float water_level, tds_value, ec_value;
 #define OLED_RESET 0 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
+// สร้าง object สำหรับ DNS Server และ Web Server
 DNSServer dnsServer;
 WebServer server(80);
+
+#ifdef ESP8266
 ESP8266HTTPUpdateServer httpUpdater;
+
+#elif defined(ESP32)
+HTTPUpdateServer httpUpdater;
+#endif
 
 char emailParamValue[STRING_LEN];
 
@@ -138,10 +162,8 @@ void iotSetup()
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
 
-// timer interrupt every 1 second
 void time1sec()
 {
-
     // if can't connect to network
     if (iotWebConf.getState() == iotwebconf::OnLine)
     {
@@ -183,9 +205,6 @@ void setup()
 
     // Initialize TDS Sensor
     pinMode(TDS_PIN, INPUT);
-
-    // timer interrupt every 1 sec
-    timestamp.attach(1, time1sec);
 
     //------Display LOGO at start------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -266,8 +285,9 @@ void loop()
     { // run every 1 second
         previousMillis = currentMillis;
         display_update();
-
+        time1sec();
         sampleUpdate++;
+
         if (sampleUpdate >= updateValue)
         {
             sampleUpdate = 0;
@@ -494,7 +514,6 @@ void configSaved()
 
 void wifiConnected()
 {
-
     Serial.println("WiFi was connected.");
     MDNS.begin(iotWebConf.getThingName());
     MDNS.addService("http", "tcp", 80);
