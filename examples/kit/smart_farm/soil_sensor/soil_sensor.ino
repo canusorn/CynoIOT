@@ -92,7 +92,7 @@ ModbusMaster node;
 Cynoiot iot;
 
 // กำหนดค่าสำหรับจอ OLED
-#define OLED_RESET 0 // GPIO0
+#define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
 // HTML template เก็บไว้ใน flash memory

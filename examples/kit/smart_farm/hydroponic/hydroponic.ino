@@ -103,7 +103,7 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 unsigned long previousMillis = 0;
 float water_level, tds_value, ec_value;
 
-#define OLED_RESET 0 // GPIO0
+#define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
 // สร้าง object สำหรับ DNS Server และ Web Server

@@ -63,7 +63,7 @@ SoftwareSerial RS485Serial;
 
 ModbusMaster node;
 Cynoiot iot;
-#define OLED_RESET 0 // GPIO0
+#define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
 const char thingName[] = "dts6111";

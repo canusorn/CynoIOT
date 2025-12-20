@@ -6,7 +6,7 @@
   D4 - RX
 */
 
- // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
+// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
@@ -15,13 +15,13 @@
 #include <ESP8266mDNS.h>
 
 #include <Wire.h>   // Wire library for I2C communication
-#include <Ticker.h> // Ticker library for interrupt
-#include <EEPROM.h>  // EEPROM library for storing data
+#include <EEPROM.h> // EEPROM library for storing data
+#include <SoftwareSerial.h>
 
-#include <PZEM004Tv30.h>     // PZEM004Tv30 by Jakub
-#include <Adafruit_SSD1306.h>  // Adafruit SSD1306 library by Adafruit
-#include <Adafruit_GFX.h>  // Adafruit GFX library by Adafruit
-#include <cynoiot.h>    // CynoIOT by IoTbundle
+#include <PZEM004Tv30.h>      // PZEM004Tv30 by Jakub
+#include <Adafruit_SSD1306.h> // Adafruit SSD1306 library by Adafruit
+#include <Adafruit_GFX.h>     // Adafruit GFX library by Adafruit
+#include <cynoiot.h>          // CynoIOT by IoTbundle
 
 // IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
 #include <IotWebConf.h>
@@ -35,9 +35,6 @@ const char wifiInitialApPassword[] = "iotbundle";
 
 #define STRING_LEN 128
 #define NUMBER_LEN 32
-
-// timer interrupt
-Ticker timestamp;
 
 // Static HTML stored in flash memory
 const char htmlTemplate[] PROGMEM = R"rawliteral(
@@ -88,9 +85,15 @@ IotWebConfParameterGroup login = IotWebConfParameterGroup("login", "ล็อก
 
 IotWebConfTextParameter emailParam = IotWebConfTextParameter("อีเมลล์ (ระวังห้ามใส่เว้นวรรค)", "emailParam", emailParamValue, STRING_LEN);
 
-#define OLED_RESET 0 // GPIO0
+#define OLED_RESET -1
 Adafruit_SSD1306 oled(OLED_RESET);
-PZEM004Tv30 pzem(D3, D4); // rx,tx pin
+
+#if !defined(PZEM_RX_PIN) && !defined(PZEM_TX_PIN)
+#define PZEM_RX_PIN D3
+#define PZEM_TX_PIN D4
+#endif
+SoftwareSerial pzemSWSerial(PZEM_RX_PIN, PZEM_TX_PIN);
+PZEM004Tv30 pzem(pzemSWSerial); // rx,tx pin
 
 unsigned long previousMillis = 0;
 float voltage, current, power, energy, frequency, pf;
@@ -167,9 +170,6 @@ void time1sec()
 void setup()
 {
     Serial.begin(115200);
-
-    // timer interrupt every 1 sec
-    timestamp.attach(1, time1sec);
 
     //------Display LOGO at start------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -261,6 +261,7 @@ void loop()
     { // run every 1 second
         previousMillis = currentMillis;
         displayValue(); // update OLED
+        time1sec();
 
         sampleUpdate++;
         if (sampleUpdate >= updateValue)

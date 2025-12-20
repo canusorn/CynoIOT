@@ -101,7 +101,7 @@ IotWebConfParameterGroup login = IotWebConfParameterGroup("login", "ล็อก
 
 IotWebConfTextParameter emailParam = IotWebConfTextParameter("อีเมลล์ (ระวังห้ามใส่เว้นวรรค)", "emailParam", emailParamValue, STRING_LEN);
 
-#define OLED_RESET 0 // GPIO0
+#define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
 unsigned long previousMillis = 0;

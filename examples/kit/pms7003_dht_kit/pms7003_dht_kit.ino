@@ -89,7 +89,7 @@ SoftwareSerial pmsSerial(D4, D3); // RX,TX
 PMS pms(pmsSerial);
 PMS::DATA data;
 
-#define OLED_RESET 0 // GPIO0
+#define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
 unsigned long previousMillis = 0;

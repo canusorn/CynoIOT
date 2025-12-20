@@ -45,7 +45,7 @@ SoftwareSerial PZEMSerial;
 #define PZEMSerial Serial1
 #endif
 
-#define OLED_RESET 0 // GPIO0
+#define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
 #ifdef ESP8266
