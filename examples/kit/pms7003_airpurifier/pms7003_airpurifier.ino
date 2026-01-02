@@ -8,7 +8,7 @@
 
 // เลือกรุ่นที่ใช้งาน
 // #define ECO_MODEL
-// #define POWER_MODEL
+#define POWER_MODEL
 
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
@@ -174,8 +174,8 @@ uint8_t buttonPress;
 uint8_t state; // 0-auto  1-sleep  2-narmal   3-max
 
 #ifdef POWER_MODEL
-const uint8_t sleeppwm = 30, normalpwm = 120, maxpwm = 240;
-const uint8_t STARTPWM = 15;
+const uint8_t sleeppwm = 10, normalpwm = 50, maxpwm = 255;
+const uint8_t STARTPWM = 5;
 #elif defined(ECO_MODEL)
 const uint8_t sleeppwm = 190, normalpwm = 220, maxpwm = 255;
 const uint8_t STARTPWM = 150;
@@ -412,12 +412,12 @@ void setup()
 
 #ifdef ESP8266
   // ESP8266 setup for 20kHz PWM
-  analogWriteFreq(20000); // Set PWM frequency to 20kHz
+  analogWriteFreq(10000); // Set PWM frequency to 20kHz
   analogWriteRange(255);  // Set PWM range to 0-255
   pinMode(PURIFIER, OUTPUT);
   analogWrite(PURIFIER, 0); // เริ่มต้น PWM ที่ 0 เพื่อ soft start
 #elif defined(ESP32)
-  ledcAttach(PURIFIER, 20000, 8);
+  ledcAttach(PURIFIER, 10000, 8);
   ledcWrite(PURIFIER, 0); // เริ่มต้น PWM ที่ 0 เพื่อ soft start
 #endif
 
