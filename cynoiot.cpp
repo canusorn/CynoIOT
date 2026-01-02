@@ -28,6 +28,12 @@ String automationList;
 String needOTA = "";
 String lastMsgPublish = "";
 
+#define MSG_BUFFER_SIZE 5
+String msgBuffer[MSG_BUFFER_SIZE];
+String topicBuffer[MSG_BUFFER_SIZE];
+uint8_t msgBufferIndex = 0;
+uint32_t lastResendTime = 0;
+
 #ifdef ESP8266
 #define MAXTIMER 20
 #elif defined(ESP32)
@@ -479,6 +485,19 @@ void Cynoiot::handle()
     handleTimestamp();
     checkAutomationTimeouts(); // Check for automation timeouts
 
+    // Resend buffered messages every 60 seconds
+    if (currentTime - lastResendTime >= 60000)
+    {
+      lastResendTime = currentTime;
+      for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+      {
+        if (msgBuffer[i].length() > 0 && topicBuffer[i].length() > 0)
+        {
+          publish(msgBuffer[i], topicBuffer[i]);
+        }
+      }
+    }
+
     // printTimeDetails();
     // DEBUGLN((String)((weektimestamp % 86400) / 3600) + ":" +
     // (String)(((weektimestamp % 86400) % 3600) / 60) + ":" +
@@ -873,6 +892,24 @@ void Cynoiot::messageReceived(String &topic, String &payload)
   if (lastMsgPublish == payload)
   {
     lastMsgPublish = "";
+    
+    for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+    {
+      if (msgBuffer[i] == payload)
+      {
+        msgBuffer[i] = "";
+        topicBuffer[i] = "";
+        
+        for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+        {
+          msgBuffer[j] = msgBuffer[j + 1];
+          topicBuffer[j] = topicBuffer[j + 1];
+        }
+        msgBuffer[MSG_BUFFER_SIZE - 1] = "";
+        topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+        break;
+      }
+    }
     return;
   }
 
@@ -1136,6 +1173,11 @@ void Cynoiot::eventUpdate(String event, String value)
 
   String eventStr = "Event:" + event + ":" + value;
   String topic = "/" + getClientId() + "/eventact";
+  
+  msgBuffer[msgBufferIndex] = eventStr;
+  topicBuffer[msgBufferIndex] = topic;
+  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  
   publish(eventStr, topic);
 }
 
@@ -1143,6 +1185,11 @@ void Cynoiot::eventUpdate(String event, int value)
 {
   String eventStr = "Event:" + event + ":" + String(value);
   String topic = "/" + getClientId() + "/eventact";
+  
+  msgBuffer[msgBufferIndex] = eventStr;
+  topicBuffer[msgBufferIndex] = topic;
+  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  
   publish(eventStr, topic);
 }
 
@@ -1174,6 +1221,11 @@ void Cynoiot::gpioUpdate(int pin, int value)
 #endif
 
   String topic = "/" + getClientId() + "/ioact";
+  
+  msgBuffer[msgBufferIndex] = payload;
+  topicBuffer[msgBufferIndex] = topic;
+  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  
   publish(payload, topic);
 }
 
@@ -1181,6 +1233,11 @@ void Cynoiot::gpioUpdate(String pin, int value)
 {
   String payload = pin + ":act:" + String(value);
   String topic = "/" + getClientId() + "/ioact";
+  
+  msgBuffer[msgBufferIndex] = payload;
+  topicBuffer[msgBufferIndex] = topic;
+  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  
   publish(payload, topic);
 }
 
