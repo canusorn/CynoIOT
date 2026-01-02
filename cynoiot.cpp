@@ -498,6 +498,7 @@ void Cynoiot::handle()
         if (msgBuffer[i].length() > 0 && topicBuffer[i].length() > 0)
         {
           publish(msgBuffer[i], topicBuffer[i]);
+          DEBUGLN("Resent message: " + msgBuffer[i] + " to topic: " + topicBuffer[i]);
         }
       }
     }
