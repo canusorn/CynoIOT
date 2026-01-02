@@ -424,12 +424,20 @@ bool Cynoiot::connect(const char email[], const char server[])
     {
       if (retrievedValue == 1)
       {
-        publish("OTA success", "/" + getClientId() + "/ota/status");
+        String payload = "OTA success";
+        String topic = "/" + getClientId() + "/ota/status";
       }
       else if (retrievedValue == 2)
       {
-        publish("OTA failed", "/" + getClientId() + "/ota/status");
+        String payload = "OTA failed";
+        String topic = "/" + getClientId() + "/ota/status";
       }
+
+        msgBuffer[msgBufferIndex] = payload;
+        topicBuffer[msgBufferIndex] = topic;
+        msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+        
+        publish(payload, topic);
 
       EEPROM.write(511, 0); // reset status
       EEPROM.commit();
