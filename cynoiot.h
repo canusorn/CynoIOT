@@ -67,6 +67,7 @@ private:
   void handleAutomation(String varrable, float value);
   void executeAutomationAction(String actionType, String target, String mode, String value);
   void checkAutomationTimeouts();
+  void removeBufferEntry(const String &prefix);
   
 #ifdef ESP8266
   int getPinNumber(String pinId);

@@ -1178,22 +1178,7 @@ void Cynoiot::eventUpdate(String event, String value)
   String eventStr = "Event:" + event + ":" + value;
   String topic = "/" + getClientId() + "/eventact";
   
-  String eventPrefix = "Event:" + event + ":";
-  
-  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
-  {
-    if (msgBuffer[i].startsWith(eventPrefix))
-    {
-      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
-      {
-        msgBuffer[j] = msgBuffer[j + 1];
-        topicBuffer[j] = topicBuffer[j + 1];
-      }
-      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
-      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
-      break;
-    }
-  }
+  removeBufferEntry("Event:" + event + ":");
   
   msgBuffer[msgBufferIndex] = eventStr;
   topicBuffer[msgBufferIndex] = topic;
@@ -1207,22 +1192,7 @@ void Cynoiot::eventUpdate(String event, int value)
   String eventStr = "Event:" + event + ":" + String(value);
   String topic = "/" + getClientId() + "/eventact";
   
-  String eventPrefix = "Event:" + event + ":";
-  
-  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
-  {
-    if (msgBuffer[i].startsWith(eventPrefix))
-    {
-      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
-      {
-        msgBuffer[j] = msgBuffer[j + 1];
-        topicBuffer[j] = topicBuffer[j + 1];
-      }
-      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
-      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
-      break;
-    }
-  }
+  removeBufferEntry("Event:" + event + ":");
   
   msgBuffer[msgBufferIndex] = eventStr;
   topicBuffer[msgBufferIndex] = topic;
@@ -1262,20 +1232,7 @@ void Cynoiot::gpioUpdate(int pin, int value)
 
   String topic = "/" + getClientId() + "/ioact";
   
-  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
-  {
-    if (msgBuffer[i].startsWith(pinPrefix))
-    {
-      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
-      {
-        msgBuffer[j] = msgBuffer[j + 1];
-        topicBuffer[j] = topicBuffer[j + 1];
-      }
-      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
-      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
-      break;
-    }
-  }
+  removeBufferEntry(pinPrefix);
   
   msgBuffer[msgBufferIndex] = payload;
   topicBuffer[msgBufferIndex] = topic;
@@ -1289,22 +1246,7 @@ void Cynoiot::gpioUpdate(String pin, int value)
   String payload = pin + ":act:" + String(value);
   String topic = "/" + getClientId() + "/ioact";
   
-  String pinPrefix = pin + ":act:";
-  
-  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
-  {
-    if (msgBuffer[i].startsWith(pinPrefix))
-    {
-      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
-      {
-        msgBuffer[j] = msgBuffer[j + 1];
-        topicBuffer[j] = topicBuffer[j + 1];
-      }
-      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
-      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
-      break;
-    }
-  }
+  removeBufferEntry(pin + ":act:");
   
   msgBuffer[msgBufferIndex] = payload;
   topicBuffer[msgBufferIndex] = topic;
@@ -1636,4 +1578,22 @@ void Cynoiot::checkAutomationTimeouts()
     }
   }
   timeoutCount = activeCount;
+}
+
+void Cynoiot::removeBufferEntry(const String &prefix)
+{
+  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+  {
+    if (msgBuffer[i].startsWith(prefix))
+    {
+      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+      {
+        msgBuffer[j] = msgBuffer[j + 1];
+        topicBuffer[j] = topicBuffer[j + 1];
+      }
+      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
+      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+      break;
+    }
+  }
 }
