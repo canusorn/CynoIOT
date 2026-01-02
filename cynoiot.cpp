@@ -28,7 +28,11 @@ String automationList;
 String needOTA = "";
 String lastMsgPublish = "";
 
+#ifdef ESP8266
 #define MSG_BUFFER_SIZE 5
+#elif defined(ESP32)
+#define MSG_BUFFER_SIZE 10
+#endif
 String msgBuffer[MSG_BUFFER_SIZE];
 String topicBuffer[MSG_BUFFER_SIZE];
 uint8_t msgBufferIndex = 0;
@@ -1174,6 +1178,23 @@ void Cynoiot::eventUpdate(String event, String value)
   String eventStr = "Event:" + event + ":" + value;
   String topic = "/" + getClientId() + "/eventact";
   
+  String eventPrefix = "Event:" + event + ":";
+  
+  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+  {
+    if (msgBuffer[i].startsWith(eventPrefix))
+    {
+      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+      {
+        msgBuffer[j] = msgBuffer[j + 1];
+        topicBuffer[j] = topicBuffer[j + 1];
+      }
+      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
+      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+      break;
+    }
+  }
+  
   msgBuffer[msgBufferIndex] = eventStr;
   topicBuffer[msgBufferIndex] = topic;
   msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
@@ -1185,6 +1206,23 @@ void Cynoiot::eventUpdate(String event, int value)
 {
   String eventStr = "Event:" + event + ":" + String(value);
   String topic = "/" + getClientId() + "/eventact";
+  
+  String eventPrefix = "Event:" + event + ":";
+  
+  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+  {
+    if (msgBuffer[i].startsWith(eventPrefix))
+    {
+      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+      {
+        msgBuffer[j] = msgBuffer[j + 1];
+        topicBuffer[j] = topicBuffer[j + 1];
+      }
+      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
+      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+      break;
+    }
+  }
   
   msgBuffer[msgBufferIndex] = eventStr;
   topicBuffer[msgBufferIndex] = topic;
@@ -1216,11 +1254,28 @@ void Cynoiot::gpioUpdate(int pin, int value)
 #ifdef ESP8266
   String pinStr = getDpin(pin);
   String payload = pinStr + ":act:" + String(value);
+  String pinPrefix = pinStr + ":act:";
 #else
   String payload = String(pin) + ":act:" + String(value);
+  String pinPrefix = String(pin) + ":act:";
 #endif
 
   String topic = "/" + getClientId() + "/ioact";
+  
+  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+  {
+    if (msgBuffer[i].startsWith(pinPrefix))
+    {
+      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+      {
+        msgBuffer[j] = msgBuffer[j + 1];
+        topicBuffer[j] = topicBuffer[j + 1];
+      }
+      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
+      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+      break;
+    }
+  }
   
   msgBuffer[msgBufferIndex] = payload;
   topicBuffer[msgBufferIndex] = topic;
@@ -1233,6 +1288,23 @@ void Cynoiot::gpioUpdate(String pin, int value)
 {
   String payload = pin + ":act:" + String(value);
   String topic = "/" + getClientId() + "/ioact";
+  
+  String pinPrefix = pin + ":act:";
+  
+  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+  {
+    if (msgBuffer[i].startsWith(pinPrefix))
+    {
+      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+      {
+        msgBuffer[j] = msgBuffer[j + 1];
+        topicBuffer[j] = topicBuffer[j + 1];
+      }
+      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
+      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+      break;
+    }
+  }
   
   msgBuffer[msgBufferIndex] = payload;
   topicBuffer[msgBufferIndex] = topic;
