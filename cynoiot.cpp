@@ -68,10 +68,9 @@ void checkTimers()
     {
       timerList[i] = "";
     }
-      // Split timer string by commas
-      int timerIndex = 0;
-      int startPos = 0;
-
+    // Split timer string by commas
+    int timerIndex = 0;
+    int startPos = 0;
 
     if (timerStr != "no")
     {
@@ -94,7 +93,9 @@ void checkTimers()
       // Clear the original timer string after processing
       timerStr = "";
       // _numTimer = 0;
-    }else{
+    }
+    else
+    {
       DEBUGLN("Clear timer");
     }
     timerStr = "";
@@ -420,24 +421,26 @@ bool Cynoiot::connect(const char email[], const char server[])
 
     int retrievedValue = EEPROM.read(511);
     // Serial.println("EEPROM: " + String(retrievedValue));
+    String payload = "";
+    String topic = "";
     if (retrievedValue != 0)
     {
       if (retrievedValue == 1)
       {
-        String payload = "OTA success";
-        String topic = "/" + getClientId() + "/ota/status";
+        payload = "OTA success";
+        topic = "/" + getClientId() + "/ota/status";
       }
       else if (retrievedValue == 2)
       {
-        String payload = "OTA failed";
-        String topic = "/" + getClientId() + "/ota/status";
+        payload = "OTA failed";
+        topic = "/" + getClientId() + "/ota/status";
       }
 
-        msgBuffer[msgBufferIndex] = payload;
-        topicBuffer[msgBufferIndex] = topic;
-        msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
-        
-        publish(payload, topic);
+      msgBuffer[msgBufferIndex] = payload;
+      topicBuffer[msgBufferIndex] = topic;
+      msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+
+      publish(payload, topic);
 
       EEPROM.write(511, 0); // reset status
       EEPROM.commit();
@@ -568,6 +571,7 @@ bool Cynoiot::subscribe()
     DEBUGLN("subscripted! to /" + getClientId() + "/#");
     pub2SubTime = 0;
     requestInitData(); // Request init data after successful subscription
+    sendDeviceInfo(); // Send device info after successful subscription
     return true;
   }
   else
@@ -905,14 +909,14 @@ void Cynoiot::messageReceived(String &topic, String &payload)
   if (lastMsgPublish == payload)
   {
     lastMsgPublish = "";
-    
+
     for (int i = 0; i < MSG_BUFFER_SIZE; i++)
     {
       if (msgBuffer[i] == payload)
       {
         msgBuffer[i] = "";
         topicBuffer[i] = "";
-        
+
         for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
         {
           msgBuffer[j] = msgBuffer[j + 1];
@@ -1035,6 +1039,27 @@ void Cynoiot::setTemplate(String templateName, uint8_t version)
 {
   this->_template = templateName;
   this->_templateVersion = version;
+}
+
+void Cynoiot::sendDeviceInfo()
+{
+  String payload = "{";
+  payload += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
+  payload += "\"ssid\":\"" + WiFi.SSID() + "\",";
+  payload += "\"RSSI\":\"" + String(WiFi.RSSI()) + "\",";
+  payload += "\"v\":\"" + String(IOTVERSION) + "\"";
+  payload += "}";
+
+  String topic = "/" + getClientId() + "/info";
+
+  DEBUGLN("Sending device info: " + payload);
+  DEBUGLN("Topic: " + topic);
+
+  msgBuffer[msgBufferIndex] = payload;
+  topicBuffer[msgBufferIndex] = topic;
+  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+
+  publish(payload, topic);
 }
 
 void Cynoiot::templatePublish()
@@ -1186,13 +1211,13 @@ void Cynoiot::eventUpdate(String event, String value)
 
   String eventStr = "Event:" + event + ":" + value;
   String topic = "/" + getClientId() + "/eventact";
-  
+
   removeBufferEntry("Event:" + event + ":");
-  
+
   msgBuffer[msgBufferIndex] = eventStr;
   topicBuffer[msgBufferIndex] = topic;
   msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
-  
+
   publish(eventStr, topic);
 }
 
@@ -1200,13 +1225,13 @@ void Cynoiot::eventUpdate(String event, int value)
 {
   String eventStr = "Event:" + event + ":" + String(value);
   String topic = "/" + getClientId() + "/eventact";
-  
+
   removeBufferEntry("Event:" + event + ":");
-  
+
   msgBuffer[msgBufferIndex] = eventStr;
   topicBuffer[msgBufferIndex] = topic;
   msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
-  
+
   publish(eventStr, topic);
 }
 
@@ -1240,13 +1265,13 @@ void Cynoiot::gpioUpdate(int pin, int value)
 #endif
 
   String topic = "/" + getClientId() + "/ioact";
-  
+
   removeBufferEntry(pinPrefix);
-  
+
   msgBuffer[msgBufferIndex] = payload;
   topicBuffer[msgBufferIndex] = topic;
   msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
-  
+
   publish(payload, topic);
 }
 
@@ -1254,13 +1279,13 @@ void Cynoiot::gpioUpdate(String pin, int value)
 {
   String payload = pin + ":act:" + String(value);
   String topic = "/" + getClientId() + "/ioact";
-  
+
   removeBufferEntry(pin + ":act:");
-  
+
   msgBuffer[msgBufferIndex] = payload;
   topicBuffer[msgBufferIndex] = topic;
   msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
-  
+
   publish(payload, topic);
 }
 

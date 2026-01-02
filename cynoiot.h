@@ -107,6 +107,8 @@ public:
   void setTemplate(String templateName);
   void setTemplate(String templateName, uint8_t version);
 
+  void sendDeviceInfo();
+
   // Set the event callback function
   void setEventCallback(EventCallbackFunction callback);
 
