@@ -18,7 +18,7 @@
 
 #endif
 
-#define IOTVERSION "1.0.6"
+#define IOTVERSION "1.0.7"
 
 #ifndef DEFAULT_SERVER
 #define DEFAULT_SERVER "cynoiot.com"
