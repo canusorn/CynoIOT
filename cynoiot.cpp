@@ -571,7 +571,7 @@ bool Cynoiot::subscribe()
     DEBUGLN("subscripted! to /" + getClientId() + "/#");
     pub2SubTime = 0;
     requestInitData(); // Request init data after successful subscription
-    sendDeviceInfo(); // Send device info after successful subscription
+    sendDeviceInfo();  // Send device info after successful subscription
     return true;
   }
   else
@@ -906,27 +906,28 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     return;
   }
 
+  // check from buffer to confirm if the payload is already processed
+  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+  {
+    if (msgBuffer[i] == payload)
+    {
+      msgBuffer[i] = "";
+      topicBuffer[i] = "";
+
+      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+      {
+        msgBuffer[j] = msgBuffer[j + 1];
+        topicBuffer[j] = topicBuffer[j + 1];
+      }
+      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
+      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+      break;
+    }
+  }
+
   if (lastMsgPublish == payload)
   {
     lastMsgPublish = "";
-
-    for (int i = 0; i < MSG_BUFFER_SIZE; i++)
-    {
-      if (msgBuffer[i] == payload)
-      {
-        msgBuffer[i] = "";
-        topicBuffer[i] = "";
-
-        for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
-        {
-          msgBuffer[j] = msgBuffer[j + 1];
-          topicBuffer[j] = topicBuffer[j + 1];
-        }
-        msgBuffer[MSG_BUFFER_SIZE - 1] = "";
-        topicBuffer[MSG_BUFFER_SIZE - 1] = "";
-        break;
-      }
-    }
     return;
   }
 
