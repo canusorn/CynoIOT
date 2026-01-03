@@ -1001,6 +1001,26 @@ void Cynoiot::messageReceived(String &topic, String &payload)
     DEBUGLN("Update new timer : " + payload);
     timerStr = payload;
   }
+  else if (topic == "/" + _clientid + "/reboot")
+  {
+    DEBUGLN("Received reboot command");
+    delay(1000);
+    ESP.restart();
+  }
+  else if (topic == "/" + _clientid + "/reset")
+  {
+    DEBUGLN("Received reset EEPROM command");
+    EEPROM.begin(512);
+    for (int i = 0; i < 512; i++)
+    {
+      EEPROM.write(i, 0);
+    }
+    EEPROM.commit();
+    EEPROM.end();
+    DEBUGLN("EEPROM reset complete");
+    delay(1000);
+    ESP.restart();
+  }
   else
   {
     DEBUGLN("incoming: " + topic + " - " + payload);
