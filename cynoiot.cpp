@@ -897,8 +897,8 @@ void Cynoiot::messageReceived(String &topic, String &payload)
   String _clientid = cynoiotInstance.getClientId();
   pub2SubTime = 0;
 
-  DEBUG("Received topic: " + topic);
-  DEBUGLN("\tReceived payload: " + payload);
+  // DEBUG("Received topic: " + topic);
+  // DEBUGLN("\tReceived payload: " + payload);
 
   if (topic == _topic)
   {
