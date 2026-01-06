@@ -441,6 +441,7 @@ bool Cynoiot::connect(const char email[], const char server[])
       msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
 
       publish(payload, topic);
+      debug(payload);
 
       EEPROM.write(511, 0); // reset status
       EEPROM.commit();
