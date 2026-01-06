@@ -104,6 +104,64 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>CynoIoT config page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        li {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            color: #555;
+        }
+        li:last-child {
+            border-bottom: none;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        a {
+            display: block;
+            text-align: center;
+            color: #007bff;
+            text-decoration: none;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
     <script>
     if (%STATE% == 0) {
         location.href='/config';
@@ -111,17 +169,19 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
     </script>
 </head>
 <body>
-    CynoIoT config data
-    <ul>
-        <li>Device name: %THING_NAME%</li>
-        <li>อีเมลล์: %EMAIL%</li>
-        <li>WIFI SSID: %SSID%</li>
-        <li>RSSI: %RSSI% dBm</li>
-        <li>ESP ID: %ESP_ID%</li>
-        <li>Version: %VERSION%</li>
-    </ul>
-    <button style='margin-top: 10px;' type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button><br><br>
-    <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
+    <div class="container">
+        <h1>CynoIoT config data</h1>
+        <ul>
+            <li>Device name: %THING_NAME%</li>
+            <li>อีเมลล์: %EMAIL%</li>
+            <li>WIFI SSID: %SSID%</li>
+            <li>RSSI: %RSSI% dBm</li>
+            <li>ESP ID: <a href="https://cynoiot.com/device/%ESP_ID%" target="_blank">%ESP_ID%</a></li>
+            <li>Version: %VERSION%</li>
+        </ul>
+        <button type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button>
+        <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
+    </div>
 </body>
 </html>
 )rawliteral";

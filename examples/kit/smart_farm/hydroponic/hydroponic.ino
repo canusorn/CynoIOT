@@ -29,7 +29,7 @@
 // สร้าง object ชื่อ iot
 Cynoiot iot;
 
-const char thingName[] = "hydroponic";
+const char thingName[] = "hydro";
 const char wifiInitialApPassword[] = "iotbundle";
 
 #define STRING_LEN 128
@@ -43,6 +43,64 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>CynoIoT config page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        li {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            color: #555;
+        }
+        li:last-child {
+            border-bottom: none;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        a {
+            display: block;
+            text-align: center;
+            color: #007bff;
+            text-decoration: none;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
     <script>
     if (%STATE% == 0) {
         location.href='/config';
@@ -50,17 +108,19 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
     </script>
 </head>
 <body>
-    CynoIoT config data
-    <ul>
-        <li>Device name: %THING_NAME%</li>
-        <li>อีเมลล์: %EMAIL%</li>
-        <li>WIFI SSID: %SSID%</li>
-        <li>RSSI: %RSSI% dBm</li>
-        <li>ESP ID: %ESP_ID%</li>
-        <li>Version: %VERSION%</li>
-    </ul>
-    <button style='margin-top: 10px;' type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button><br><br>
-    <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
+    <div class="container">
+        <h1>CynoIoT config data</h1>
+        <ul>
+            <li>Device name: %THING_NAME%</li>
+            <li>อีเมลล์: %EMAIL%</li>
+            <li>WIFI SSID: %SSID%</li>
+            <li>RSSI: %RSSI% dBm</li>
+            <li>ESP ID: <a href="https://cynoiot.com/device/%ESP_ID%" target="_blank">%ESP_ID%</a></li>
+            <li>Version: %VERSION%</li>
+        </ul>
+        <button type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button>
+        <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
+    </div>
 </body>
 </html>
 )rawliteral";
@@ -84,9 +144,12 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 #define RSTPIN 8
 
 #ifdef CONFIG_IDF_TARGET_ESP32S2
-#define TRIG_PIN 18
-#define ECHO_PIN 21
-#define TDS_PIN 4 // ADC1_CH0 for ESP32S2
+// #define TRIG_PIN 18
+// #define ECHO_PIN 16
+// #define TDS_PIN 5 // ADC1_CH0 for ESP32S2
+#define TRIG_PIN 11 // ✅ Safe GPIO pin   RX
+#define ECHO_PIN 12 // ✅ Safe GPIO pin   TX
+#define TDS_PIN 5   // ✅ ADC1_CH3 (safe ADC pin)   // old 4
 
 #else
 #define TRIG_PIN 4 // GPIO4 for ESP32
@@ -153,11 +216,11 @@ void iotSetup()
 {
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
     numVariables = 3;                                         // จำนวนตัวแปร
-    String keyname[numVariables] = {"level", "volume", "ec"}; // ชื่อตัวแปร
+    String keyname[numVariables] = {"level", "tds", "ec"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
-    const uint8_t version = 1;              // เวอร์ชั่นโปรเจคนี้
-    iot.setTemplate("hydroponic", version); // เลือกเทมเพลตแดชบอร์ด
+    // const uint8_t version = 1;              // เวอร์ชั่นโปรเจคนี้
+    // iot.setTemplate("hydroponic", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
@@ -205,6 +268,9 @@ void setup()
 
     // Initialize TDS Sensor
     pinMode(TDS_PIN, INPUT);
+#ifdef ESP32
+    analogReadResolution(12);
+#endif
 
     //------Display LOGO at start------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -284,6 +350,7 @@ void loop()
     if (currentMillis - previousMillis >= 1000)
     { // run every 1 second
         previousMillis = currentMillis;
+
         display_update();
         time1sec();
         sampleUpdate++;
@@ -297,6 +364,9 @@ void loop()
 
             //------get data from TDS Sensor------
             readTDS();
+
+            // display data in serialmonitor
+            Serial.println("Water Level: " + String(water_level) + "cm  TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm");
 
             if (isnan(water_level) || isnan(ec_value))
                 return;
@@ -332,12 +402,22 @@ void readTDS()
     // Read analog value from TDS sensor
     int rawValue = analogRead(TDS_PIN);
 
-    // Convert to voltage (ESP8266 ADC is 0-1023 for 0-3.3V)
+    // Convert to voltage (ESP8266: 10-bit ADC 0-1023, ESP32: 12-bit ADC 0-4095)
+#ifdef ESP32
+    float voltage = rawValue * (TDS_CALIBRATION_VOLTAGE / 4096.0);
+#else
     float voltage = rawValue * (TDS_CALIBRATION_VOLTAGE / 1024.0);
+#endif
 
     // Convert voltage to TDS value (ppm)
     // This is a simplified conversion - actual calibration may be needed
-    tds_value = (133.42 * voltage * voltage * voltage - 255.86 * voltage * voltage + 857.39 * voltage) * TDS_CALIBRATION_COEFFICIENT;
+    float current_tds = (133.42 * voltage * voltage * voltage - 255.86 * voltage * voltage + 857.39 * voltage) * TDS_CALIBRATION_COEFFICIENT;
+
+    // Apply EMA filter (coefficient 0.1)
+    if (tds_value == 0)
+        tds_value = current_tds; // Initialize with first reading
+    else
+        tds_value = (0.1 * current_tds) + (0.9 * tds_value);
 
     // Convert TDS to EC (Electrical Conductivity)
     // EC (μS/cm) = TDS (ppm) * 2 (approximate conversion factor)
@@ -371,9 +451,6 @@ void display_update()
         oled.println("Level: " + String(water_level, 1) + " cm");
         oled.println("TDS: " + String(tds_value, 0) + " ppm");
         oled.println("EC: " + String(ec_value, 0) + " uS/cm");
-
-        // display data in serialmonitor
-        Serial.println("Water Level: " + String(water_level) + "cm  TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm");
     }
 
     // display status
