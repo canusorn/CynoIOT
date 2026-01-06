@@ -268,7 +268,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
         <button type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button>
         <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
     </div>
-
+<br>
     <div class="container">
         <h3>GPIO Control</h3>
         <div class="btn-group">

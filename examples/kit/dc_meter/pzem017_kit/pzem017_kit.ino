@@ -197,7 +197,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
             <li>อีเมลล์: %EMAIL%</li>
             <li>WIFI SSID: %SSID%</li>
             <li>RSSI: %RSSI% dBm</li>
-            <li>ESP ID: <a href="https://cynoiot.com/device/%ESP_ID%" target="_blank">%ESP_ID%</a></li>
+            <li>ESP ID: %ESP_ID%</li>
             <li>Version: %VERSION%</li>
         </ul>
         <button type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button>
