@@ -203,16 +203,21 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
         button:hover {
             background: #0056b3;
         }
-        a {
+        .link {
             display: block;
             text-align: center;
-            color: #007bff;
+            background: #dc3545;
+            color: white;
             text-decoration: none;
-            margin-top: 15px;
-            font-size: 14px;
+            padding: 12px 24px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 16px;
+            cursor: pointer;
         }
-        a:hover {
-            text-decoration: underline;
+        .link:hover {
+            background: #c82333;
+            text-decoration: none;
         }
     </style>
     <script>
@@ -261,12 +266,12 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
             <li>อีเมลล์: %EMAIL%</li>
             <li>WIFI SSID: %SSID%</li>
             <li>RSSI: %RSSI% dBm</li>
-            <li>ESP ID: %ESP_ID%</li>
+            <li>ESP ID: <a href='https://cynoiot.com/device/%ESP_ID%' target='_blank'>%ESP_ID%</a></li>
             <li>Version: %VERSION%</li>
         </ul>
 
+        <a class="link" href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
         <button type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button>
-        <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
     </div>
 <br>
     <div class="container">
@@ -1163,13 +1168,13 @@ void updateSystemState()
     }
 
     // debug serial print
-    Serial.println("---------------------------------------------------------");
-    Serial.println("param\tch1\tch2\tch3\tch4\tpump");
-    Serial.println("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
-    // iot.debug("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
-    Serial.println("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
-    // iot.debug("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
-    Serial.println("---------------------------------------------------------");
+    // Serial.println("---------------------------------------------------------");
+    // Serial.println("param\tch1\tch2\tch3\tch4\tpump");
+    // Serial.println("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
+    // // iot.debug("time \t" + String(chTimer[0]) + "\t" + String(chTimer[1]) + "\t" + String(chTimer[2]) + "\t" + String(chTimer[3]) + "\t" + String(pumpTimer));
+    // Serial.println("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
+    // // iot.debug("state\t" + String(digitalRead(CH1)) + "\t" + String(digitalRead(CH2)) + "\t" + String(digitalRead(CH3)) + "\t" + String(digitalRead(CH4)) + "\t" + String(digitalRead(PUMP)));
+    // Serial.println("---------------------------------------------------------");
 }
 
 // ------------------------------------------------------------------
