@@ -103,24 +103,200 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>CynoIoT config page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        h3 {
+            color: #333;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        li {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            color: #555;
+        }
+        li:last-child {
+            border-bottom: none;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+        .btn-on {
+            background-color: #4CAF50;
+        }
+        .btn-on:hover {
+            background-color: #45a049;
+        }
+        .btn-off {
+            background-color: #f44336;
+        }
+        .btn-off:hover {
+            background-color: #da190b;
+        }
+        .btn-group {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .btn-group strong {
+            display: inline-block;
+            min-width: 80px;
+            color: #333;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .status-on {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .status-off {
+            background-color: #f44336;
+            color: white;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        a {
+            display: block;
+            text-align: center;
+            color: #007bff;
+            text-decoration: none;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
     <script>
     if (%STATE% == 0) {
         location.href='/config';
     }
+    
+    function togglePin(pin, state) {
+        fetch('/gpio/' + pin + '?state=' + state)
+            .then(response => response.text())
+            .then(data => {
+                updateStatus();
+            })
+            .catch(error => console.error('Error:', error));
+    }
+    
+    function updateStatus() {
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                updatePinStatus('pump', data.pump);
+                updatePinStatus('ch1', data.ch1);
+                updatePinStatus('ch2', data.ch2);
+                updatePinStatus('ch3', data.ch3);
+                updatePinStatus('ch4', data.ch4);
+            });
+    }
+    
+    function updatePinStatus(id, state) {
+        const statusEl = document.getElementById(id + '_status');
+        if (statusEl) {
+            statusEl.className = 'status ' + (state ? 'status-on' : 'status-off');
+            statusEl.textContent = state ? 'ON' : 'OFF';
+        }
+    }
+    
+    window.onload = updateStatus;
+    setInterval(updateStatus, 10000);
     </script>
 </head>
 <body>
-    CynoIoT config data
-    <ul>
-        <li>Device name: %THING_NAME%</li>
-        <li>อีเมลล์: %EMAIL%</li>
-        <li>WIFI SSID: %SSID%</li>
-        <li>RSSI: %RSSI% dBm</li>
-        <li>ESP ID: %ESP_ID%</li>
-        <li>Version: %VERSION%</li>
-    </ul>
-    <button style='margin-top: 10px;' type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button><br><br>
-    <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
+    <div class="container">
+        <h1>CynoIoT config data</h1>
+        <ul>
+            <li>Device name: %THING_NAME%</li>
+            <li>อีเมลล์: %EMAIL%</li>
+            <li>WIFI SSID: %SSID%</li>
+            <li>RSSI: %RSSI% dBm</li>
+            <li>ESP ID: %ESP_ID%</li>
+            <li>Version: %VERSION%</li>
+        </ul>
+
+        <button type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button>
+        <a href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
+    </div>
+
+    <div class="container">
+        <h3>GPIO Control</h3>
+        <div class="btn-group">
+            <strong>PUMP:</strong> <span id="pump_status" class="status">Loading...</span><br>
+            <button class="btn btn-on" onclick="togglePin('pump', '1')">PUMP ON</button>
+            <button class="btn btn-off" onclick="togglePin('pump', '0')">PUMP OFF</button>
+        </div>
+        <div class="btn-group">
+            <strong>CH1:</strong> <span id="ch1_status" class="status">Loading...</span><br>
+            <button class="btn btn-on" onclick="togglePin('ch1', '1')">CH1 ON</button>
+            <button class="btn btn-off" onclick="togglePin('ch1', '0')">CH1 OFF</button>
+        </div>
+        <div class="btn-group">
+            <strong>CH2:</strong> <span id="ch2_status" class="status">Loading...</span><br>
+            <button class="btn btn-on" onclick="togglePin('ch2', '1')">CH2 ON</button>
+            <button class="btn btn-off" onclick="togglePin('ch2', '0')">CH2 OFF</button>
+        </div>
+        <div class="btn-group">
+            <strong>CH3:</strong> <span id="ch3_status" class="status">Loading...</span><br>
+            <button class="btn btn-on" onclick="togglePin('ch3', '1')">CH3 ON</button>
+            <button class="btn btn-off" onclick="togglePin('ch3', '0')">CH3 OFF</button>
+        </div>
+        <div class="btn-group">
+            <strong>CH4:</strong> <span id="ch4_status" class="status">Loading...</span><br>
+            <button class="btn btn-on" onclick="togglePin('ch4', '1')">CH4 ON</button>
+            <button class="btn btn-off" onclick="togglePin('ch4', '0')">CH4 OFF</button>
+        </div>
+    </div>
 </body>
 </html>
 )rawliteral";
@@ -128,6 +304,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
 // -- ประกาศฟังก์ชัน
 void handleRoot();
 void showPopupMessage(String msg, uint8_t timeout = 3);
+void handleStatus();
 // -- ฟังก์ชัน Callback
 void wifiConnected();
 void configSaved();
@@ -731,6 +908,57 @@ void setup()
               { iotWebConf.handleConfig(); });
     server.on("/cleareeprom", clearEEPROM);
     server.on("/reboot", reboot);
+    server.on("/gpio/pump", []()
+              {
+                  String state = server.arg("state");
+                  if (state == "1")
+                      pumpState = 1;
+                  else if (state == "0")
+                      pumpState = 0;
+                  updateHardwareOutputs();
+                  server.send(200, "text/plain", "OK");
+              });
+    server.on("/gpio/ch1", []()
+              {
+                  String state = server.arg("state");
+                  if (state == "1")
+                      chState[0] = 1;
+                  else if (state == "0")
+                      chState[0] = 0;
+                  updateHardwareOutputs();
+                  server.send(200, "text/plain", "OK");
+              });
+    server.on("/gpio/ch2", []()
+              {
+                  String state = server.arg("state");
+                  if (state == "1")
+                      chState[1] = 1;
+                  else if (state == "0")
+                      chState[1] = 0;
+                  updateHardwareOutputs();
+                  server.send(200, "text/plain", "OK");
+              });
+    server.on("/gpio/ch3", []()
+              {
+                  String state = server.arg("state");
+                  if (state == "1")
+                      chState[2] = 1;
+                  else if (state == "0")
+                      chState[2] = 0;
+                  updateHardwareOutputs();
+                  server.send(200, "text/plain", "OK");
+              });
+    server.on("/gpio/ch4", []()
+              {
+                  String state = server.arg("state");
+                  if (state == "1")
+                      chState[3] = 1;
+                  else if (state == "0")
+                      chState[3] = 0;
+                  updateHardwareOutputs();
+                  server.send(200, "text/plain", "OK");
+              });
+    server.on("/status", handleStatus);
     server.onNotFound([]()
                       { iotWebConf.handleNotFound(); });
 
@@ -1534,4 +1762,16 @@ void reboot()
     server.send(200, "text/plain", "rebooting");
     delay(1000);
     ESP.restart(); // รีสตาร์ท ESP
+}
+
+void handleStatus()
+{
+    String json = "{";
+    json += "\"pump\":" + String(pumpState) + ",";
+    json += "\"ch1\":" + String(chState[0]) + ",";
+    json += "\"ch2\":" + String(chState[1]) + ",";
+    json += "\"ch3\":" + String(chState[2]) + ",";
+    json += "\"ch4\":" + String(chState[3]);
+    json += "}";
+    server.send(200, "application/json", json);
 }
