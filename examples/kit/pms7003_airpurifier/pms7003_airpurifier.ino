@@ -585,8 +585,13 @@ void loop()
       // ใช้ค่า EMA สำหรับ PM2.5 ในการควบคุมพัดลม
       if ((emaPM2_5 > purifierStartValue))
       {
+#ifdef POWER_MODEL
+        float normalized = (emaPM2_5 - purifierStartValue) / (purifierMaxValue - purifierStartValue);
+        fanPWM = STARTPWM + (255 - STARTPWM) * pow(normalized, 2.0);
+#else
         fanPWM = map(emaPM2_5, purifierStartValue, purifierMaxValue,
                      STARTPWM, 255);
+#endif
         if (fanPWM < 0)
           fanPWM = 0;
         else if (fanPWM > 255)
