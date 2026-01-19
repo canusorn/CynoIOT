@@ -211,6 +211,7 @@ const uint8_t wifi_nointernet[] = {0x03, 0x7b, 0x87, 0x33, 0x4b, 0x00, 0x33, 0x3
 uint8_t t_connecting;
 iotwebconf::NetworkState prev_state = iotwebconf::Boot;
 uint8_t displaytime;
+uint8_t oledstate;
 String noti;
 uint16_t timer_nointernet;
 uint8_t numVariables;
@@ -478,20 +479,54 @@ void display_update()
     //------อัพเดทจอ OLED------
     else if (sensorNotDetect < updateValue)
     {
-        // แสดงค่า PM จากเซ็นเซอร์
-        oled.clearDisplay();
-        oled.setTextSize(1);
-        oled.setCursor(0, 0);
-        oled.println("PM(ug/m3)");
-        oled.setCursor(0, 15);
-        oled.print(" 1.0 : ");
-        oled.print(data.PM_AE_UG_1_0);
-        oled.setCursor(0, 26);
-        oled.print(" 2.5 : ");
-        oled.print(data.PM_AE_UG_2_5);
-        oled.setCursor(0, 37);
-        oled.print("10.0 : ");
-        oled.print(data.PM_AE_UG_10_0);
+        oledstate++;
+        if (oledstate > 10)
+        {
+            oledstate = 0;
+        }
+
+        if (oledstate <= 7)
+        {
+            oled.clearDisplay();
+
+            oled.setTextSize(3);
+            if (data.PM_AE_UG_2_5 < 9)
+                oled.setCursor(20, 15);
+            else if (data.PM_AE_UG_2_5 < 99)
+                oled.setCursor(15, 15);
+            else if (data.PM_AE_UG_2_5 < 999)
+                oled.setCursor(10, 15);
+            else
+            {
+                oled.setTextSize(2);
+                oled.setCursor(0, 15);
+            }
+
+            oled.print((int)data.PM_AE_UG_2_5);
+
+            oled.setTextSize(1);
+            oled.setCursor(14, 0);
+            oled.print("PM2.5");
+
+            oled.setCursor(18, 40);
+            oled.print("ug/m3");
+        }
+        else
+        {
+            oled.clearDisplay();
+            oled.setTextSize(1);
+            oled.setCursor(0, 0);
+            oled.println("PM(ug/m3)");
+            oled.setCursor(0, 15);
+            oled.print(" 1.0 : ");
+            oled.print(data.PM_AE_UG_1_0);
+            oled.setCursor(0, 26);
+            oled.print(" 2.5 : ");
+            oled.print(data.PM_AE_UG_2_5);
+            oled.setCursor(0, 37);
+            oled.print("10.0 : ");
+            oled.print(data.PM_AE_UG_10_0);
+        }
     }
     // แสดงข้อความเมื่อไม่พบเซ็นเซอร์
     else

@@ -274,6 +274,10 @@ void setup()
     }
 
     login.addItem(&emailParam);
+    
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+    iotWebConf.setStatusPin(15);
+#endif
 
     iotWebConf.addParameterGroup(&login);
     iotWebConf.setConfigSavedCallback(&configSaved);

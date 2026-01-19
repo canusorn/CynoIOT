@@ -884,7 +884,10 @@ void setup()
     // เพิ่มพารามิเตอร์อีเมลในหน้าตั้งค่า
     login.addItem(&emailParam);
 
-    //  iotWebConf.setStatusPin(STATUS_PIN);
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+    iotWebConf.setStatusPin(15);
+#endif
+
     // iotWebConf.setConfigPin(CONFIG_PIN);
     //  iotWebConf.addSystemParameter(&stringParam);
     iotWebConf.addParameterGroup(&login);

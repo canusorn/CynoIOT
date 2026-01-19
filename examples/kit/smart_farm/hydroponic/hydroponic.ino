@@ -220,7 +220,7 @@ uint8_t sampleUpdate, updateValue = 10;
 void iotSetup()
 {
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
-    numVariables = 3;                                         // จำนวนตัวแปร
+    numVariables = 3;                                      // จำนวนตัวแปร
     String keyname[numVariables] = {"level", "tds", "ec"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
@@ -305,7 +305,10 @@ void setup()
 
     login.addItem(&emailParam);
 
-    //  iotWebConf.setStatusPin(STATUS_PIN);
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+    iotWebConf.setStatusPin(15);
+#endif
+
     // iotWebConf.setConfigPin(CONFIG_PIN);
     //  iotWebConf.addSystemParameter(&stringParam);
     iotWebConf.addParameterGroup(&login);
@@ -398,8 +401,11 @@ void readWaterLevel()
     // Calculate distance in cm (speed of sound = 343 m/s = 0.0343 cm/μs)
     float distance = duration * 0.0343 / 2;
 
-    // Calculate water level (tank height - distance from sensor to water surface)
-    water_level = distance;
+    // Apply EMA filter (alpha = 0.3)
+    if (water_level == 0)
+        water_level = distance; // Initialize with first reading
+    else
+        water_level = (0.3 * distance) + (0.7 * water_level);
 }
 
 void readTDS()
