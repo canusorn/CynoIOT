@@ -67,6 +67,7 @@ private:
   void handleAutomation(String varrable, float value);
   void executeAutomationAction(String actionType, String target, String mode, String value);
   void checkAutomationTimeouts();
+  void addBufferEntry(const String &payload, const String &topic);
   void removeBufferEntry(const String &prefix);
   
 #ifdef ESP8266

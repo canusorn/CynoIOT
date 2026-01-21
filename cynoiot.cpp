@@ -35,7 +35,7 @@ String lastMsgPublish = "";
 #endif
 String msgBuffer[MSG_BUFFER_SIZE];
 String topicBuffer[MSG_BUFFER_SIZE];
-uint8_t msgBufferIndex = 0;
+uint8_t msgBufferCount = 0;
 uint32_t lastResendTime = 0;
 
 #ifdef ESP8266
@@ -436,9 +436,7 @@ bool Cynoiot::connect(const char email[], const char server[])
         topic = "/" + getClientId() + "/ota/status";
       }
 
-      msgBuffer[msgBufferIndex] = payload;
-      topicBuffer[msgBufferIndex] = topic;
-      msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+      addBufferEntry(payload, topic);
 
       publish(payload, topic);
       debug(payload);
@@ -505,7 +503,7 @@ void Cynoiot::handle()
     if (currentTime - lastResendTime >= 60000)
     {
       lastResendTime = currentTime;
-      for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+      for (int i = 0; i < msgBufferCount; i++)
       {
         if (msgBuffer[i].length() > 0 && topicBuffer[i].length() > 0)
         {
@@ -908,20 +906,18 @@ void Cynoiot::messageReceived(String &topic, String &payload)
   }
 
   // check from buffer to confirm if the payload is already processed
-  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+  for (int i = 0; i < msgBufferCount; i++)
   {
     if (msgBuffer[i] == payload)
     {
-      msgBuffer[i] = "";
-      topicBuffer[i] = "";
-
-      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+      for (int j = i; j < msgBufferCount - 1; j++)
       {
         msgBuffer[j] = msgBuffer[j + 1];
         topicBuffer[j] = topicBuffer[j + 1];
       }
-      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
-      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+      msgBuffer[msgBufferCount - 1] = "";
+      topicBuffer[msgBufferCount - 1] = "";
+      msgBufferCount--;
       break;
     }
   }
@@ -1077,9 +1073,7 @@ void Cynoiot::sendDeviceInfo()
   DEBUGLN("Sending device info: " + payload);
   DEBUGLN("Topic: " + topic);
 
-  msgBuffer[msgBufferIndex] = payload;
-  topicBuffer[msgBufferIndex] = topic;
-  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  addBufferEntry(payload, topic);
 
   publish(payload, topic);
 }
@@ -1236,9 +1230,7 @@ void Cynoiot::eventUpdate(String event, String value)
 
   removeBufferEntry("Event:" + event + ":");
 
-  msgBuffer[msgBufferIndex] = eventStr;
-  topicBuffer[msgBufferIndex] = topic;
-  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  addBufferEntry(eventStr, topic);
 
   publish(eventStr, topic);
 }
@@ -1250,9 +1242,7 @@ void Cynoiot::eventUpdate(String event, int value)
 
   removeBufferEntry("Event:" + event + ":");
 
-  msgBuffer[msgBufferIndex] = eventStr;
-  topicBuffer[msgBufferIndex] = topic;
-  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  addBufferEntry(eventStr, topic);
 
   publish(eventStr, topic);
 }
@@ -1290,9 +1280,7 @@ void Cynoiot::gpioUpdate(int pin, int value)
 
   removeBufferEntry(pinPrefix);
 
-  msgBuffer[msgBufferIndex] = payload;
-  topicBuffer[msgBufferIndex] = topic;
-  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  addBufferEntry(payload, topic);
 
   publish(payload, topic);
 }
@@ -1304,9 +1292,7 @@ void Cynoiot::gpioUpdate(String pin, int value)
 
   removeBufferEntry(pin + ":act:");
 
-  msgBuffer[msgBufferIndex] = payload;
-  topicBuffer[msgBufferIndex] = topic;
-  msgBufferIndex = (msgBufferIndex + 1) % MSG_BUFFER_SIZE;
+  addBufferEntry(payload, topic);
 
   publish(payload, topic);
 }
@@ -1636,19 +1622,37 @@ void Cynoiot::checkAutomationTimeouts()
   timeoutCount = activeCount;
 }
 
+void Cynoiot::addBufferEntry(const String &payload, const String &topic)
+{
+  if (msgBufferCount >= MSG_BUFFER_SIZE)
+  {
+    for (int i = 0; i < MSG_BUFFER_SIZE - 1; i++)
+    {
+      msgBuffer[i] = msgBuffer[i + 1];
+      topicBuffer[i] = topicBuffer[i + 1];
+    }
+    msgBufferCount = MSG_BUFFER_SIZE - 1;
+  }
+
+  msgBuffer[msgBufferCount] = payload;
+  topicBuffer[msgBufferCount] = topic;
+  msgBufferCount++;
+}
+
 void Cynoiot::removeBufferEntry(const String &prefix)
 {
-  for (int i = 0; i < MSG_BUFFER_SIZE; i++)
+  for (int i = 0; i < msgBufferCount; i++)
   {
     if (msgBuffer[i].startsWith(prefix))
     {
-      for (int j = i; j < MSG_BUFFER_SIZE - 1; j++)
+      for (int j = i; j < msgBufferCount - 1; j++)
       {
         msgBuffer[j] = msgBuffer[j + 1];
         topicBuffer[j] = topicBuffer[j + 1];
       }
-      msgBuffer[MSG_BUFFER_SIZE - 1] = "";
-      topicBuffer[MSG_BUFFER_SIZE - 1] = "";
+      msgBuffer[msgBufferCount - 1] = "";
+      topicBuffer[msgBufferCount - 1] = "";
+      msgBufferCount--;
       break;
     }
   }
