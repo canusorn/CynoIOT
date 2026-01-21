@@ -870,6 +870,7 @@ void Cynoiot::pinHandle(const String &pins, const String &modes,
   // digit pwm dac get
   if (modes == "digit")
   {
+    pinMode(pin, OUTPUT);
     if (values == "high" || values == "on" || values == "1")
     {
       digitalWrite(pin, HIGH);
@@ -878,7 +879,6 @@ void Cynoiot::pinHandle(const String &pins, const String &modes,
     {
       digitalWrite(pin, LOW);
     }
-    pinMode(pin, OUTPUT);
   }
   else if (modes == "pwm")
   {
