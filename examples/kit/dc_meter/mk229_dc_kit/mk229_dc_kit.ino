@@ -17,7 +17,6 @@
 #endif
 
 #include <Wire.h>   // Wire library for I2C communication
-#include <Ticker.h> // Ticker library for interrupt
 #include <EEPROM.h> // EEPROM library for storing data
 
 // IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
@@ -74,9 +73,6 @@ const char wifiInitialApPassword[] = "iotbundle";
 
 #define STRING_LEN 128
 #define NUMBER_LEN 32
-
-// timer interrupt
-Ticker timestamp;
 
 unsigned long previousMillis;
 
@@ -298,9 +294,6 @@ void setup()
 #elif defined(ESP32)
     RS485Serial.begin(9600, SERIAL_8N1, MAX485_RO, MAX485_DI); // serial สำหรับติดต่อกับ MAX485
 #endif
-
-    // timer interrupt every 1 sec
-    timestamp.attach(1, time1sec);
 
     //------Display LOGO at start------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
