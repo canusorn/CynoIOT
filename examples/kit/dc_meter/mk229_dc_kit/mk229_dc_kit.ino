@@ -1,5 +1,5 @@
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
- // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
+// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
 #ifdef ESP8266
 #include <SoftwareSerial.h>
 #include <ESP8266WiFi.h>
@@ -18,23 +18,22 @@
 
 #include <Wire.h>   // Wire library for I2C communication
 #include <Ticker.h> // Ticker library for interrupt
-#include <EEPROM.h>  // EEPROM library for storing data
+#include <EEPROM.h> // EEPROM library for storing data
 
 // IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h>
 
-#include <Adafruit_SSD1306.h>  // Adafruit SSD1306 library by Adafruit
-#include <Adafruit_GFX.h>  // Adafruit GFX library by Adafruit
-#include <cynoiot.h>    // CynoIOT by IoTbundle
-#include <ModbusMaster.h>   // ModbusMaster by Doc Walker
+#include <Adafruit_SSD1306.h> // Adafruit SSD1306 library by Adafruit
+#include <Adafruit_GFX.h>     // Adafruit GFX library by Adafruit
+#include <cynoiot.h>          // CynoIOT by IoTbundle
+#include <ModbusMaster.h>     // ModbusMaster by Doc Walker
 
 #ifdef ESP8266
 SoftwareSerial RS485Serial;
 #elif defined(ESP32)
 #define RS485Serial Serial1
 #endif
-
 
 // ตั้งค่า pin สำหรับต่อกับ MAX485
 #ifdef ESP8266
@@ -45,12 +44,20 @@ SoftwareSerial RS485Serial;
 #define MAX485_DI D0
 
 #elif defined(ESP32)
-#define RSTPIN 7
+#define RSTPIN 8
 
-#define MAX485_RO 11
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+#define MAX485_RO 18
 #define MAX485_RE 9
-#define MAX485_DE 7
-#define MAX485_DI 5
+#define MAX485_DE 9
+#define MAX485_DI 21
+
+#else
+#define MAX485_RO 23
+#define MAX485_RE 9
+#define MAX485_DE 9
+#define MAX485_DI 26
+#endif
 #endif
 
 ModbusMaster node;
@@ -207,10 +214,10 @@ const uint8_t logo_bmp[] = { // 'cyno', 33x30px
 const uint8_t wifi_on[] = {0x00, 0x3c, 0x42, 0x99, 0x24, 0x00, 0x18, 0x18};                                                 // 'wifi-1', 8x8px
 const uint8_t wifi_off[] = {0x01, 0x3e, 0x46, 0x99, 0x34, 0x20, 0x58, 0x98};                                                // 'wifi_nointernet-1', 8x8px
 const uint8_t wifi_ap[] = {0x41, 0x00, 0x80, 0x80, 0xa2, 0x80, 0xaa, 0x80, 0xaa, 0x80, 0x88, 0x80, 0x49, 0x00, 0x08, 0x00}; // 'router-2', 9x8px
-const uint8_t wifi_nointernet[] = {0x03, 0x7b, 0x87, 0x33, 0x4b, 0x00, 0x33, 0x33};   
+const uint8_t wifi_nointernet[] = {0x03, 0x7b, 0x87, 0x33, 0x4b, 0x00, 0x33, 0x33};
 uint8_t t_connecting;
 iotwebconf::NetworkState prev_state = iotwebconf::Boot;
-uint8_t displaytime;
+uint8_t displaytime, timer;
 String noti;
 uint16_t timer_nointernet;
 uint8_t numVariables;
@@ -224,7 +231,7 @@ void iotSetup()
     String keyname[numVariables] = {"v", "i", "p", "e"}; // ชื่อตัวแปร
     iot.setkeyname(keyname, numVariables);
 
-    const uint8_t version = 1;           // เวอร์ชั่นโปรเจคนี้
+    const uint8_t version = 1;         // เวอร์ชั่นโปรเจคนี้
     iot.setTemplate("mk229", version); // เลือกเทมเพลตแดชบอร์ด
 
     Serial.println("ClinetID:" + String(iot.getClientId()));
@@ -295,11 +302,6 @@ void setup()
     // timer interrupt every 1 sec
     timestamp.attach(1, time1sec);
 
-    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
-    digitalWrite(MAX485_RE, 0); /* Arduino create output signal for pin RE as LOW (no output)*/
-    digitalWrite(MAX485_DE, 0); /* Arduino create output signal for pin DE as LOW (no output)*/
-
     //------Display LOGO at start------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     oled.clearDisplay();
@@ -316,7 +318,10 @@ void setup()
 
     login.addItem(&emailParam);
 
-    //  iotWebConf.setStatusPin(STATUS_PIN);
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+    iotWebConf.setStatusPin(15);
+#endif
+
     // iotWebConf.setConfigPin(CONFIG_PIN);
     //  iotWebConf.addSystemParameter(&stringParam);
     iotWebConf.addParameterGroup(&login);
@@ -364,57 +369,66 @@ void loop()
 
     // อ่านค่าจาก PZEM-017
     uint32_t currentMillisPZEM = millis();
-    if (currentMillisPZEM - previousMillis >= 5000) /* for every x seconds, run the codes below*/
+    if (currentMillisPZEM - previousMillis >= 1000) /* for every x seconds, run the codes below*/
     {
-        uint8_t result;                                /* Declare variable "result" as 8 bits */
-        result = node.readHoldingRegisters(0x0100, 21); /* read the 9 registers (information) of the PZEM-014 / 016 starting 0x0000 (voltage information) kindly refer to manual)*/
-        if (result == node.ku8MBSuccess)               /* If there is a response */
+        previousMillis = currentMillisPZEM; /* Set the starting point again for next counting time */
+        timer++;
+        time1sec();
+
+        if (timer >= 5)
         {
-            uint32_t tempdouble = 0x00000000; /* Declare variable "tempdouble" as 32 bits with initial value is 0 */
-            float var[4];
+            timer = 0;
 
-            tempdouble = (node.getResponseBuffer(0) << 16) + node.getResponseBuffer(1); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[0] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
-            Voltage = var[0];
+            uint8_t result;                                 /* Declare variable "result" as 8 bits */
+            result = node.readHoldingRegisters(0x0100, 21); /* read the 9 registers (information) of the PZEM-014 / 016 starting 0x0000 (voltage information) kindly refer to manual)*/
+            disConnect();
+            if (result == node.ku8MBSuccess) /* If there is a response */
+            {
+                uint32_t tempdouble = 0x00000000; /* Declare variable "tempdouble" as 32 bits with initial value is 0 */
+                float var[4];
 
-            tempdouble = (node.getResponseBuffer(2) << 16) + node.getResponseBuffer(3); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[1] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
-            Current = var[1];
+                tempdouble = (node.getResponseBuffer(0) << 16) + node.getResponseBuffer(1); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
+                var[0] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
+                Voltage = var[0];
 
-            tempdouble = (node.getResponseBuffer(4) << 16) + node.getResponseBuffer(5); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[2] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
-            Power = var[2];
+                tempdouble = (node.getResponseBuffer(2) << 16) + node.getResponseBuffer(3); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
+                var[1] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
+                Current = var[1];
 
-            tempdouble = (node.getResponseBuffer(0xE) << 16) + node.getResponseBuffer(0xF); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            var[3] = float(tempdouble) / 1000;                                          /* Divide the value by 10 to get actual power value (as per manual) */
-            Energy = var[3];
+                tempdouble = (node.getResponseBuffer(4) << 16) + node.getResponseBuffer(5); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
+                var[2] = float(tempdouble) / 10000;                                         /* Divide the value by 10 to get actual power value (as per manual) */
+                Power = var[2];
 
-            tempdouble =  node.getResponseBuffer(0x14); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
-            if(tempdouble){
-              var[1]*=-1.0;
-              var[2]*=-1.0;
-              Current = var[1];
-              Power = var[2];
+                tempdouble = (node.getResponseBuffer(0xE) << 16) + node.getResponseBuffer(0xF); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
+                var[3] = float(tempdouble) / 1000;                                              /* Divide the value by 10 to get actual power value (as per manual) */
+                Energy = var[3];
+
+                tempdouble = node.getResponseBuffer(0x14); /* get the power value. Power value is consists of 2 parts (2 digits of 16 bits in front and 2 digits of 16 bits at the back) and combine them to an unsigned 32bit */
+                if (tempdouble)
+                {
+                    var[1] *= -1.0;
+                    var[2] *= -1.0;
+                    Current = var[1];
+                    Power = var[2];
+                }
+
+                Serial.println(String(var[0], 2) + " V");
+                Serial.println(String(var[1], 2) + " A");
+                Serial.println(String(var[2], 2) + " W");
+                Serial.println(String(var[3], 3) + " kWh");
+                Serial.println("------------");
+
+                iot.update(var);
+            }
+            else
+            {
+                Serial.println("error");
+                Voltage = NAN;
             }
 
-            Serial.println(String(var[0], 2) + " V");
-            Serial.println(String(var[1], 2) + " A");
-            Serial.println(String(var[2], 2) + " W");
-            Serial.println(String(var[3], 3) + " kWh");
-            Serial.println("------------");
-
-            iot.update(var);
+            // แสดงค่าบน OLED
+            display_update();
         }
-        else
-        {
-            Serial.println("error");
-            Voltage = NAN;
-        }
-
-        // แสดงค่าบน OLED
-        display_update();
-        
-        previousMillis = currentMillisPZEM; /* Set the starting point again for next counting time */
     }
 }
 
@@ -464,8 +478,8 @@ void display_update()
     // on error
     if (isnan(Voltage))
     {
-    oled.clearDisplay();
-    oled.setTextSize(1);
+        oled.clearDisplay();
+        oled.setTextSize(1);
         oled.setCursor(0, 0);
         oled.printf("-Sensor-\n\nno sensor\ndetect!");
     }
@@ -541,8 +555,8 @@ void display_update()
     if (displaytime)
     {
         displaytime--;
-    oled.clearDisplay();
-    oled.setTextSize(1);
+        oled.clearDisplay();
+        oled.setTextSize(1);
         oled.setCursor(0, 0);
         oled.print(noti);
         Serial.println(noti);
@@ -582,6 +596,8 @@ void display_update()
 
 void preTransmission() /* transmission program when triggered*/
 {
+    pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, OUTPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
 
     digitalWrite(MAX485_RE, 1); /* put RE Pin to high*/
     digitalWrite(MAX485_DE, 1); /* put DE Pin to high*/
@@ -594,6 +610,12 @@ void postTransmission() /* Reception program when triggered*/
     delay(3);                   // When both RE and DE Pin are low, converter is allow to receive communication
     digitalWrite(MAX485_RE, 0); /* put RE Pin to low*/
     digitalWrite(MAX485_DE, 0); /* put DE Pin to low*/
+}
+
+void disConnect()
+{
+    pinMode(MAX485_RE, INPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
+    pinMode(MAX485_DE, INPUT); /* Define DE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
 }
 
 // change address but not test yet
