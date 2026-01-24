@@ -26,8 +26,23 @@
 #include <Adafruit_GFX.h>     // Adafruit GFX library by Adafruit
 #include <cynoiot.h>          // CynoIOT by IoTbundle
 
+// ถ้าต้องการใช้ DS18B20 Temperature Sensor ก็ต้องกำหนด TEMP_PIN
+// #define TEMP_PIN 9
+
+#ifdef TEMP_PIN
+#include <OneWire.h>           // OneWire library for DS18B20
+#include <DallasTemperature.h> // DallasTemperature library for DS18B20
+float temperature = NAN;
+#endif
+
 // สร้าง object ชื่อ iot
 Cynoiot iot;
+
+#ifdef TEMP_PIN
+// DS18B20 Temperature Sensor Setup
+OneWire oneWire(TEMP_PIN);
+DallasTemperature sensors(&oneWire);
+#endif
 
 const char thingName[] = "hydro";
 const char wifiInitialApPassword[] = "iotbundle";
@@ -132,6 +147,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
 
 // -- Method declarations.
 void handleRoot();
+float handleWaterLevelSpike(float new_distance);
 // -- Callback methods.
 void wifiConnected();
 void configSaved();
@@ -170,6 +186,8 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
 unsigned long previousMillis = 0;
 float water_level, tds_value, ec_value;
+float previous_distance = 0;
+uint8_t consecutive_changes = 0;
 
 #define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
@@ -220,8 +238,13 @@ uint8_t sampleUpdate, updateValue = 10;
 void iotSetup()
 {
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
+#ifdef TEMP_PIN
+    numVariables = 4;                                              // จำนวนตัวแปร
+    String keyname[numVariables] = {"level", "tds", "ec", "temp"}; // ชื่อตัวแปร
+#else
     numVariables = 3;                                      // จำนวนตัวแปร
     String keyname[numVariables] = {"level", "tds", "ec"}; // ชื่อตัวแปร
+#endif
     iot.setkeyname(keyname, numVariables);
 
     // const uint8_t version = 1;              // เวอร์ชั่นโปรเจคนี้
@@ -275,6 +298,27 @@ void setup()
     pinMode(TDS_PIN, INPUT);
 #ifdef ESP32
     analogReadResolution(12);
+#endif
+
+#ifdef TEMP_PIN
+    // Initialize DS18B20 Temperature Sensor
+    sensors.begin();
+    sensors.setResolution(12); // 12-bit resolution (0.0625°C) for higher accuracy (~750ms)
+
+    // Check if DS18B20 is connected
+    if (sensors.getDeviceCount() == 0)
+    {
+        Serial.println("No DS18B20 sensor found on pin " + String(TEMP_PIN));
+        Serial.println("Please check wiring:");
+        Serial.println("  - DS18B20 DATA pin -> GPIO " + String(TEMP_PIN));
+        Serial.println("  - DS18B20 VCC -> 3.3V");
+        Serial.println("  - DS18B20 GND -> GND");
+        Serial.println("  - 4.7K resistor between VCC and DATA");
+    }
+    else
+    {
+        Serial.println("DS18B20 sensor detected. Count: " + String(sensors.getDeviceCount()));
+    }
 #endif
 
     //------Display LOGO at start------
@@ -373,15 +417,63 @@ void loop()
             //------get data from TDS Sensor------
             readTDS();
 
+#ifdef TEMP_PIN
+            //------get data from DS18B20 Temperature Sensor------
+            readTemperature();
+#endif
+
             // display data in serialmonitor
+#ifdef TEMP_PIN
+            Serial.println("Water Level: " + String(water_level) + "cm  TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm  Temp: " + String(temperature, 1) + "°C");
+#else
             Serial.println("Water Level: " + String(water_level) + "cm  TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm");
+#endif
 
             if (isnan(water_level) || isnan(ec_value))
                 return;
 
             //  อัพเดทค่าใหม่ในรูปแบบ array
+#ifdef TEMP_PIN
+            float val[numVariables] = {water_level, tds_value, ec_value, temperature};
+#else
             float val[numVariables] = {water_level, tds_value, ec_value};
+#endif
             iot.update(val);
+        }
+    }
+}
+
+float handleWaterLevelSpike(float new_distance)
+{
+    const float SPIKE_THRESHOLD = 1.0;
+
+    if (previous_distance == 0)
+    {
+        previous_distance = new_distance;
+        consecutive_changes = 0;
+        return new_distance;
+    }
+
+    float change = abs(new_distance - previous_distance);
+
+    if (change < SPIKE_THRESHOLD)
+    {
+        consecutive_changes = 0;
+        previous_distance = new_distance;
+        return new_distance;
+    }
+    else
+    {
+        consecutive_changes++;
+        if (consecutive_changes >= 2)
+        {
+            consecutive_changes = 0;
+            previous_distance = new_distance;
+            return new_distance;
+        }
+        else
+        {
+            return previous_distance;
         }
     }
 }
@@ -401,13 +493,16 @@ void readWaterLevel()
     // Calculate distance in cm (speed of sound = 343 m/s = 0.0343 cm/μs)
     float distance = duration * 0.0343 / 2;
 
-    // Apply EMA filter (alpha = 0.3)
-    if (water_level == 0)
-        water_level = distance; // Initialize with first reading
-    else
-        water_level = (0.3 * distance) + (0.7 * water_level);
-}
+    float filtered_distance = handleWaterLevelSpike(distance);
 
+    // Inverse water level to negative value (water depth from sensor)
+    filtered_distance = -filtered_distance;
+
+    if (water_level == 0)
+        water_level = filtered_distance;
+    else
+        water_level = (0.3 * filtered_distance) + (0.7 * water_level);
+}
 void readTDS()
 {
     // Read analog value from TDS sensor
@@ -441,6 +536,54 @@ void readTDS()
         ec_value = 5000; // Max 5000 μS/cm for hydroponic systems
 }
 
+#ifdef TEMP_PIN
+void readTemperature()
+{
+    // Request temperature from all devices on the bus
+    sensors.requestTemperatures();
+
+    // Wait for conversion to complete
+    // DS18B20 with 12-bit resolution requires ~750ms for conversion
+    delay(750);
+
+    // Read temperature in Celsius
+    float tempC = sensors.getTempCByIndex(0);
+
+    // Check if reading is valid
+    if (tempC == DEVICE_DISCONNECTED_C)
+    {
+        Serial.println("DS18B20: Device disconnected");
+        // Invalid reading, keep previous value or set to NaN
+        if (temperature == 0)
+            temperature = NAN;
+        return;
+    }
+    else if (tempC == 85.0)
+    {
+        Serial.println("DS18B20: Power-up error (85.0°C)");
+        // Invalid reading, keep previous value or set to NaN
+        if (temperature == 0)
+            temperature = NAN;
+        return;
+    }
+    else if (tempC == -127.0)
+    {
+        Serial.println("DS18B20: Communication error (-127.0°C)");
+        // Invalid reading, keep previous value or set to NaN
+        if (temperature == 0)
+            temperature = NAN;
+        return;
+    }
+
+    // Valid reading
+    // Apply simple EMA filter for temperature (alpha = 0.2)
+    if (isnan(temperature))
+        temperature = tempC;
+    else
+        temperature = (0.2 * tempC) + (0.8 * temperature);
+}
+#endif
+
 void display_update()
 {
     if (isnan(water_level) || isnan(ec_value)) // if no data from sensors
@@ -461,7 +604,11 @@ void display_update()
         oled.println("--Hydro--");
         oled.println("Level: " + String(water_level, 1) + " cm");
         oled.println("TDS: " + String(tds_value, 0) + " ppm");
-        oled.println("EC: " + String(ec_value, 0) + " uS/cm");
+        oled.println("EC: " + String(ec_value, 0) + " uS");
+#ifdef TEMP_PIN
+        if (!isnan(temperature))
+            oled.println("Temp: " + String(temperature, 1) + " C");
+#endif
     }
 
     // display status
