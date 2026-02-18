@@ -239,12 +239,13 @@ uint8_t buttonPress;
 uint8_t state; // 0-auto  1-sleep  2-narmal   3-max
 
 #ifdef POWER_MODEL
-const uint8_t sleeppwm = 10, normalpwm = 50, maxpwm = 255;
+const uint8_t sleeppwm = 10, normalpwm = 50;
 const uint8_t STARTPWM = 5;
 #elif defined(ECO_MODEL)
-const uint8_t sleeppwm = 190, normalpwm = 220, maxpwm = 255;
+const uint8_t sleeppwm = 190, normalpwm = 220;
 const uint8_t STARTPWM = 150;
 #endif
+uint8_t maxpwm = 255;
 uint8_t oledOn = 1;
 
 // ตัวแปรสำหรับ soft start PWM
@@ -255,23 +256,21 @@ unsigned long lastPWMTimer = 0;
 const uint8_t PWM_STEP_SIZE = 3; // ขนาดของการเปลี่ยนแปลง PWM ต่อขั้นตอน
 
 // EMA Filter variables
-const float EMA_ALPHA = 0.1; // ค่าสำหรับ EMA filter (0.0-1.0), ค่าที่สูงขึ้นจะให้น้ำหนักกับค่าล่าสุดมากขึ้น
+const float EMA_ALPHA =
+    0.1; // ค่าสำหรับ EMA filter (0.0-1.0), ค่าที่สูงขึ้นจะให้น้ำหนักกับค่าล่าสุดมากขึ้น
 float emaPM1_0 = 0.0;        // EMA สำหรับ PM1.0
 float emaPM2_5 = 0.0;        // EMA สำหรับ PM2.5
 float emaPM10_0 = 0.0;       // EMA สำหรับ PM10.0
 bool emaInitialized = false; // ตัวแปรเช็คว่า EMA ได้ถูกเริ่มต้นแล้วหรือไม่
 
 // ฟังก์ชันสำหรับ EMA filter
-float updateEMA(float currentEMA, float newValue, float alpha)
-{
+float updateEMA(float currentEMA, float newValue, float alpha) {
   return alpha * newValue + (1.0 - alpha) * currentEMA;
 }
 
 // ฟังก์ชันเริ่มต้นค่า EMA
-void initializeEMA()
-{
-  if (!emaInitialized && !isnan(data.PM_AE_UG_1_0))
-  {
+void initializeEMA() {
+  if (!emaInitialized && !isnan(data.PM_AE_UG_1_0)) {
     emaPM1_0 = data.PM_AE_UG_1_0;
     emaPM2_5 = data.PM_AE_UG_2_5;
     emaPM10_0 = data.PM_AE_UG_10_0;
@@ -280,24 +279,19 @@ void initializeEMA()
 }
 
 // ฟังก์ชันที่เรียกใช้ทุก 20ms เพื่อจัดการ soft start PWM
-void handleSoftStartPWM()
-{
+void handleSoftStartPWM() {
   unsigned long currentMillis = millis();
 
   // ตรวจสอบว่าผ่าน 20ms แล้วหรือยัง
-  if (currentMillis - lastPWMTimer >= PWM_DELAY)
-  {
+  if (currentMillis - lastPWMTimer >= PWM_DELAY) {
     lastPWMTimer = currentMillis;
 
     // ปรับค่า currentPWM ถ้าต่างจากค่าเป้าหมาย
-    if (currentPWM < targetPWM)
-    {
+    if (currentPWM < targetPWM) {
       currentPWM += PWM_STEP_SIZE;
       if (currentPWM > targetPWM)
         currentPWM = targetPWM;
-    }
-    else if (currentPWM > targetPWM)
-    {
+    } else if (currentPWM > targetPWM) {
       currentPWM -= PWM_STEP_SIZE;
       if (currentPWM < targetPWM)
         currentPWM = targetPWM;
@@ -316,8 +310,7 @@ void handleSoftStartPWM()
 }
 
 // ฟังก์ชันสำหรับรับ event จากเซิร์ฟเวอร์
-void handleEvent(String event, String value)
-{
+void handleEvent(String event, String value) {
   EEPROM.begin(512);
   if (event == "Start") // ตรวจสอบว่าเป็น event ชื่อ "Start" หรือไม่
   {
@@ -326,67 +319,95 @@ void handleEvent(String event, String value)
             value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน purifierStartValue
 
     uint8_t currentValue = EEPROM.read(498);
-    if (currentValue != purifierStartValue)
-    {
+    if (currentValue != purifierStartValue) {
       EEPROM.write(498, purifierStartValue);
       EEPROM.commit();
       Serial.println("Verified written value: " + String(EEPROM.read(498)));
-    }
-    else
-    {
+    } else {
       Serial.println("Value already matches, skipping write");
     }
-  }
-  else if (event == "Max")
-  {
+  } else if (event == "Max") {
     purifierMaxValue =
         (uint8_t)
             value.toInt(); // แปลงค่า value เป็น int แล้วเก็บไว้ใน purifierMaxValue
 
     uint8_t currentValue = EEPROM.read(499);
-    if (currentValue != purifierMaxValue)
-    {
+    if (currentValue != purifierMaxValue) {
       EEPROM.write(499, purifierMaxValue);
       EEPROM.commit();
       Serial.println("Verified written value: " + String(EEPROM.read(499)));
-    }
-    else
-    {
+    } else {
       Serial.println("Value already matches, skipping write");
     }
   }
 
-  else if (event == "Mode")
-  {
-    if (value == "auto" || value == "null")
-    {
+  else if (event == "Mode") {
+    if (value == "auto" || value == "null") {
       state = 0;
-    }
-    else if (value == "sleep")
-    {
+    } else if (value == "sleep") {
       state = 1;
-    }
-    else if (value == "normal")
-    {
+    } else if (value == "normal") {
       state = 2;
-    }
-    else if (value == "turbo")
-    {
+    } else if (value == "turbo") {
       state = 3;
     }
     EEPROM.write(497, state);
     EEPROM.commit();
-  }
-  else if (event == "OledOn")
-  {
+  } else if (event == "OledOn") {
     oledOn = (uint8_t)value.toInt();
+  } else if (event == "MaxPWM") {
+    uint8_t percent = (uint8_t)value.toInt();
+
+    if (percent >= 0 && percent <= 100) {
+      uint8_t pwmValue = map(percent, 0, 100, 0, 255);
+      uint8_t currentValue = EEPROM.read(496);
+      if (currentValue != pwmValue) {
+        EEPROM.write(496, pwmValue);
+        EEPROM.commit();
+        maxpwm = pwmValue;
+        Serial.println("MaxPWM set to " + String(percent) + "% (PWM: " + String(pwmValue) + ")");
+      } else {
+        Serial.println("MaxPWM value already matches, skipping write");
+      }
+    } else {
+      Serial.println("Invalid MaxPWM value: " + String(percent) +
+                     ". Must be between 0 and 100 percent.");
+    }
   }
   EEPROM.end();
 }
 
+// ฟังก์ชันสำหรับตั้งค่า Max PWM
+void setMaxPWM(uint8_t percent) {
+  // ตรวจสอบค่าที่รับเข้ามา
+  if (percent > 100) {
+    Serial.println("Invalid MaxPWM value: " + String(percent) +
+                   ". Must be between 0 and 100 percent.");
+    return;
+  }
+
+  // Map percentage to PWM value
+  uint8_t pwmValue = map(percent, 0, 100, 0, 255);
+
+  // เปิด EEPROM เพื่อบันทึกค่า
+  EEPROM.begin(512);
+
+  // ตรวจสอบว่าค่ามีการเปลี่ยนแปลงหรือไม่
+  uint8_t currentValue = EEPROM.read(496);
+  if (currentValue != pwmValue) {
+    EEPROM.write(496, pwmValue);
+    EEPROM.commit();
+    maxpwm = pwmValue;
+    Serial.println("MaxPWM set to " + String(percent) + "% (PWM: " + String(pwmValue) + ")");
+  } else {
+    Serial.println("MaxPWM value already set to: " + String(percent) + "%");
+  }
+
+  EEPROM.end();
+}
+
 // ฟังก์ชันตั้งค่าการเชื่อมต่อกับ CynoIOT
-void iotSetup()
-{
+void iotSetup() {
   // read purifierStartValue from EEPROM
   EEPROM.begin(512);
   purifierStartValue = (uint8_t)EEPROM.read(498);
@@ -412,6 +433,13 @@ void iotSetup()
     state = 0;
   }
 
+  maxpwm = (uint8_t)EEPROM.read(496);
+  Serial.println("maxpwm: " + String(maxpwm));
+  if (maxpwm == 255) // if not have eeprom data use default value
+  {
+    maxpwm = 255;
+  }
+
   EEPROM.end();
 
   iot.setEventCallback(handleEvent);
@@ -421,25 +449,20 @@ void iotSetup()
   String keyname[numVariables] = {"pm1", "pm2", "pm10", "puri"}; // ชื่อตัวแปร
   iot.setkeyname(keyname, numVariables);
 
-  const uint8_t version = 1;                       // เวอร์ชั่นโปรเจคนี้
+  const uint8_t version = 2;                       // เวอร์ชั่นโปรเจคนี้
   iot.setTemplate("pms7003_airpurifier", version); // เลือกเทมเพลตแดชบอร์ด
 
   Serial.println("ClinetID:" + String(iot.getClientId()));
 }
 
 // ฟังก์ชันที่ทำงานทุก 1 วินาที
-void time1sec()
-{
+void time1sec() {
 
   // ตรวจสอบการเชื่อมต่อกับเซิร์ฟเวอร์
-  if (iotWebConf.getState() == iotwebconf::OnLine)
-  {
-    if (iot.status())
-    {
+  if (iotWebConf.getState() == iotwebconf::OnLine) {
+    if (iot.status()) {
       timer_nointernet = 0;
-    }
-    else
-    {
+    } else {
       timer_nointernet++;
       if (timer_nointernet > 30)
         Serial.println("No connection time : " + String(timer_nointernet));
@@ -447,24 +470,19 @@ void time1sec()
   }
 
   // รีคอนเน็ค WiFi ถ้าไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้
-  if (timer_nointernet == 60)
-  {
+  if (timer_nointernet == 60) {
     Serial.println("Can't connect to server -> Restart wifi");
     iotWebConf.goOffLine();
     timer_nointernet++;
-  }
-  else if (timer_nointernet >= 65)
-  {
+  } else if (timer_nointernet >= 65) {
     timer_nointernet = 0;
     iotWebConf.goOnLine(false);
-  }
-  else if (timer_nointernet >= 61)
+  } else if (timer_nointernet >= 61)
     timer_nointernet++;
 }
 
 // ฟังก์ชัน setup ทำงานครั้งแรกเมื่อเริ่มต้นโปรแกรม
-void setup()
-{
+void setup() {
   Serial.begin(115200); // เริ่มการสื่อสารผ่าน Serial ที่ความเร็ว 115200 bps
 
   // เริ่มการสื่อสารกับเซ็นเซอร์ PMS7003 ที่ความเร็ว 9600 bps
@@ -500,11 +518,9 @@ void setup()
 
   // สำหรับล้าง EEPROM ให้กดปุ่ม D5 ค้างไว้
   pinMode(RESET_PIN, INPUT_PULLUP);
-  if (digitalRead(RESET_PIN) == false)
-  {
+  if (digitalRead(RESET_PIN) == false) {
     delay(1000);
-    if (digitalRead(RESET_PIN) == false)
-    {
+    if (digitalRead(RESET_PIN) == false) {
       oled.clearDisplay();
       oled.setCursor(0, 0);
       oled.print("Clear All data\n rebooting");
@@ -528,10 +544,8 @@ void setup()
 
   // -- ตั้งค่าการจัดการ updateServer
   iotWebConf.setupUpdateServer(
-      [](const char *updatePath)
-      { httpUpdater.setup(&server, updatePath); },
-      [](const char *userName, char *password)
-      {
+      [](const char *updatePath) { httpUpdater.setup(&server, updatePath); },
+      [](const char *userName, char *password) {
         httpUpdater.updateCredentials(userName, password);
       });
 
@@ -540,12 +554,10 @@ void setup()
 
   // -- ตั้งค่า URL handlers บน web server
   server.on("/", handleRoot);
-  server.on("/config", []
-            { iotWebConf.handleConfig(); });
+  server.on("/config", [] { iotWebConf.handleConfig(); });
   server.on("/cleareeprom", clearEEPROM);
   server.on("/reboot", reboot);
-  server.onNotFound([]()
-                    { iotWebConf.handleNotFound(); });
+  server.onNotFound([]() { iotWebConf.handleNotFound(); });
 
   Serial.println("Ready.");
 
@@ -553,8 +565,7 @@ void setup()
 }
 
 // ฟังก์ชัน loop ทำงานวนซ้ำตลอดเวลา
-void loop()
-{
+void loop() {
   iotWebConf.doLoop();   // ประมวลผลการทำงานของ IotWebConf
   server.handleClient(); // จัดการคำขอจาก web client
   iot.handle();          // จัดการการเชื่อมต่อกับ CynoIOT
@@ -566,8 +577,7 @@ void loop()
   handleSoftStartPWM();
 
   //------อ่านข้อมูลจากเซ็นเซอร์ PMS7003------
-  if (pms.read(data))
-  {
+  if (pms.read(data)) {
     sensorNotDetect = 0; // รีเซ็ตตัวนับเมื่ออ่านข้อมูลได้
 
     // เริ่มต้นค่า EMA ในครั้งแรกที่อ่านข้อมูลได้
@@ -580,29 +590,25 @@ void loop()
 
     display_update(); // อัพเดทจอ OLED
 
-    if (state == 0)
-    {
+    if (state == 0) {
       // ใช้ค่า EMA สำหรับ PM2.5 ในการควบคุมพัดลม
-      if ((emaPM2_5 > purifierStartValue))
-      {
+      if ((emaPM2_5 > purifierStartValue)) {
 #ifdef POWER_MODEL
-        float normalized = (emaPM2_5 - purifierStartValue) / (purifierMaxValue - purifierStartValue);
+        float normalized = (emaPM2_5 - purifierStartValue) /
+                           (purifierMaxValue - purifierStartValue);
         fanPWM = STARTPWM + (255 - STARTPWM) * pow(normalized, 2.0);
 #else
-        fanPWM = map(emaPM2_5, purifierStartValue, purifierMaxValue,
-                     STARTPWM, 255);
+        fanPWM =
+            map(emaPM2_5, purifierStartValue, purifierMaxValue, STARTPWM, 255);
 #endif
         if (fanPWM < 0)
           fanPWM = 0;
-        else if (fanPWM > 255)
-          fanPWM = 255;
-      }
-      else
-      {
+        else if (fanPWM > maxpwm)
+          fanPWM = maxpwm;
+      } else {
         fanPWM = 0;
       }
-    }
-    else if (state == 1)
+    } else if (state == 1)
       fanPWM = sleeppwm;
     else if (state == 2)
       fanPWM = normalpwm;
@@ -611,27 +617,32 @@ void loop()
 
     // ใช้ soft start PWM แทนการตั้งค่าโดยตรง
     targetPWM = fanPWM;
+
+    // Safety check: if currentPWM exceeds maxpwm, bring it down
+    if (currentPWM > maxpwm)
+      targetPWM = maxpwm;
+
+    // Cap targetPWM to maxpwm
+    if (targetPWM > maxpwm)
+      targetPWM = maxpwm;
   }
 
   // ทำงานทุก 1 วินาที
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= 1000)
-  {
+  if (currentMillis - previousMillis >= 1000) {
     previousMillis = currentMillis;
 
     time1sec();
 
     if (sensorNotDetect < updateValue)
       sensorNotDetect++;
-    else
-    {
+    else {
       display_update(); // update OLED
     }
 
     // ส่งข้อมูลขึ้นเซิร์ฟเวอร์ทุก updateValue วินาที
     sampleUpdate++;
-    if (sampleUpdate >= updateValue && sensorNotDetect < updateValue)
-    {
+    if (sampleUpdate >= updateValue && sensorNotDetect < updateValue) {
       sampleUpdate = 0;
 
       if (isnan(data.PM_AE_UG_1_0))
@@ -645,7 +656,8 @@ void loop()
         rpm = 100;
 
       //  อัพเดทค่าใหม่ในรูปแบบ array (ใช้ค่า EMA ที่ผ่านการกรองแล้ว)
-      float val[numVariables] = {(int)emaPM1_0, (int)emaPM2_5, (int)emaPM10_0, rpm};
+      float val[numVariables] = {(int)emaPM1_0, (int)emaPM2_5, (int)emaPM10_0,
+                                 rpm};
 
       iot.update(val); // ส่งข้อมูลไปยังเซิร์ฟเวอร์
     }
@@ -654,19 +666,14 @@ void loop()
   buttonHandler();
 }
 
-void buttonHandler()
-{
+void buttonHandler() {
   // กดปุ่ม
-  if (digitalRead(0) == 0)
-  {
+  if (digitalRead(0) == 0) {
     if (buttonPress < 200)
       buttonPress++;
     // Serial.println(buttonPress);
-  }
-  else
-  {
-    if (buttonPress > 5)
-    {
+  } else {
+    if (buttonPress > 5) {
       Serial.println("buttonPress");
       endButton = millis() + 3000;
       state++;
@@ -679,23 +686,16 @@ void buttonHandler()
 
       EEPROM.begin(512);
 
-      if (state == 0)
-      {
+      if (state == 0) {
         oled.print("Auto\nMode");
         iot.eventUpdate("Mode", "auto"); // อัพเดท event ไปยัง server
-      }
-      else if (state == 1)
-      {
+      } else if (state == 1) {
         oled.print("Sleep\nMode");
         iot.eventUpdate("Mode", "sleep"); // อัพเดท event ไปยัง server
-      }
-      else if (state == 2)
-      {
+      } else if (state == 2) {
         oled.print("Norma\nMode");
         iot.eventUpdate("Mode", "normal"); // อัพเดท event ไปยัง server
-      }
-      else
-      {
+      } else {
         oled.print("Turbo\nMode");
         iot.eventUpdate("Mode", "turbo"); // อัพเดท event ไปยัง server
       }
@@ -708,73 +708,51 @@ void buttonHandler()
   }
 }
 // ฟังก์ชันอัพเดทการแสดงผลบนจอ OLED
-void display_update()
-{
+void display_update() {
   if (oledOn) // if in oledOn time
   {
-    if (endButton < millis())
-    {
+    if (endButton < millis()) {
       oledstate++;
-      if (oledstate > 10)
-      {
+      if (oledstate > 10) {
         oledstate = 0;
       }
 
       // แสดงสถานะการเชื่อมต่อ
       iotwebconf::NetworkState curr_state = iotWebConf.getState();
-      if (curr_state == iotwebconf::Boot)
-      {
+      if (curr_state == iotwebconf::Boot) {
         prev_state = curr_state;
-      }
-      else if (curr_state == iotwebconf::NotConfigured)
-      {
-        if (prev_state == iotwebconf::Boot)
-        {
+      } else if (curr_state == iotwebconf::NotConfigured) {
+        if (prev_state == iotwebconf::Boot) {
           displaytime = 5;
           prev_state = curr_state;
           noti = "-State-\n\nno config\nstay in\nAP Mode";
         }
-      }
-      else if (curr_state == iotwebconf::ApMode)
-      {
-        if (prev_state == iotwebconf::Boot)
-        {
+      } else if (curr_state == iotwebconf::ApMode) {
+        if (prev_state == iotwebconf::Boot) {
           displaytime = 5;
           prev_state = curr_state;
           noti = "-State-\n\nAP Mode\nfor 30 sec";
-        }
-        else if (prev_state == iotwebconf::Connecting)
-        {
+        } else if (prev_state == iotwebconf::Connecting) {
           displaytime = 5;
           prev_state = curr_state;
           noti = "-State-\n\nX  can't\nconnect\nwifi\ngo AP Mode";
-        }
-        else if (prev_state == iotwebconf::OnLine)
-        {
+        } else if (prev_state == iotwebconf::OnLine) {
           displaytime = 10;
           prev_state = curr_state;
           noti = "-State-\n\nX wifi\ndisconnect\ngo AP Mode";
         }
-      }
-      else if (curr_state == iotwebconf::Connecting)
-      {
-        if (prev_state == iotwebconf::ApMode)
-        {
+      } else if (curr_state == iotwebconf::Connecting) {
+        if (prev_state == iotwebconf::ApMode) {
           displaytime = 5;
           prev_state = curr_state;
           noti = "-State-\n\nwifi\nconnecting";
-        }
-        else if (prev_state == iotwebconf::OnLine)
-        {
+        } else if (prev_state == iotwebconf::OnLine) {
           displaytime = 10;
           prev_state = curr_state;
           noti = "-State-\n\nX  wifi\ndisconnect\nreconnecting";
         }
-      }
-      else if (curr_state == iotwebconf::OnLine)
-      {
-        if (prev_state == iotwebconf::Connecting)
-        {
+      } else if (curr_state == iotwebconf::OnLine) {
+        if (prev_state == iotwebconf::Connecting) {
           displaytime = 5;
           prev_state = curr_state;
           noti = "-State-\n\nwifi\nconnect\nsuccess\n" + String(WiFi.RSSI()) +
@@ -783,16 +761,14 @@ void display_update()
       }
 
       // แสดงการแจ้งเตือนจาก CynoIOT
-      if (iot.noti != "" && displaytime == 0)
-      {
+      if (iot.noti != "" && displaytime == 0) {
         displaytime = 3;
         noti = iot.noti;
         iot.noti = "";
       }
 
       // แสดงข้อความแจ้งเตือน
-      if (displaytime)
-      {
+      if (displaytime) {
         displaytime--;
         oled.clearDisplay();
         oled.setTextSize(1);
@@ -801,10 +777,8 @@ void display_update()
         Serial.println(noti);
       }
       //------อัพเดทจอ OLED------
-      else if (sensorNotDetect < updateValue)
-      {
-        if (oledstate <= 7)
-        {
+      else if (sensorNotDetect < updateValue) {
+        if (oledstate <= 7) {
           // แสดงค่า PM จากเซ็นเซอร์ - PM2.5 เป็นตัวใหญ่ PM1.0 และ PM10.0 เป็นตัวเล็ก
           oled.clearDisplay();
 
@@ -816,8 +790,7 @@ void display_update()
             oled.setCursor(15, 15);
           else if (emaPM2_5 < 999)
             oled.setCursor(10, 15);
-          else
-          {
+          else {
             oled.setTextSize(2);
             oled.setCursor(0, 15);
           }
@@ -831,9 +804,7 @@ void display_update()
 
           oled.setCursor(18, 40);
           oled.print("ug/m3");
-        }
-        else
-        {
+        } else {
           // แสดงค่า PM จากเซ็นเซอร์ (ใช้ค่า EMA ที่ผ่านการกรองแล้ว)
           oled.clearDisplay();
           oled.setTextSize(1);
@@ -851,8 +822,7 @@ void display_update()
         }
       }
       // แสดงข้อความเมื่อไม่พบเซ็นเซอร์
-      else
-      {
+      else {
         oled.clearDisplay();
         oled.setTextSize(1);
         oled.setCursor(0, 0);
@@ -863,44 +833,31 @@ void display_update()
       if (curr_state == iotwebconf::NotConfigured ||
           curr_state == iotwebconf::ApMode)
         oled.drawBitmap(55, 0, wifi_ap, 9, 8, 1); // แสดงไอคอน AP Mode
-      else if (curr_state == iotwebconf::Connecting)
-      {
-        if (t_connecting == 1)
-        {
+      else if (curr_state == iotwebconf::Connecting) {
+        if (t_connecting == 1) {
           oled.drawBitmap(56, 0, wifi_on, 8, 8, 1); // แสดงไอคอนกำลังเชื่อมต่อ
           t_connecting = 0;
-        }
-        else
-        {
+        } else {
           t_connecting = 1;
         }
-      }
-      else if (curr_state == iotwebconf::OnLine)
-      {
-        if (iot.status())
-        {
+      } else if (curr_state == iotwebconf::OnLine) {
+        if (iot.status()) {
           oled.drawBitmap(56, 0, wifi_on, 8, 8, 1); // แสดงไอคอนเชื่อมต่อสำเร็จ
-        }
-        else
-        {
+        } else {
           oled.drawBitmap(56, 0, wifi_nointernet, 8, 8,
                           1); // แสดงไอคอนไม่มีอินเทอร์เน็ต
         }
-      }
-      else if (curr_state == iotwebconf::OffLine)
+      } else if (curr_state == iotwebconf::OffLine)
         oled.drawBitmap(56, 0, wifi_off, 8, 8, 1); // แสดงไอคอนไม่ได้เชื่อมต่อ
     }
-  }
-  else
-  {
+  } else {
     oled.clearDisplay();
   }
 
   oled.display(); // แสดงผลบนจอ OLED
 
   //------แสดงข้อมูลบน Serial Monitor------
-  if (sensorNotDetect < updateValue)
-  {
+  if (sensorNotDetect < updateValue) {
     Serial.print("PM 1.0 (ug/m3): ");
     Serial.print(data.PM_AE_UG_1_0);
     Serial.print(" -> EMA: ");
@@ -915,19 +872,15 @@ void display_update()
     Serial.print(data.PM_AE_UG_10_0);
     Serial.print(" -> EMA: ");
     Serial.println(emaPM10_0);
-  }
-  else
-  {
+  } else {
     Serial.println("no sensor detect");
   }
 }
 
 // ฟังก์ชันจัดการหน้าเว็บหลัก
-void handleRoot()
-{
+void handleRoot() {
   // -- ให้ IotWebConf ทดสอบและจัดการคำขอ captive portal
-  if (iotWebConf.handleCaptivePortal())
-  {
+  if (iotWebConf.handleCaptivePortal()) {
     // -- คำขอ captive portal ถูกจัดการแล้ว
     return;
   }
@@ -938,9 +891,9 @@ void handleRoot()
   s.replace("%THING_NAME%", String(iotWebConf.getThingName())); // แทนที่ชื่อุปกรณ์
   s.replace("%EMAIL%", String(emailParamValue));                // แทนที่อีเมล
   s.replace("%SSID%", String(iotWebConf.getSSID()));            // แทนที่ SSID
-  s.replace("%RSSI%", String(WiFi.RSSI()));                     // แทนที่ค่าความแรงสัญญาณ
-  s.replace("%ESP_ID%", String(iot.getClientId()));             // แทนที่ ID ของ ESP
-  s.replace("%VERSION%", String(IOTVERSION));                   // แทนที่เวอร์ชั่น
+  s.replace("%RSSI%", String(WiFi.RSSI()));         // แทนที่ค่าความแรงสัญญาณ
+  s.replace("%ESP_ID%", String(iot.getClientId())); // แทนที่ ID ของ ESP
+  s.replace("%VERSION%", String(IOTVERSION));       // แทนที่เวอร์ชั่น
 
   server.send(200, "text/html", s); // ส่ง HTML กลับไปยัง client
 }
@@ -949,8 +902,7 @@ void handleRoot()
 void configSaved() { Serial.println("Configuration was updated."); }
 
 // ฟังก์ชันที่ทำงานเมื่อเชื่อมต่อ WiFi สำเร็จ
-void wifiConnected()
-{
+void wifiConnected() {
 
   Serial.println("WiFi was connected.");
   MDNS.begin(iotWebConf.getThingName());
@@ -958,8 +910,7 @@ void wifiConnected()
 
   Serial.printf("Ready! Open http://%s.local in your browser\n",
                 String(iotWebConf.getThingName()));
-  if ((String)emailParamValue != "")
-  {
+  if ((String)emailParamValue != "") {
     // เริ่มเชื่อมต่อ หลังจากต่อไวไฟได้
     Serial.println("login");
     iot.connect((String)emailParamValue); // เชื่อมต่อกับ CynoIOT ด้วยอีเมล
@@ -967,8 +918,7 @@ void wifiConnected()
 }
 
 // ฟังก์ชันตรวจสอบความถูกต้องของฟอร์ม
-bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
-{
+bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper) {
   Serial.println("Validating form.");
   bool valid = true;
 
@@ -984,15 +934,13 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
 }
 
 // ฟังก์ชันล้างข้อมูลใน EEPROM
-void clearEEPROM()
-{
+void clearEEPROM() {
   Serial.println("clearEEPROM() called!");
 
   EEPROM.begin(512);
 
   // เขียนค่า 0 ลงใน EEPROM ทั้งหมด 512 ไบต์
-  for (int i = 0; i < 512; i++)
-  {
+  for (int i = 0; i < 512; i++) {
     EEPROM.write(i, 0);
   }
 
@@ -1003,8 +951,7 @@ void clearEEPROM()
 }
 
 // ฟังก์ชันรีบูทอุปกรณ์
-void reboot()
-{
+void reboot() {
   server.send(200, "text/plain", "rebooting");
   delay(1000);
   ESP.restart(); // รีสตาร์ท ESP
