@@ -224,7 +224,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
     if (%STATE% == 0) {
         location.href='/config';
     }
-    
+
     function togglePin(pin, state) {
         fetch('/gpio/' + pin + '?state=' + state)
             .then(response => response.text())
@@ -233,7 +233,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
             })
             .catch(error => console.error('Error:', error));
     }
-    
+
     function updateStatus() {
         fetch('/status')
             .then(response => response.json())
@@ -245,7 +245,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
                 updatePinStatus('ch4', data.ch4);
             });
     }
-    
+
     function updatePinStatus(id, state) {
         const statusEl = document.getElementById(id + '_status');
         if (statusEl) {
@@ -253,7 +253,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
             statusEl.textContent = state ? 'ON' : 'OFF';
         }
     }
-    
+
     window.onload = updateStatus;
     setInterval(updateStatus, 10000);
     </script>
@@ -1169,7 +1169,21 @@ void updateSystemState()
             iot.eventUpdate("SQ", 0);
         }
     }
+    // protection for forget to close valve
 
+    else if (digitalRead(PUMP))
+    {
+        pumpOnProtectionTimer++;
+        if (pumpOnProtectionTimer >= interval * 5)
+        {
+            pumpOnProtectionTimer = 0;
+            offSeq();
+        }
+    }
+    else
+    {
+        pumpOnProtectionTimer = 0;
+    }
     // debug serial print
     // Serial.println("---------------------------------------------------------");
     // Serial.println("param\tch1\tch2\tch3\tch4\tpump");
@@ -1646,10 +1660,10 @@ void updateHardwareOutputs()
 uint32_t getSystemState()
 {
     uint32_t onState = 0;
-    if (chUse && (chTimer[0] > 0 || chTimer[1] > 0 || chTimer[2] > 0 || chTimer[3] > 0))
+    if (chUse && (chTimer[0] > 0 || chTimer[1] > 0 || chTimer[2] > 0 || chTimer[3] > 0)) //if use zone
         onState = chTimer[0] + chTimer[1] + chTimer[2] + chTimer[3];
 
-    else if (!chUse && pumpUse && pumpTimer > 0)
+    else if (!chUse && pumpUse && pumpTimer > 0)  // if use only pump
         onState = pumpTimer;
 
     else
