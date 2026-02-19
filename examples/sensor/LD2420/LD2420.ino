@@ -60,7 +60,7 @@ void calculateTargetPWM() {
   if (objectDetected) {
     // Map distance to PWM: 0cm = 255, 400cm = 0
     // Using inverse relationship - closer is brighter
-    int pwm = map(lastDistance, 100, 350, 255, 0);
+    int pwm = map(lastDistance, 250, 450, 255, 0);
     // Constrain to valid PWM range
     targetPWM = constrain(pwm, 0, 255);
   } else {
@@ -194,7 +194,7 @@ void loop() {
   if (currentMillis - previousMillis >= 5000) {
     previousMillis = currentMillis;
 
-    float val[3] = {objectDetected ? 1 : 0, (int)lastDistance, (int)targetPWM};
+    float val[3] = {objectDetected ? 1 : 0, (int)lastDistance, (int)currentPWM};
     iot.update(val);
 
     // Serial.print("State: ");
