@@ -18,7 +18,7 @@
 
 #endif
 
-#define IOTVERSION "1.0.7"
+#define IOTVERSION "1.0.8"
 
 #ifndef DEFAULT_SERVER
 #define DEFAULT_SERVER "cynoiot.com"
@@ -69,7 +69,7 @@ private:
   void checkAutomationTimeouts();
   void addBufferEntry(const String &payload, const String &topic);
   void removeBufferEntry(const String &prefix);
-  
+
 #ifdef ESP8266
   int getPinNumber(String pinId);
   String getDpin(int pin);
