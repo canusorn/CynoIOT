@@ -494,26 +494,11 @@ WorkingMode workingMode = NO_WORKING;  // Current working mode
 // ==========================================================================================
 // EVENT HANDLER
 // ==========================================================================================
-/**
- * @brief Handle events received from the CynoIOT server
- *
- * This function processes incoming events from the cloud platform.
- * It updates system state based on the received event type and value.
- * Configuration changes are persisted to EEPROM.
- *
- * @param event The event type (e.g., "SQ" for sequence start)
- * @param value The event value or parameter
- */
 void handleEvent(String event, String value)
 {
     EEPROM.begin(512);
 
-    // ==========================================================================================
     // EVENT: SQ - Sequence Mode Control
-    // ==========================================================================================
-    // Starts or stops sequential irrigation mode
-    // Value "1" = Start sequence mode (only if currently idle)
-    // Value "0" = Stop sequence mode immediately
     if (event == "SQ")
     {
         Serial.println("Sequence: " + value);
@@ -537,12 +522,7 @@ void handleEvent(String event, String value)
         }
     }
 
-    // ==========================================================================================
     // EVENT: M - Global Mode Selection
-    // ==========================================================================================
-    // Sets the operating mode of the irrigation system
-    // Value "auto" = Automatic mode - responds to sensor values and timers
-    // Value "off" = Manual/off mode - no automatic operation
     else if (event == "M")
     {
         Serial.println("Mode: " + value);
@@ -577,12 +557,7 @@ void handleEvent(String event, String value)
         }
     }
 
-    // ==========================================================================================
     // EVENT: In - Irrigation Interval Setting
-    // ==========================================================================================
-    // Sets the time interval for automatic irrigation cycles
-    // Value = Time in seconds (e.g., "600" = 10 minutes)
-    // This is stored in EEPROM and used for timing calculations
     else if (event == "In")
     {
         Serial.println("Interval: " + value);
@@ -607,13 +582,7 @@ void handleEvent(String event, String value)
         }
     }
 
-    // ==========================================================================================
     // EVENT: P - Pump Manual Control
-    // ==========================================================================================
-    // Manual control for the water pump (only works in NO_WORKING mode)
-    // Value "1" = Turn pump ON
-    // Value "0" = Turn pump OFF
-    // In SEQUENCE mode, returns current pump state instead (no control)
     else if (event == "P")
     {
         // iot.debug("Event P received with value: " + value);
@@ -646,15 +615,7 @@ void handleEvent(String event, String value)
     }
 
 
-    // ==========================================================================================
     // EVENT: c1, c2, c3, c4 - Channel (Valve) Manual Control
-    // ==========================================================================================
-    // Manual control for individual irrigation channels/valves
-    // Only works in NO_WORKING mode when channels are not in sequence
-    // Value "1" or non-zero = Turn channel ON
-    // Value "0" = Turn channel OFF
-    // Each channel is only available if chUse is set appropriately
-
     else if (event == "c1")  // Channel 1 control
     {
         // iot.debug("Event c1 received with value: " + value);
@@ -772,13 +733,7 @@ void handleEvent(String event, String value)
         }
     }
 
-    // ==========================================================================================
     // EVENT: Pu - Pump Usage Configuration
-    // ==========================================================================================
-    // Enables or disables the pump functionality
-    // Value "1" = Pump enabled (will be used in irrigation cycles)
-    // Value "0" = Pump disabled (valves only, no pump)
-    // This is useful for gravity-fed systems or when pump is not needed
     else if (event == "Pu")
     {
         Serial.println("Pump use : " + value);
@@ -799,15 +754,7 @@ void handleEvent(String event, String value)
         }
     }
 
-    // ==========================================================================================
     // EVENT: Cu - Number of Channels in Use Configuration
-    // ==========================================================================================
-    // Sets how many irrigation channels (valves) are available
-    // Value "1" = Use only channel 1
-    // Value "2" = Use channels 1 and 2
-    // Value "3" = Use channels 1, 2, and 3
-    // Value "4" = Use all 4 channels
-    // This allows the system to be configured for different hardware setups
     else if (event == "Cu")
     {
         Serial.println("CH use : " + value + "ch");
@@ -829,13 +776,7 @@ void handleEvent(String event, String value)
         }
     }
 
-    // ==========================================================================================
     // EVENT: Hl - Humidity Low Cutoff Threshold
-    // ==========================================================================================
-    // Sets the minimum soil moisture threshold
-    // When humidity drops below this level, it may trigger irrigation (in AUTO mode)
-    // Value = Humidity percentage (e.g., "10" = 10%)
-    // This prevents irrigation when soil is already sufficiently moist
     else if (event == "Hl")
     {
         Serial.println("Humid low cutoff : " + value);
@@ -857,13 +798,7 @@ void handleEvent(String event, String value)
         }
     }
 
-    // ==========================================================================================
     // EVENT: Hh - Humidity High Cutoff Threshold
-    // ==========================================================================================
-    // Sets the maximum soil moisture threshold
-    // When humidity reaches this level during irrigation, the cycle will stop early
-    // Value = Humidity percentage (e.g., "40" = 40%)
-    // This prevents over-watering by stopping irrigation when soil is sufficiently wet
     else if (event == "Hh")
     {
         Serial.println("Humid high cutoff : " + value);
@@ -891,24 +826,6 @@ void handleEvent(String event, String value)
 // ==========================================================================================
 // IOT SETUP FUNCTION
 // ==========================================================================================
-/**
- * @brief Initialize CynoIOT connection and load configuration from EEPROM
- *
- * This function performs the following tasks:
- * 1. Loads saved configuration settings from EEPROM
- * 2. Sets default values if EEPROM is empty (first boot)
- * 3. Registers the event callback function for cloud communication
- * 4. Configures the data template based on the selected sensor model
- * 5. Sets up variable names for cloud data transmission
- *
- * EEPROM Memory Map:
- * - Address 488: humidHighCutoff (uint8_t)
- * - Address 489: humidLowCutoff (uint8_t)
- * - Address 496: chUse (uint8_t) - Number of channels in use
- * - Address 497: pumpUse (uint8_t) - Pump enable flag
- * - Address 498-499: interval (uint16_t) - Irrigation interval in seconds
- * - Address 500: globalMode (uint8_t) - Operating mode (OFF=1, AUTO=2)
- */
 void iotSetup()
 {
     // Begin EEPROM session with 512 bytes
@@ -983,9 +900,6 @@ void iotSetup()
 // ==========================================================================================
 // CONFIGURE DATA TEMPLATE BASED ON SENSOR MODEL
 // ==========================================================================================
-// The template and variable names are configured based on the defined sensor model.
-// This determines what data is sent to the CynoIOT cloud platform.
-
 #ifdef NOSENSOR_MODEL
     // Basic configuration - no sensors, only on/off state
     numVariables = 1;
@@ -1062,21 +976,6 @@ void time1sec()
 // ==========================================================================================
 // SETUP FUNCTION - One-Time Initialization
 // ==========================================================================================
-/**
- * @brief Initialize all hardware, systems, and connections
- *
- * This function runs once when the device powers on or resets.
- * It performs the following initialization tasks:
- * 1. Initialize serial communication for debugging
- * 2. Initialize RS485 serial for sensor communication
- * 3. Initialize OLED display and show startup logo
- * 4. Check for EEPROM clear condition (RSTPIN held low)
- * 5. Configure all GPIO pins for pump and valve control
- * 6. Set up WiFi configuration portal with IotWebConf
- * 7. Configure web server endpoints for control and monitoring
- * 8. Initialize Modbus communication for soil sensor
- * 9. Set up CynoIOT cloud connection
- */
 void setup()
 {
     // Initialize Serial Monitor for debugging (115200 baud)
@@ -1092,10 +991,7 @@ void setup()
     RS485Serial.begin(4800, SERIAL_8N1, MAX485_RO, MAX485_DI); // Hardware serial for ESP32
 #endif
 
-    // ==========================================================================================
     // OLED DISPLAY INITIALIZATION
-    // ==========================================================================================
-    // Initialize OLED display (I2C address 0x3C)
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     oled.clearDisplay();
     oled.drawBitmap(16, 5, logo_bmp, 33, 30, 1); // Display CynoIOT logo
@@ -1105,11 +1001,7 @@ void setup()
     oled.print("  CYNOIOT");
     oled.display();
 
-    // ==========================================================================================
     // EEPROM CLEAR FUNCTION
-    // ==========================================================================================
-    // If RSTPIN is held low during boot, clear all EEPROM data
-    // This is useful for resetting the device to factory defaults
     pinMode(RSTPIN, INPUT_PULLUP);
     if (digitalRead(RSTPIN) == false)
     {
@@ -1125,16 +1017,6 @@ void setup()
         }
     }
 
-    // ==========================================================================================
-    // GPIO INITIALIZATION
-    // ==========================================================================================
-    // Set all control pins to known state (LOW) before configuring as outputs
-    digitalWrite(PUMP, LOW);
-    digitalWrite(CH1, LOW);
-    digitalWrite(CH2, LOW);
-    digitalWrite(CH3, LOW);
-    digitalWrite(CH4, LOW);
-
     // Configure pump and valve control pins as outputs
     pinMode(PUMP, OUTPUT);
     pinMode(CH1, OUTPUT);
@@ -1142,10 +1024,14 @@ void setup()
     pinMode(CH3, OUTPUT);
     pinMode(CH4, OUTPUT);
 
-    // ==========================================================================================
+    // GPIO INITIALIZATION
+    digitalWrite(PUMP, LOW);
+    digitalWrite(CH1, LOW);
+    digitalWrite(CH2, LOW);
+    digitalWrite(CH3, LOW);
+    digitalWrite(CH4, LOW);
+
     // IOT WEBCONF CONFIGURATION
-    // ==========================================================================================
-    // Add email parameter to configuration form
     login.addItem(&emailParam);
 
     // Optional: Set status LED pin for ESP32-S2
@@ -1161,10 +1047,7 @@ void setup()
     iotWebConf.getApTimeoutParameter()->visible = false;  // Hide AP timeout setting
     iotWebConf.setWifiConnectionCallback(&wifiConnected);  // Called when WiFi connects
 
-    // ==========================================================================================
     // OTA UPDATE SERVER SETUP
-    // ==========================================================================================
-    // Configure HTTP update server for remote firmware updates
     iotWebConf.setupUpdateServer(
         [](const char *updatePath)
         {
@@ -1175,14 +1058,10 @@ void setup()
             httpUpdater.updateCredentials(userName, password);  // Set update credentials
         });
 
-    // ==========================================================================================
     // INITIALIZE IOT WEBCONF
-    // ==========================================================================================
     iotWebConf.init();  // Start WiFi configuration portal
 
-    // ==========================================================================================
     // WEB SERVER URL HANDLERS
-    // ==========================================================================================
     // Main page - displays status and controls
     server.on("/", handleRoot);
 
@@ -1263,10 +1142,7 @@ void setup()
 
     Serial.println("Ready.");
 
-    // ==========================================================================================
     // MODBUS SENSOR INITIALIZATION
-    // ==========================================================================================
-    // Set up callbacks for RS485 transceiver control
     node.preTransmission(preTransmission);   // Called before transmission - sets DE/RE high
     node.postTransmission(postTransmission); // Called after transmission - sets DE/RE low
     node.begin(ADDRESS, RS485Serial);        // Initialize Modbus with sensor address
@@ -1281,21 +1157,6 @@ void setup()
 // ==========================================================================================
 // MAIN LOOP FUNCTION
 // ==========================================================================================
-/**
- * @brief Main program loop - runs continuously
- *
- * This function runs repeatedly in an infinite loop and handles:
- * 1. WiFi configuration portal processing (IotWebConf)
- * 2. Web server request handling
- * 3. CynoIOT cloud communication
- * 4. mDNS updates (ESP8266 only)
- * 5. Timed tasks (every 1 second):
- *    - System state updates
- *    - Display refresh
- *    - Sensor reading (every 5 seconds)
- * 6. Hardware output updates
- * 7. Safety check - ensures pump doesn't run without open valve
- */
 void loop()
 {
     // ==========================================================================================
@@ -1322,11 +1183,7 @@ void loop()
         updateSystemState();  // Update irrigation timers and states
         updateDisplay();      // Refresh OLED display
 
-        // ==========================================================================================
         // SENSOR READING (Every 5 Seconds)
-        // ==========================================================================================
-        // Read sensors and send data to cloud every 5 seconds
-        // This prevents flooding the cloud with too frequent updates
         if (sampleUpdate >= 5)
         {
             readAndSendSensorData();  // Read sensors and send to CynoIOT
@@ -1334,22 +1191,10 @@ void loop()
         }
     }
 
-    // ==========================================================================================
     // HARDWARE OUTPUT UPDATE
-    // ==========================================================================================
-    // Apply the current state (pumpState, chState[]) to the actual GPIO pins
     updateHardwareOutputs();
 
-    // ==========================================================================================
     // SAFETY PROTECTION - Pump Without Valve Detection
-    // ==========================================================================================
-    // Prevent pump from running without any valve open
-    // This protects the pump from damage due to dead-head pressure
-    // Conditions that trigger auto-opening of channel 1:
-    // 1. Pump is ON (digitalRead returns HIGH)
-    // 2. No active channel timers (no irrigation in progress)
-    // 3. All valves are physically closed (all GPIO pins read LOW)
-    // 4. Channels are enabled (chUse > 0)
     if (digitalRead(PUMP) && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3] && !digitalRead(CH1) && !digitalRead(CH2) && !digitalRead(CH3) && !digitalRead(CH4) && chUse)
     {
         chState[0] = 1;  // Force open channel 1 to protect pump
@@ -1359,45 +1204,13 @@ void loop()
 // ==========================================================================================
 // SYSTEM STATE UPDATE FUNCTION
 // ==========================================================================================
-/**
- * @brief Update irrigation system state and timers
- *
- * This function is called every second to manage the irrigation sequence.
- * It handles:
- * 1. Humidity-based cutoff - stops irrigation early if soil is too wet
- * 2. Pump delay countdown - ensures pump starts before valves
- * 3. Pump timer management - controls pump operation duration
- * 4. Channel/valve sequential timing - opens valves one after another
- * 5. Valve overlap management - smoothly transitions between valves
- * 6. Display status updates - provides visual feedback
- *
- * The sequence works as follows:
- * - Pump starts first (with delay if configured)
- * - Channel 1 opens, runs for configured time
- * - Channel 2 opens before Channel 1 closes (overlap period)
- * - This pattern repeats through all active channels
- * - Pump turns off after all channels complete
- */
 void updateSystemState()
 {
     displayStatus = "";  // Clear display status string
 
 #if !defined(NOSENSOR_MODEL) // Only execute if sensors are present
 
-    // ==========================================================================================
     // HUMIDITY CUTOFF PROTECTION
-    // ==========================================================================================
-    // If soil moisture reaches the high cutoff threshold during irrigation,
-    // immediately stop the current valve and adjust remaining valves proportionally.
-    // This prevents over-watering when soil is already sufficiently moist.
-    //
-    // Conditions for cutoff check:
-    // 1. Channel 1 timer is running OR pump is running without channels (pump-only mode)
-    // 2. System is in SEQUENCE working mode
-    //
-    // The -3 hysteresis (humidity < humidHighCutoff - 3) prevents rapid on/off cycling
-    // when humidity is near the threshold.
-
     if ((chTimer[0] || (pumpTimer && !chUse)) && workingMode == SEQUENCE)
     {
         // Check if humidity has reached the high cutoff threshold
@@ -1448,22 +1261,11 @@ void updateSystemState()
     }
 #endif
 
-    // ==========================================================================================
     // SEQUENTIAL IRRIGATION MODE
-    // ==========================================================================================
-    // This mode waters channels one after another in sequence.
-    // The pump starts first (with optional delay), then channels open sequentially.
-    // Each channel overlaps with the next for smooth transitions.
 
     if (workingMode == SEQUENCE)
     {
-        // --------------------------------------------------------------------------------------
         // PHASE 1: PUMP DELAY COUNTDOWN
-        // --------------------------------------------------------------------------------------
-        // Before the pump starts, there's an optional delay period.
-        // This allows the system to prepare before pressurizing the water lines.
-        // During this phase, "D" + countdown is displayed (e.g., "D5" for 5 seconds remaining)
-
         if (pumpDelayTimer)
         {
             pumpDelayTimer--;  // Count down the pump delay timer
@@ -1479,13 +1281,7 @@ void updateSystemState()
             }
         }
 
-        // --------------------------------------------------------------------------------------
         // PHASE 2: PUMP OPERATION
-        // --------------------------------------------------------------------------------------
-        // After the delay (if any), the pump turns on and runs for the calculated duration.
-        // The pump timer counts down each second.
-        // Display shows "P" + remaining seconds (e.g., "P120" for 2 minutes remaining)
-
         else if (pumpTimer && !pumpDelayTimer)
         {
             pumpState = 1;  // Turn on the pump
@@ -1499,12 +1295,7 @@ void updateSystemState()
             pumpTimer--;  // Decrement pump timer each second
         }
 
-        // --------------------------------------------------------------------------------------
         // PHASE 3: PUMP SHUTOFF
-        // --------------------------------------------------------------------------------------
-        // When pump timer reaches zero, turn off the pump.
-        // Check if all operations are complete to display "OFF" status.
-
         else if (!pumpTimer)
         {
             pumpState = 0;  // Turn off the pump
@@ -1516,13 +1307,7 @@ void updateSystemState()
             }
         }
 
-        // --------------------------------------------------------------------------------------
         // PHASE 4: CHANNEL 1 OPERATION
-        // --------------------------------------------------------------------------------------
-        // Channel 1 is the first valve to open.
-        // It runs for its configured time, then the next channel starts opening
-        // during the overlap period to ensure smooth transition.
-
         if (chTimer[0])
         {
             chState[0] = 1;  // Turn on channel 1
@@ -1544,12 +1329,7 @@ void updateSystemState()
             }
         }
 
-        // --------------------------------------------------------------------------------------
         // PHASE 5: CHANNEL 2 OPERATION
-        // --------------------------------------------------------------------------------------
-        // Channel 2 operates after channel 1, with overlap period.
-        // Ensures channel 1 is fully closed before this one becomes the primary.
-
         else if (chTimer[1])
         {
             chState[0] = 0;  // Ensure channel 1 is fully off
@@ -1568,11 +1348,8 @@ void updateSystemState()
                 chState[1] = 0;  // Turn off channel 2
         }
 
-        // --------------------------------------------------------------------------------------
         // PHASE 6: CHANNEL 3 OPERATION
-        // --------------------------------------------------------------------------------------
         // Channel 3 operates after channel 2, with overlap period.
-
         else if (chTimer[2])
         {
             chState[1] = 0;  // Ensure channel 2 is fully off
@@ -1591,11 +1368,8 @@ void updateSystemState()
                 chState[2] = 0;  // Turn off channel 3
         }
 
-        // --------------------------------------------------------------------------------------
         // PHASE 7: CHANNEL 4 OPERATION
-        // --------------------------------------------------------------------------------------
         // Channel 4 is the last valve. No overlap needed after this one.
-
         else if (chTimer[3])
         {
             chState[2] = 0;  // Ensure channel 3 is fully off
@@ -1608,31 +1382,17 @@ void updateSystemState()
                 chState[3] = 0;  // Turn off channel 4
         }
 
-        // --------------------------------------------------------------------------------------
         // PHASE 8: SEQUENCE COMPLETION
-        // --------------------------------------------------------------------------------------
         // When all timers reach zero, the irrigation cycle is complete.
         // Reset working mode to idle and notify the cloud platform.
-
         if (!pumpTimer && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3])
         {
             workingMode = NO_WORKING;  // Return to idle mode
             iot.eventUpdate("SQ", 0);  // Notify cloud that sequence is complete
         }
     }
-    // ==========================================================================================
-    // SAFETY PROTECTION - Pump Runaway Detection
-    // ==========================================================================================
-    // This is a safety mechanism to prevent pump damage.
-    // If the pump is running but the system is NOT in SEQUENCE mode,
-    // it means the pump was turned on manually or something went wrong.
-    //
-    // Protection logic:
-    // - If pump runs for 5x the configured interval without being in sequence mode,
-    //   automatically turn off all outputs to protect the pump
-    // - This prevents dead-head operation (pump running without open valves)
-    // - Example: If interval is 600 seconds, pump will be shut off after 3000 seconds
 
+    // SAFETY PROTECTION - Pump Runaway Detection
     // protection for forget to close valve
     else if (digitalRead(PUMP))  // Pump is running but we're not in sequence mode
     {
@@ -1650,11 +1410,7 @@ void updateSystemState()
         pumpOnProtectionTimer = 0;  // Reset counter when pump is off
     }
 
-    // ==========================================================================================
     // DEBUG OUTPUT (Commented Out)
-    // ==========================================================================================
-    // Uncomment these lines for detailed debugging of timer states
-    // This can help visualize the irrigation sequence during development
 
     // Serial.println("---------------------------------------------------------");
     // Serial.println("param\tch1\tch2\tch3\tch4\tpump");
@@ -1712,24 +1468,9 @@ float applyEmaFilterInt(uint32_t currentValue, float emaValue, bool firstReading
 // ==========================================================================================
 void readAndSendSensorData()
 {
-    // Get current system state (remaining irrigation time in seconds)
-    // This is the first value sent to cloud - shows how long until next cycle
     uint32_t onState = getSystemState();
 
-    // ==========================================================================================
-    // SENSOR MODEL SELECTION - COMPILATION TIME BRANCHING
-    // ==========================================================================================
-    // The code below uses conditional compilation to include only the sensor
-    // reading code for the configured sensor model. This optimizes code size
-    // by excluding unused sensor reading code.
-
 #if defined(NOSENSOR_MODEL)
-    // ==========================================================================================
-    // NO SENSOR MODEL - Basic pump/valve control only
-    // ==========================================================================================
-    // No sensors connected - only send system state (on/off timer)
-    // This is useful for systems that only need pump/valve control
-    // without any soil moisture monitoring
 
     float payload[numVariables] = {onState};
     iot.update(payload);
@@ -1739,11 +1480,6 @@ void readAndSendSensorData()
     float payload[numVariables] = {onState};
     iot.update(payload);
 #elif defined(HUMID_MODEL)
-    // ==========================================================================================
-    // HUMIDITY MODEL - Single humidity sensor
-    // ==========================================================================================
-    // Reads only humidity from sensor at Modbus address 0x0000
-    // Typical use case: Basic soil moisture monitoring
 
     uint8_t result = node.readHoldingRegisters(0x0000, 1); // Read 1 register: humidity
     disConnect();  // Disable RS485 transceiver after reading
@@ -1782,12 +1518,6 @@ void readAndSendSensorData()
     }
 
 #elif defined(TEMP_HUMID_MODEL)
-    // ==========================================================================================
-    // TEMPERATURE + HUMIDITY MODEL - Two sensor configuration
-    // ==========================================================================================
-    // Reads humidity and temperature from sensor
-    // Typical use case: Soil moisture monitoring with temperature compensation
-
     uint8_t result = node.readHoldingRegisters(0x0000, 2); // Read 2 registers: humidity, temperature
     disConnect();  // Disable RS485 transceiver after reading
 
@@ -1833,12 +1563,6 @@ void readAndSendSensorData()
     }
 
 #elif defined(TEMP_HUMID_EC_MODEL)
-    // ==========================================================================================
-    // TEMPERATURE + HUMIDITY + EC MODEL - Three sensor configuration
-    // ==========================================================================================
-    // Reads humidity, temperature, and electrical conductivity
-    // Typical use case: Complete soil monitoring with nutrient level indicator
-
     uint8_t result = node.readHoldingRegisters(0x0000, 3); // Read 3 registers: humidity, temperature, EC
     disConnect();  // Disable RS485 transceiver after reading
 
@@ -1894,21 +1618,6 @@ void readAndSendSensorData()
     }
 
 #elif defined(ALL_7IN1_MODEL)
-    // ==========================================================================================
-    // ALL_7IN1_MODEL - Full 7-in-1 sensor configuration (DEFAULT)
-    // ==========================================================================================
-    // Reads all 7 parameters from the soil sensor:
-    // 1. Humidity - Soil moisture content (%RH)
-    // 2. Temperature - Soil temperature (°C)
-    // 3. Electrical Conductivity - Nutrient concentration indicator (µS/cm)
-    // 4. pH - Soil acidity/alkalinity level (0-14 pH)
-    // 5. Nitrogen (N) - Primary macronutrient (mg/kg)
-    // 6. Phosphorus (P) - Primary macronutrient (mg/kg)
-    // 7. Potassium (K) - Primary macronutrient (mg/kg)
-    //
-    // Typical use case: Comprehensive smart farming with complete soil analysis
-    // This is the default configuration if no sensor model is explicitly defined
-
     uint8_t result = node.readHoldingRegisters(0x0000, 7); // Read all 7 registers
     disConnect();  // Disable RS485 transceiver after reading
 
