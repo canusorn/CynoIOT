@@ -1,31 +1,8 @@
-/*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*
- * Smart Farming Soil Sensor System
- * =================================
- *
- * This Arduino sketch implements a comprehensive smart farming soil monitoring and irrigation control system.
- * It supports multiple sensor configurations and integrates with the CynoIOT cloud platform for remote monitoring.
- *
- * Features:
- * - Multiple sensor model support (humidity, temperature, EC, pH, N, P, K)
- * - RS485/Modbus communication with soil sensors
- * - Automatic irrigation control with pump and 4-channel valve management
- * - Humidity-based cutoff protection
- * - WiFi connectivity with web-based configuration interface
- * - OLED display for local status monitoring
- * - EMA (Exponential Moving Average) filtering for smooth sensor readings
- * - Integration with CynoIOT cloud platform
- *
- * Supported Hardware:
- * - ESP8266 or ESP32 microcontrollers
- * - MAX485 RS485 transceiver module
- * - Soil sensors (various models from basic to 7-in-1)
- * - OLED display (SSD1306, 128x64 pixels)
- * - Water pump (optional)
- * - 4-channel solenoid valves (optional)
- *
- * Author: CynoIOT / IoTbundle
- * License: See project documentation
- * Version: 1.0
+/* Smart Farming Soil Sensor
+ * Monitors soil sensors (humidity, temp, EC, pH, N, P, K) via RS485/Modbus
+ * Controls pump and 4-channel valves with auto irrigation
+ * Web config, OLED display, CynoIOT cloud integration
+ * ESP8266/ESP32
  */
 /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
@@ -1692,42 +1669,6 @@ void updateSystemState()
 // ==========================================================================================
 // EMA (EXPONENTIAL MOVING AVERAGE) FILTER - FLOAT VERSION
 // ==========================================================================================
-/**
- * @brief Apply Exponential Moving Average filter to smooth sensor readings
- *
- * The EMA filter reduces noise in sensor readings by applying a weighted average
- * that gives more importance to recent readings while still considering historical data.
- *
- * Mathematical Formula:
- * EMA = α × current_value + (1 - α) × previous_EMA
- *
- * Where:
- * - α (alpha) = smoothing factor (0.0 to 1.0)
- * - current_value = new sensor reading
- * - previous_EMA = filtered value from previous iteration
- *
- * Alpha Value Behavior (EMA_ALPHA = 0.1):
- * - Lower alpha (e.g., 0.1) = smoother output, slower response to changes
- * - Higher alpha (e.g., 0.5) = faster response, less smoothing
- * - α = 0.1 means: 10% weight to new reading, 90% weight to historical data
- *
- * Initialization:
- * - On first reading, the filter is initialized with the raw value
- * - This prevents the filter from starting at zero and taking time to converge
- *
- * Rounding:
- * - Results are rounded to 1 decimal place for consistency
- * - This reduces floating-point precision issues and output variability
- *
- * Use Case:
- * - Used for float sensors: humidity (%), temperature (°C), pH
- * - These sensors have continuous values that benefit from smoothing
- *
- * @param currentValue The new raw sensor reading to filter
- * @param emaValue The previous EMA value (historical data)
- * @param firstReading True if this is the first reading (filter initialization)
- * @return Filtered value rounded to 1 decimal place
- */
 float applyEmaFilter(float currentValue, float emaValue, bool firstReading = false)
 {
     // Initialize filter on first reading - use raw value as starting point
@@ -1747,35 +1688,6 @@ float applyEmaFilter(float currentValue, float emaValue, bool firstReading = fal
 // ==========================================================================================
 // EMA (EXPONENTIAL MOVING AVERAGE) FILTER - INTEGER VERSION
 // ==========================================================================================
-/**
- * @brief Apply Exponential Moving Average filter to integer sensor readings
- *
- * This is the integer version of the EMA filter, designed for sensors that return
- * whole number values (conductivity, nitrogen, phosphorus, potassium).
- *
- * Key Differences from Float Version:
- * - Accepts uint32_t input (integer sensor values)
- * - Casts to float for calculation precision
- * - Returns float for consistency with other sensor values
- *
- * Mathematical Formula (same as float version):
- * EMA = α × current_value + (1 - α) × previous_EMA
- *
- * Why Use This Version:
- * - Integer sensors like EC (µS/cm) and NPK (mg/kg) naturally return whole numbers
- * - However, EMA calculation requires floating-point arithmetic
- * - Result is returned as float to maintain precision in filtered values
- *
- * Use Case:
- * - Used for integer sensors: conductivity (µS/cm), nitrogen (mg/kg),
- *   phosphorus (mg/kg), potassium (mg/kg)
- * - These sensors measure discrete counts or concentrations
- *
- * @param currentValue The new raw sensor reading (unsigned 32-bit integer)
- * @param emaValue The previous EMA value (historical data)
- * @param firstReading True if this is the first reading (filter initialization)
- * @return Filtered value as float, rounded to 1 decimal place
- */
 float applyEmaFilterInt(uint32_t currentValue, float emaValue, bool firstReading = false)
 {
     // Initialize filter on first reading - use raw value as starting point
@@ -1795,57 +1707,9 @@ float applyEmaFilterInt(uint32_t currentValue, float emaValue, bool firstReading
 // ------------------------------------------------------------------
 // Read sensor data based on the defined sensor model
 // ------------------------------------------------------------------
-
 // ==========================================================================================
 // SENSOR READING AND CLOUD DATA UPLOAD FUNCTION
 // ==========================================================================================
-/**
- * @brief Read soil sensor data and send to CynoIOT cloud platform
- *
- * This function is called every 5 seconds (controlled by sampleUpdate counter).
- * It performs the following operations:
- *
- * 1. Get current system state (remaining irrigation time)
- * 2. Read sensor data via RS485/Modbus communication
- * 3. Apply EMA filtering to smooth out sensor noise
- * 4. Print debug information to Serial Monitor
- * 5. Send filtered data to CynoIOT cloud platform
- *
- * Sensor Reading Process:
- * - Uses Modbus protocol over RS485 communication
- * - Reads holding registers starting at address 0x0000
- * - Different sensor models require different numbers of registers
- * - Register count depends on which sensors are present:
- *   • 1 register: Humidity only
- *   • 2 registers: Humidity + Temperature
- *   • 3 registers: Humidity + Temperature + Conductivity
- *   • 7 registers: All 7 sensors (Humidity, Temp, EC, pH, N, P, K)
- *
- * Data Processing:
- * - Raw values are scaled from Modbus registers:
- *   • Humidity: raw / 10.0 = %RH (0-100%)
- *   • Temperature: raw / 10.0 = °C
- *   • EC: raw = µS/cm
- *   • pH: raw / 10.0 = pH value (0-14)
- *   • N, P, K: raw = mg/kg
- * - EMA filter applied to all readings for noise reduction
- * - Filtered values stored in global variables
- *
- * Error Handling:
- * - Checks Modbus communication result
- * - Logs errors via Serial and iot.debug()
- * - Continues operation even if sensor read fails
- *
- * Cloud Data Format:
- * - First element is always the system state (remaining irrigation time)
- * - Subsequent elements are sensor values in defined order
- * - Data sent as float array to CynoIOT platform
- *
- * @note This function uses conditional compilation (#if/#elif) to support
- *       multiple sensor configurations in the same firmware
- * @note EMA filter initializes on first successful sensor read
- * @note Sensor readings are in metric units (°C, %RH, µS/cm, mg/kg)
- */
 void readAndSendSensorData()
 {
     // Get current system state (remaining irrigation time in seconds)
@@ -2169,44 +2033,6 @@ void readAndSendSensorData()
 // ==========================================================================================
 // OLED DISPLAY UPDATE FUNCTION
 // ==========================================================================================
-/**
- * @brief Update OLED display with current system status, sensor values, and notifications
- *
- * This function manages all content displayed on the 128x64 pixel OLED screen.
- * It's called every second from the main loop to provide real-time feedback.
- *
- * Display Priority System (highest to lowest):
- * 1. Network state changes (WiFi connection status notifications)
- * 2. CynoIOT cloud notifications (server messages)
- * 3. Popup messages (user-triggered feedback)
- * 4. Regular status display (sensor values, mode, timers)
- *
- * Display Layout:
- * - Line 0 (top): "SmartFarm" title + WiFi status icon (top-right corner)
- * - Line 1-2: Main content (sensor values OR notification OR status text)
- * - Line 3-4: Status/timer information
- *
- * Network State Notifications:
- * - Boot → NotConfigured: "no config stay in AP Mode"
- * - Boot → ApMode: "AP Mode for 30 sec"
- * - Connecting → ApMode: "can't connect wifi go AP Mode"
- * - Connecting → OnLine: "wifi connect success XX dBm"
- * - OnLine → OffLine: "wifi disconnect go AP Mode"
- * - ApMode → Connecting: "wifi connecting"
- * - OnLine → Connecting: "wifi disconnect reconnecting"
- *
- * Icons Displayed:
- * - AP Mode: Router icon (9x8 pixels)
- * - Connecting: WiFi icon (8x8 pixels, blinking animation)
- * - OnLine with cloud: WiFi on icon (8x8 pixels)
- * - OnLine no cloud: WiFi with X icon (8x8 pixels)
- * - OffLine: WiFi off icon (8x8 pixels)
- *
- * @note This function uses a state machine approach with prev_state tracking
- * @note displaytime variable controls how long notifications are shown (in seconds)
- * @see showPopupMessage() for displaying temporary popup messages
- * @see time1sec() which calls this function every second
- */
 void updateDisplay()
 {
     // ==========================================================================================
@@ -2460,26 +2286,6 @@ void updateDisplay()
 // ==========================================================================================
 // EMERGENCY SEQUENCE STOP FUNCTION
 // ==========================================================================================
-/**
- * @brief Immediately stop all irrigation operations and reset to idle state
- *
- * This function performs an emergency shutdown of the irrigation system.
- * It's called when:
- * - User manually stops irrigation via event "SQ" with value "0"
- * - Pump protection timer triggers (pump running too long without valves)
- * - System needs to abort current irrigation cycle
- *
- * Actions performed:
- * 1. Set working mode to NO_WORKING (idle state)
- * 2. Turn off pump immediately
- * 3. Reset pump timer and delay timer to zero
- * 4. Turn off all 4 channels/valves
- * 5. Reset all channel timers to zero
- * 6. Display "Sequence Stop" popup message
- *
- * @note This is an immediate stop - no graceful shutdown or waiting
- * @note updateHardwareOutputs() will apply these state changes to GPIO pins
- */
 void offSeq()
 {
     workingMode = NO_WORKING;  // Return to idle mode
@@ -2497,35 +2303,6 @@ void offSeq()
 // ==========================================================================================
 // START SEQUENTIAL IRRIGATION MODE
 // ==========================================================================================
-/**
- * @brief Initialize and start the sequential irrigation cycle
- *
- * This function is called when irrigation is triggered via event "SQ" with value "1".
- * It sets up all timers and states for a complete irrigation cycle through all channels.
- *
- * Sequence Operation:
- * 1. Reset humidity cutoff flag (allows cutoff to trigger during this cycle)
- * 2. Set working mode to SEQUENCE
- * 3. Set channel timers based on number of active channels
- * 4. Calculate and set pump timer
- * 5. Set pump delay if using channels
- * 6. Display "Sequence Start" popup message
- *
- * Timer Calculations:
- * - Each channel gets 'interval' seconds of irrigation time
- * - Pump timer = (number of channels × interval) - pump delay - 3 seconds
- * - The -3 seconds accounts for overlap adjustments
- * - Pump delay ensures pump is pressurized before first valve opens
- *
- * Example with 4 channels, 600 second interval:
- * - Each channel: 600 seconds (10 minutes)
- * - Pump delay: 5 seconds (pumpDelayConst)
- * - Pump timer: (4 × 600) - 5 - 3 = 2392 seconds
- * - Total cycle time: ~40 minutes
- *
- * @note This function only sets up the sequence - updateSystemState() executes it
- * @see updateSystemState() for actual sequence execution logic
- */
 void startSequenceMode()
 {
     // Reset humidity cutoff flag to allow cutoff during this cycle
@@ -2582,34 +2359,6 @@ void startSequenceMode()
 // ==========================================================================================
 // POPUP MESSAGE DISPLAY FUNCTION
 // ==========================================================================================
-/**
- * @brief Display a temporary popup message on the OLED screen
- *
- * This function queues a message to be displayed on the OLED screen for a specified
- * duration. It overrides the normal display content temporarily.
- *
- * How it works:
- * 1. Store the message text in popupStatus variable
- * 2. Set the display duration in popupShowTimer (in seconds)
- * 3. updateDisplay() function checks these variables and displays the popup
- * 4. After timer expires, normal display resumes
- *
- * Usage Examples:
- * - showPopupMessage("Pump\n\nOn", 3);  // Show for 3 seconds
- * - showPopupMessage("Error", 5);       // Show for 5 seconds
- * - showPopupMessage("Set to\n\nAuto\n\nMode");  // Multi-line message
- *
- * Display Priority:
- * - Popup messages take priority over normal status display
- * - If displaytime is set, popup waits until that completes
- * - This ensures important notifications are always seen
- *
- * @param msg The message text to display (supports \n for newlines)
- * @param timeout Duration to display message in seconds (default: 3 if not specified)
- *
- * @note Maximum recommended line count is 4-5 lines (screen height: 64 pixels)
- * @note Use \n\n for double spacing between lines for better readability
- */
 void showPopupMessage(String msg, uint8_t timeout)
 {
     popupStatus = msg;       // Store message text
@@ -2619,38 +2368,6 @@ void showPopupMessage(String msg, uint8_t timeout)
 // ==========================================================================================
 // HARDWARE OUTPUT UPDATE FUNCTION
 // ==========================================================================================
-/**
- * @brief Apply software state to physical GPIO pins and notify cloud platform
- *
- * This function synchronizes the physical hardware state with the software state.
- * It's called in every iteration of the main loop to ensure outputs are correct.
- *
- * How it works:
- * - Reads current physical state of each GPIO pin
- * - Compares with desired software state (pumpState, chState[])
- * - Only updates GPIO if state has changed (saves write operations)
- * - Notifies CynoIOT cloud platform of any state changes
- *
- * Why read before write:
- * - Prevents unnecessary digitalWrite() calls
- * - Reduces electrical stress on relays/solenoids
- * - Improves efficiency (digitalRead is faster than digitalWrite on many platforms)
- * - Ensures we only notify cloud when actual change occurs
- *
- * Cloud Notification:
- * - Every state change is sent to CynoIOT platform via iot.eventUpdate()
- * - This keeps cloud dashboard synchronized with actual hardware state
- * - Event codes: "P" (pump), "c1"-"c4" (channels)
- *
- * GPIO Protection:
- * - This function is the ONLY place that writes to pump/channel pins
- * - All other code only modifies the software state variables
- * - This prevents conflicting GPIO writes from different parts of code
- *
- * @note This function runs in every loop() iteration
- * @note Changes take effect immediately (no delay)
- * @note Debug Serial.print statements are commented out for production use
- */
 void updateHardwareOutputs()
 {
     // ----------------------------------------------------------------------------------
@@ -2707,43 +2424,6 @@ void updateHardwareOutputs()
 // ==========================================================================================
 // SYSTEM STATE CALCULATION FUNCTION
 // ==========================================================================================
-/**
- * @brief Calculate remaining irrigation time for cloud display
- *
- * This function calculates how much time remains in the current irrigation cycle.
- * The value is sent to the CynoIOT cloud platform to show on the dashboard.
- *
- * Calculation Logic:
- * 1. If channels are in use (chUse > 0) and any channel timer is active:
- *    - Return sum of all remaining channel times
- *    - This represents total time until all channels complete
- *
- * 2. Else if pump-only mode (no channels) and pump timer is active:
- *    - Return pump timer value
- *    - Shows how long pump will continue running
- *
- * 3. Else (idle or pump protection mode):
- *    - Return pump protection timer value
- *    - Shows how long pump has been running without valves
- *    - Used for safety monitoring
- *
- * Use Cases:
- * - Cloud dashboard displays remaining irrigation time
- * - Users can see how long until cycle completes
- * - Helps monitor pump protection timer
- *
- * Example Values:
- * - Channel mode with 4 active channels: returns sum of chTimer[0] through chTimer[3]
- *   Example: chTimer = [500, 400, 300, 200] → returns 1400 seconds
- * - Pump-only mode: returns pumpTimer value
- *   Example: pumpTimer = 600 → returns 600 seconds
- * - Idle mode: returns pumpOnProtectionTimer
- *   Example: protectionTimer = 120 → returns 120 seconds
- *
- * @return Total remaining time in seconds (uint32_t)
- * @note This value is sent as the first element in the data array to cloud
- * @note A value of 0 indicates system is idle with no active operations
- */
 uint32_t getSystemState()
 {
     uint32_t onState = 0;
@@ -2773,37 +2453,6 @@ uint32_t getSystemState()
 // ==========================================================================================
 // RS485 PRE-TRANSMISSION CALLBACK
 // ==========================================================================================
-/**
- * @brief Configure RS485 transceiver for transmission mode before sending Modbus data
- *
- * This function is called by the ModbusMaster library immediately before
- * transmitting data to the soil sensor over the RS485 bus.
- *
- * RS485 Half-Duplex Communication:
- * - RS485 uses half-duplex communication (can't transmit and receive simultaneously)
- * - The MAX485 transceiver module must be switched between transmit and receive modes
- * - DE (Driver Enable) and RE (Receiver Enable) pins control the mode
- *
- * MAX485 Module Pin Functions:
- * - DE (Driver Enable): When HIGH, enables transmitter to send data
- * - RE (Receiver Enable): When LOW, enables receiver to accept data
- * - These pins are typically connected together and controlled as a pair
- *
- * Transmission Mode Configuration:
- * - Set both DE and RE pins as OUTPUT (Arduino controls them)
- * - Set DE HIGH: Enables the transmitter driver
- * - Set RE HIGH: Disables the receiver (note: RE is active LOW, so HIGH = disabled)
- * - Result: MAX485 is in TRANSMIT mode
- *
- * Why the 1ms delay:
- * - Gives MAX485 time to switch to transmit mode
- * - Ensures stable transmission before data starts flowing
- * - Prevents data corruption from mode switching transients
- *
- * @note This is a callback function registered with ModbusMaster via node.preTransmission()
- * @see postTransmission() for switching back to receive mode
- * @see setup() where this callback is registered
- */
 void preTransmission()
 {
     // Configure RE and DE pins as outputs (Arduino controls the transceiver mode)
@@ -2820,37 +2469,6 @@ void preTransmission()
 // ==========================================================================================
 // RS485 POST-TRANSMISSION CALLBACK
 // ==========================================================================================
-/**
- * @brief Configure RS485 transceiver for reception mode after sending Modbus data
- *
- * This function is called by the ModbusMaster library immediately after
- * transmitting data to the soil sensor, to prepare for receiving the response.
- *
- * Reception Mode Configuration:
- * - Set DE LOW: Disables the transmitter driver
- * - Set RE LOW: Enables the receiver (RE is active LOW)
- * - Result: MAX485 is in RECEIVE mode
- *
- * Why the 3ms delay BEFORE setting pins:
- * - Allows last transmitted bits to complete and propagate through the bus
- * - Prevents cutting off the end of transmission
- * - Gives time for the sensor to process the command and prepare its response
- * - Typical RS485 turnaround time is 1-4ms depending on bus length and baud rate
- *
- * Timing Sequence:
- * 1. ModbusMaster finishes transmitting data
- * 2. postTransmission() is called immediately
- * 3. Wait 3ms (bus turnaround time)
- * 4. Set RE and DE to LOW (switch to receive mode)
- * 5. ModbusMaster waits for sensor response
- * 6. Sensor sends response data
- * 7. ModbusMaster reads and decodes response
- *
- * @note This is a callback function registered with ModbusMaster via node.postTransmission()
- * @note The 3ms delay may need adjustment for very long RS485 bus runs
- * @see preTransmission() for switching to transmit mode
- * @see disConnect() for completely disabling the transceiver
- */
 void postTransmission()
 {
     delay(3);  // Wait for transmission to complete and bus to settle
@@ -2863,41 +2481,6 @@ void postTransmission()
 // ==========================================================================================
 // RS485 TRANSCEIVER DISABLE FUNCTION
 // ==========================================================================================
-/**
- * @brief Completely disable RS485 transceiver to save power and prevent interference
- *
- * This function is called after Modbus communication is complete to put the
- * MAX485 transceiver into a low-power, high-impedance state.
- *
- * Why disable the transceiver:
- * 1. Power Saving:
- *    - When pins are set to INPUT, the MAX485 control pins are in high-impedance state
- *    - Reduces power consumption when not communicating
- *    - Important for battery-powered applications
- *
- * 2. Bus Release:
- *    - Sets DE and RE pins to high-impedance (input) mode
- *    - Effectively "releases" the RS485 bus
- *    - Prevents this device from interfering with other devices on the bus
- *    - Allows other devices to control the bus in multi-drop configurations
- *
- * 3. Pin State Protection:
- *    - INPUT mode prevents accidental writes from affecting the transceiver
- *    - Protects against floating pins picking up noise and triggering unwanted modes
- *
- * When to use:
- * - After receiving sensor data and processing is complete
- * - Before long idle periods between sensor reads
- * - When entering low-power sleep modes
- *
- * When NOT to use:
- * - Don't call this before preTransmission() (will interfere with mode switching)
- * - Not needed during rapid communication cycles
- *
- * @note This is called in readAndSendSensorData() after each Modbus read
- * @note preTransmission() will reconfigure these as OUTPUT before next communication
- * @see readAndSendSensorData() where this function is called
- */
 void disConnect()
 {
     // Set control pins to INPUT (high-impedance state)
@@ -2909,42 +2492,6 @@ void disConnect()
 // ==========================================================================================
 // WEB SERVER ROOT PAGE HANDLER
 // ==========================================================================================
-/**
- * @brief Handle requests to the main web page (/)
- *
- * This function serves the main web interface for device configuration and monitoring.
- * It's called when a user accesses the device's IP address or hostname in a browser.
- *
- * Functions performed:
- * 1. Check for captive portal requests (device configuration mode)
- * 2. Load HTML template from flash memory (PROGMEM)
- * 3. Replace template placeholders with actual device information
- * 4. Send completed HTML page to client browser
- *
- * Captive Portal:
- * - If device is in AP mode (not configured), users are redirected to config page
- * - IotWebConf handles this automatically via handleCaptivePortal()
- * - Returns early if captive portal request was detected
- *
- * Template Placeholders:
- * The HTML template contains placeholders that are replaced with dynamic values:
- * - %STATE%: Current network state (Boot, ApMode, Connecting, OnLine, OffLine)
- * - %THING_NAME%: Device name (default: "SoilSensor")
- * - %EMAIL%: User's CynoIOT account email
- * - %SSID%: WiFi network name the device is connected to
- * - %RSSI%: WiFi signal strength in dBm (typically -30 to -90)
- * - %ESP_ID%: Unique device identifier (Client ID)
- * - %VERSION%: Firmware version string
- *
- * Use Cases:
- * - User opens http://device-ip.local in browser
- * - User accesses device via mDNS hostname
- * - Captive portal redirects unconfigured clients here
- *
- * @note HTML template is stored in PROGMEM (flash memory) to save RAM
- * @note FPSTR() macro is used to read string from flash memory
- * @see htmlTemplate[] for the actual HTML content (defined earlier in file)
- */
 void handleRoot()
 {
     // -- Check for captive portal requests first
@@ -2976,41 +2523,6 @@ void handleRoot()
 // ==========================================================================================
 // CONFIGURATION SAVED CALLBACK
 // ==========================================================================================
-/**
- * @brief Called when user saves configuration via web interface
- *
- * This callback function is invoked by IotWebConf when the user submits the
- * configuration form and settings are successfully saved to EEPROM.
- *
- * When this is called:
- * - User has filled in WiFi credentials (SSID, password)
- * - User may have entered email for CynoIOT login
- * - Settings have been validated and written to EEPROM
- * - Device will attempt to connect to WiFi with new credentials
- *
- * Current behavior:
- * - Logs message to Serial Monitor for debugging
- * - Can be extended to perform additional actions:
- *   * Send notification to cloud
- *   * Update display to show "Config saved"
- *   * Trigger device reboot
- *   * Update internal configuration variables
- *
- * Example extensions:
- * ```cpp
- * void configSaved()
- * {
- *     Serial.println("Configuration was updated.");
- *     showPopupMessage("Config\n\nSaved!\n\nRebooting...");
- *     delay(2000);
- *     ESP.restart();
- * }
- * ```
- *
- * @note This is registered with IotWebConf via iotWebConf.setConfigSavedCallback()
- * @see setup() where this callback is registered
- * @see wifiConnected() which is called after successful WiFi connection
- */
 void configSaved()
 {
     Serial.println("Configuration was updated.");
@@ -3019,42 +2531,6 @@ void configSaved()
 // ==========================================================================================
 // WIFI CONNECTION SUCCESS CALLBACK
 // ==========================================================================================
-/**
- * @brief Called when WiFi connection is successfully established
- *
- * This callback function is invoked by IotWebConf when the device successfully
- * connects to a WiFi network using the credentials provided by the user.
- *
- * When this is called:
- * - WiFi connection has been established
- * - Device has obtained an IP address via DHCP
- * - Network is ready for communication
- * - mDNS service should be started
- * - CynoIOT cloud connection should be initiated
- *
- * Actions performed:
- * 1. Log connection success to Serial Monitor
- * 2. Start mDNS responder for local hostname resolution
- * 3. Advertise HTTP service on port 80 via mDNS
- * 4. Print mDNS hostname for user convenience
- * 5. If email was provided, connect to CynoIOT cloud platform
- *
- * mDNS (Multicast DNS):
- * - Allows accessing device via hostname instead of IP address
- * - Example: http://soilsensor.local instead of http://192.168.1.100
- * - Works on most modern OS (Windows 10+, macOS, Linux, Android)
- * - Service type "http" on port 80 makes device discoverable by browsers
- *
- * CynoIOT Cloud Connection:
- * - If user provided email address during configuration
- * - iot.connect() authenticates with CynoIOT platform
- * - Enables remote monitoring and control via cloud dashboard
- * - Device ID and credentials are managed by Cynoiot library
- *
- * @note This is registered with IotWebConf via iotWebConf.setWifiConnectionCallback()
- * @see setup() where this callback is registered
- * @see iotSetup() for CynoIOT initialization
- */
 void wifiConnected()
 {
     // Log successful WiFi connection
@@ -3084,56 +2560,6 @@ void wifiConnected()
 // ==========================================================================================
 // FORM VALIDATION CALLBACK
 // ==========================================================================================
-/**
- * @brief Validate user input from web configuration form
- *
- * This callback function is called by IotWebConf when the user submits the
- * configuration form, before saving settings to EEPROM.
- *
- * Purpose:
- * - Validate user input for correctness and completeness
- * - Provide feedback if validation fails
- * - Prevent invalid configuration from being saved
- *
- * Current implementation:
- * - Always returns true (validation passes)
- * - Logs validation attempt to Serial Monitor
- * - No actual validation is performed (all inputs accepted)
- *
- * Example validation rules that could be added:
- * - Check email format (contains @ symbol, valid domain)
- * - Ensure password meets minimum length requirements
- * - Verify SSID is not empty
- * - Check that numeric parameters are within valid ranges
- *
- * Example implementation with email validation:
- * ```cpp
- * bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
- * {
- *     Serial.println("Validating form.");
- *     bool valid = true;
- *
- *     // Get email value from form
- *     String email = webRequestWrapper->arg(emailParam.getId());
- *
- *     // Validate email format (basic check)
- *     if (email.length() > 0 && !email.contains("@"))
- *     {
- *         emailParam.errorMessage = "Please enter a valid email address";
- *         valid = false;
- *     }
- *
- *     return valid;
- * }
- * ```
- *
- * @param webRequestWrapper Wrapper object containing form data and methods
- * @return true if validation passes (save settings), false if validation fails (show errors)
- *
- * @note This is registered with IotWebConf via iotWebConf.setFormValidator()
- * @see setup() where this callback is registered
- * @note errorMessage field of parameters is displayed to user if validation fails
- */
 bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
 {
     Serial.println("Validating form.");
@@ -3159,51 +2585,6 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper)
 // ==========================================================================================
 // EEPROM CLEAR FUNCTION
 // ==========================================================================================
-/**
- * @brief Clear all EEPROM data and reboot device (factory reset)
- *
- * This function performs a complete factory reset by erasing all stored
- * configuration data from EEPROM and restarting the device.
- *
- * When to use:
- * - Device configuration is corrupted or invalid
- * - User wants to start fresh with default settings
- * - Troubleshooting WiFi or configuration issues
- * - Transferring device to new owner/location
- *
- * Data cleared:
- * - WiFi credentials (SSID, password)
- * - CynoIOT email/login
- * - Irrigation interval settings
- * - Channel/pump usage configuration
- * - Humidity cutoff thresholds
- * - Global mode settings
- * - All other custom configuration stored in EEPROM
- *
- * Process:
- * 1. Begin EEPROM session (512 bytes)
- * 2. Write 0 to every EEPROM address (0x00 to 0x1FF)
- * 3. Commit changes and close EEPROM session
- * 4. Send response to web client
- * 5. Wait 1 second for HTTP response to complete
- * 6. Restart ESP8266/ESP32
- *
- * After reboot:
- * - Device starts in AP mode (configuration portal)
- * - Default settings are loaded (interval=600s, channels=1, etc.)
- * - User must configure WiFi and email again
- * - All previous customizations are lost
- *
- * Access method:
- * - Called via HTTP endpoint: http://device-ip/cleareeprom
- * - Can also be triggered by holding RSTPIN low during boot (hardware reset)
- * - Protected by web server authentication (if enabled)
- *
- * @note This is a destructive operation - all settings are permanently lost
- * @note Make sure to backup important settings before calling this function
- * @see setup() for hardware reset functionality using RSTPIN
- * @see reboot() for simple reboot without clearing EEPROM
- */
 void clearEEPROM()
 {
     Serial.println("clearEEPROM() called!");
@@ -3231,51 +2612,6 @@ void clearEEPROM()
 // ==========================================================================================
 // DEVICE REBOOT FUNCTION
 // ==========================================================================================
-/**
- * @brief Restart the ESP8266/ESP32 device
- *
- * This function performs a simple device reboot without clearing any configuration.
- * All settings are preserved across the reboot.
- *
- * When to use:
- * - Apply firmware updates
- * - Resolve software glitches or hangs
- * - Restart network connection
- * - Apply certain configuration changes that require reboot
- * - User-initiated restart via web interface
- *
- * Difference from clearEEPROM():
- * - reboot(): Preserves all settings, just restarts the device
- * - clearEEPROM(): Erases all settings AND restarts the device
- *
- * Process:
- * 1. Send response to web client ("rebooting")
- * 2. Wait 1 second for HTTP response to complete
- * 3. Call ESP.restart() to restart the microcontroller
- *
- * What happens during reboot:
- * - All programs stop execution
- * - Microcontroller resets its internal state
- * - setup() function runs again from the beginning
- * - WiFi connection is re-established
- * - All configuration is loaded from EEPROM (preserved)
- * - Normal operation resumes
- *
- * Access method:
- * - Called via HTTP endpoint: http://device-ip/reboot
- * - Can be triggered from web interface button
- * - Can be called programmatically if needed
- *
- * Typical reboot time:
- * - ESP8266: 1-3 seconds
- * - ESP32: 0.5-2 seconds
- * - Plus WiFi connection time: 2-10 seconds depending on network
- *
- * @note This does NOT clear EEPROM - all settings are preserved
- * @note Serial Monitor connection may be reset during reboot
- * @note Any uncommitted EEPROM changes should be committed before calling this
- * @see clearEEPROM() for factory reset that erases all settings
- */
 void reboot()
 {
     // Send response to HTTP client
@@ -3289,62 +2625,6 @@ void reboot()
 // ==========================================================================================
 // STATUS JSON ENDPOINT HANDLER
 // ==========================================================================================
-/**
- * @brief Return current device status as JSON
- *
- * This function provides a REST API endpoint for retrieving the current
- * state of all pumps and channels in JSON format.
- *
- * Endpoint: /status
- * Method: GET
- * Response Format: JSON
- * Content-Type: application/json
- *
- * JSON Response Structure:
- * ```json
- * {
- *   "pump": 0,     // 0 = OFF, 1 = ON
- *   "ch1": 1,      // 0 = OFF, 1 = ON
- *   "ch2": 0,      // 0 = OFF, 1 = ON
- *   "ch3": 0,      // 0 = OFF, 1 = ON
- *   "ch4": 0       // 0 = OFF, 1 = ON
- * }
- * ```
- *
- * Use Cases:
- * - Mobile apps or web dashboards polling for device status
- * - Home automation systems (Home Assistant, OpenHAB, etc.)
- * - Custom monitoring scripts
- * - Integration with other IoT platforms
- * - AJAX requests from web interface for real-time updates
- *
- * Example Usage (curl):
- * ```bash
- * curl http://soilsensor.local/status
- * # Returns: {"pump":0,"ch1":1,"ch2":0,"ch3":0,"ch4":0}
- * ```
- *
- * Example Usage (JavaScript):
- * ```javascript
- * fetch('/status')
- *   .then(response => response.json())
- *   .then(data => {
- *     console.log('Pump:', data.pump);
- *     console.log('Channel 1:', data.ch1);
- *     // Update UI elements
- *   });
- * ```
- *
- * Data Source:
- * - Values are read from current state variables (pumpState, chState[])
- * - These reflect the DESIRED state (what should be ON/OFF)
- * - For actual physical state, read GPIO pins directly
- *
- * @note This endpoint is read-only - it doesn't change any device state
- * @note For controlling devices, use /gpio/pump, /gpio/ch1-4 endpoints
- * @note Response is minimal JSON for efficient transmission
- * @see server.on("/status", handleStatus) in setup() for endpoint registration
- */
 void handleStatus()
 {
     // Build JSON string manually (Arduino JSON library not used to save memory)
