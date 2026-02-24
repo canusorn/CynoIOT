@@ -1394,7 +1394,7 @@ void updateSystemState()
 
     // SAFETY PROTECTION - Pump Runaway Detection
     // protection for forget to close valve
-    else if (digitalRead(PUMP))  // Pump is running but we're not in sequence mode
+    else if (digitalRead(PUMP) && workingMode != SEQUENCE)  // Pump is running but we're not in sequence mode
     {
         pumpOnProtectionTimer++;  // Increment protection counter
 
