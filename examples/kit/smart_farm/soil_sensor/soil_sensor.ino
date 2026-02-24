@@ -508,17 +508,17 @@ void handleEvent(String event, String value)
         if (value == "1" && workingMode == NO_WORKING)
         {
             startSequenceMode();  // Begin sequential irrigation through all channels
-            iot.debug("Sequence mode started by event SQ");
+            // iot.debug("Sequence mode started by event SQ");
         }
         // Stop sequence mode immediately
         else if (value == "0")
         {
             offSeq();  // Turn off all pumps and valves
-            iot.debug("Sequence mode stopped by event SQ");
+            // iot.debug("Sequence mode stopped by event SQ");
         }
         else
         {
-            iot.debug("Invalid value: " + value + "  workingmode: " + String(workingMode));
+            // iot.debug("Invalid value: " + value + "  workingmode: " + String(workingMode));
         }
     }
 
@@ -533,14 +533,14 @@ void handleEvent(String event, String value)
         {
             globalMode = AUTO;
             showPopupMessage("Set to\n\nAuto\n\nMode");
-            iot.debug("Mode set to Auto by event M");
+            // iot.debug("Mode set to Auto by event M");
         }
         // Set to manual/off mode
         else // if (value == "off" || value == "null")
         {
             globalMode = OFF;
             showPopupMessage("Set to\n\nOff\n\nMode");
-            iot.debug("Mode set to Off by event M");
+            // iot.debug("Mode set to Off by event M");
         }
 
         // Persist mode setting to EEPROM (only if changed to reduce write cycles)
@@ -549,11 +549,11 @@ void handleEvent(String event, String value)
         {
             EEPROM.write(500, globalMode);
             EEPROM.commit();
-            iot.debug("Global mode setting saved to EEPROM");
+            // iot.debug("Global mode setting saved to EEPROM");
         }
         else
         {
-            iot.debug("Global mode value unchanged, skipping EEPROM write");
+            // iot.debug("Global mode value unchanged, skipping EEPROM write");
         }
     }
 
@@ -573,12 +573,12 @@ void handleEvent(String event, String value)
             EEPROM.write(499, (interval >> 8) & 0xFF); // high byte
             EEPROM.commit();
             Serial.println("Verified written value: " + String((uint16_t)EEPROM.read(498) | ((uint16_t)EEPROM.read(499) << 8)));
-            iot.debug("Interval set to: " + String(interval) + " seconds from event");
+            // iot.debug("Interval set to: " + String(interval) + " seconds from event");
         }
         else
         {
             Serial.println("Value already matches, skipping write");
-            iot.debug("Interval value already matches EEPROM, skipping write");
+            // iot.debug("Interval value already matches EEPROM, skipping write");
         }
     }
 
@@ -594,7 +594,7 @@ void handleEvent(String event, String value)
                 pumpState = 1;
                 iot.eventUpdate("P", 1);  // Notify server of state change
                 showPopupMessage("Pump\n\nOn");
-                iot.debug("Pump turned ON from event");
+                // iot.debug("Pump turned ON from event");
             }
             // Turn pump OFF
             else if (value == "0")
@@ -603,14 +603,14 @@ void handleEvent(String event, String value)
                 pumpState = 0;
                 iot.eventUpdate("P", 0);  // Notify server of state change
                 showPopupMessage("Pump\n\nOff");
-                iot.debug("Pump turned OFF from event");
+                // iot.debug("Pump turned OFF from event");
             }
         }
         // In SEQUENCE mode, pump is controlled automatically - return current state
         else
         {
-            iot.eventUpdate("P", digitalRead(PUMP));
-            iot.debug("Pump in SEQUENCE mode, not change");
+            iot.eventUpdate("P", !digitalRead(PUMP));
+            // iot.debug("Pump in SEQUENCE mode, not change");
         }
     }
 
@@ -627,7 +627,7 @@ void handleEvent(String event, String value)
                 chState[0] = 1;
                 iot.eventUpdate("c1", 1);
                 showPopupMessage("Ch1 On");
-                iot.debug("Channel 1 turned ON from event");
+                // iot.debug("Channel 1 turned ON from event");
             }
             // Turn channel OFF
             else if (value.toInt() == 0)
@@ -636,13 +636,13 @@ void handleEvent(String event, String value)
                 chState[0] = 0;
                 iot.eventUpdate("c1", 0);
                 showPopupMessage("Ch1 Off");
-                iot.debug("Channel 1 turned OFF from event");
+                // iot.debug("Channel 1 turned OFF from event");
             }
         }
         else
         {
             iot.eventUpdate("c1", digitalRead(CH1));
-            iot.debug("Channel 1 in SEQUENCE mode, not change");
+            // iot.debug("Channel 1 in SEQUENCE mode, not change");
         }
     }
     else if (event == "c2")  // Channel 2 control
@@ -656,7 +656,7 @@ void handleEvent(String event, String value)
                 chState[1] = 1;
                 iot.eventUpdate("c2", 1);
                 showPopupMessage("Ch2 On");
-                iot.debug("Channel 2 turned ON from event");
+                // iot.debug("Channel 2 turned ON from event");
             }
             // Turn channel OFF
             else if (value.toInt() == 0)
@@ -665,13 +665,13 @@ void handleEvent(String event, String value)
                 chState[1] = 0;
                 iot.eventUpdate("c2", 0);
                 showPopupMessage("Ch2 Off");
-                iot.debug("Channel 2 turned OFF from event");
+                // iot.debug("Channel 2 turned OFF from event");
             }
         }
         else
         {
             iot.eventUpdate("c2", digitalRead(CH2));
-            iot.debug("Channel 2 in SEQUENCE mode, not change");
+            // iot.debug("Channel 2 in SEQUENCE mode, not change");
         }
     }
     else if (event == "c3")  // Channel 3 control
@@ -685,7 +685,7 @@ void handleEvent(String event, String value)
                 chState[2] = 1;
                 iot.eventUpdate("c3", 1);
                 showPopupMessage("Ch3 On");
-                iot.debug("Channel 3 turned ON from event");
+                // iot.debug("Channel 3 turned ON from event");
             }
             // Turn channel OFF
             else if (value.toInt() == 0)
@@ -694,13 +694,13 @@ void handleEvent(String event, String value)
                 chState[2] = 0;
                 iot.eventUpdate("c3", 0);
                 showPopupMessage("Ch3 Off");
-                iot.debug("Channel 3 turned OFF from event");
+                // iot.debug("Channel 3 turned OFF from event");
             }
         }
         else
         {
             iot.eventUpdate("c3", digitalRead(CH3));
-            iot.debug("Channel 3 in SEQUENCE mode, not change");
+            // iot.debug("Channel 3 in SEQUENCE mode, not change");
         }
     }
     else if (event == "c4")  // Channel 4 control
@@ -714,7 +714,7 @@ void handleEvent(String event, String value)
                 chState[3] = 1;
                 iot.eventUpdate("c4", 1);
                 showPopupMessage("Ch4 On");
-                iot.debug("Channel 4 turned ON");
+                // iot.debug("Channel 4 turned ON");
             }
             // Turn channel OFF
             else if (value.toInt() == 0)
@@ -723,13 +723,13 @@ void handleEvent(String event, String value)
                 chState[3] = 0;
                 iot.eventUpdate("c4", 0);
                 showPopupMessage("Ch4 Off");
-                iot.debug("Channel 4 turned OFF");
+                // iot.debug("Channel 4 turned OFF");
             }
         }
         else
         {
             iot.eventUpdate("c4", digitalRead(CH4));
-            iot.debug("Channel 4 in SEQUENCE mode, not change");
+            // iot.debug("Channel 4 in SEQUENCE mode, not change");
         }
     }
 
@@ -746,11 +746,11 @@ void handleEvent(String event, String value)
         {
             EEPROM.write(497, (uint8_t)pumpUse);
             EEPROM.commit();
-            iot.debug("Pump use setting saved to EEPROM from event");
+            // iot.debug("Pump use setting saved to EEPROM from event");
         }
         else
         {
-            iot.debug("Pump use value unchanged, skipping EEPROM write");
+            // iot.debug("Pump use value unchanged, skipping EEPROM write");
         }
     }
 
@@ -768,11 +768,11 @@ void handleEvent(String event, String value)
         {
             EEPROM.write(496, (uint8_t)chUse);
             EEPROM.commit();
-            iot.debug("Channel use " + String(chUse) + ", setting saved to EEPROM from event");
+            // iot.debug("Channel use " + String(chUse) + ", setting saved to EEPROM from event");
         }
         else
         {
-            iot.debug("Channel use value unchanged, skipping EEPROM write");
+            // iot.debug("Channel use value unchanged, skipping EEPROM write");
         }
     }
 
@@ -790,11 +790,11 @@ void handleEvent(String event, String value)
         {
             EEPROM.write(489, (uint8_t)humidLowCutoff);
             EEPROM.commit();
-            iot.debug("Humidity low cutoff set to: " + String(humidLowCutoff) + "% from event");
+            // iot.debug("Humidity low cutoff set to: " + String(humidLowCutoff) + "% from event");
         }
         else
         {
-            iot.debug("Humidity low cutoff value unchanged, skipping EEPROM write");
+            // iot.debug("Humidity low cutoff value unchanged, skipping EEPROM write");
         }
     }
 
@@ -812,11 +812,11 @@ void handleEvent(String event, String value)
         {
             EEPROM.write(488, (uint8_t)humidHighCutoff);
             EEPROM.commit();
-            iot.debug("Humidity high cutoff set to: " + String(humidHighCutoff) + "% from event");
+            // iot.debug("Humidity high cutoff set to: " + String(humidHighCutoff) + "% from event");
         }
         else
         {
-            iot.debug("Humidity high cutoff value unchanged, skipping EEPROM write");
+            // iot.debug("Humidity high cutoff value unchanged, skipping EEPROM write");
         }
     }
 
@@ -1018,14 +1018,14 @@ void setup()
     }
 
     // Configure pump and valve control pins as outputs
-    pinMode(PUMP, OUTPUT);
+    pinMode(PUMP, INPUT);  // Start in INPUT mode (pump OFF)
     pinMode(CH1, OUTPUT);
     pinMode(CH2, OUTPUT);
     pinMode(CH3, OUTPUT);
     pinMode(CH4, OUTPUT);
 
     // GPIO INITIALIZATION
-    digitalWrite(PUMP, LOW);
+    digitalWrite(PUMP, HIGH);   // active low
     digitalWrite(CH1, LOW);
     digitalWrite(CH2, LOW);
     digitalWrite(CH3, LOW);
@@ -1195,7 +1195,7 @@ void loop()
     updateHardwareOutputs();
 
     // SAFETY PROTECTION - Pump Without Valve Detection
-    if (digitalRead(PUMP) && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3] && !digitalRead(CH1) && !digitalRead(CH2) && !digitalRead(CH3) && !digitalRead(CH4) && chUse)
+    if (!digitalRead(PUMP) && !chTimer[0] && !chTimer[1] && !chTimer[2] && !chTimer[3] && !digitalRead(CH1) && !digitalRead(CH2) && !digitalRead(CH3) && !digitalRead(CH4) && chUse)
     {
         chState[0] = 1;  // Force open channel 1 to protect pump
     }
@@ -1394,7 +1394,7 @@ void updateSystemState()
 
     // SAFETY PROTECTION - Pump Runaway Detection
     // protection for forget to close valve
-    else if (digitalRead(PUMP) && workingMode != SEQUENCE)  // Pump is running but we're not in sequence mode
+    else if (!digitalRead(PUMP) && workingMode != SEQUENCE)  // Pump is running but we're not in sequence mode
     {
         pumpOnProtectionTimer++;  // Increment protection counter
 
@@ -1514,7 +1514,7 @@ void readAndSendSensorData()
     {
         // Modbus communication failed - log error
         Serial.println("Modbus error reading humidity!");
-        iot.debug("error read humidity sensor");
+        // iot.debug("error read humidity sensor");
     }
 
 #elif defined(TEMP_HUMID_MODEL)
@@ -1559,7 +1559,7 @@ void readAndSendSensorData()
     {
         // Modbus communication failed - log error
         Serial.println("Modbus error reading temp/humidity!");
-        iot.debug("error read temp/humidity sensor");
+        // iot.debug("error read temp/humidity sensor");
     }
 
 #elif defined(TEMP_HUMID_EC_MODEL)
@@ -1614,7 +1614,7 @@ void readAndSendSensorData()
     {
         // Modbus communication failed - log error
         Serial.println("Modbus error reading temp/humidity/EC!");
-        iot.debug("error read temp/humidity/EC sensor");
+        // iot.debug("error read temp/humidity/EC sensor");
     }
 
 #elif defined(ALL_7IN1_MODEL)
@@ -1734,7 +1734,7 @@ void readAndSendSensorData()
         // Modbus communication failed - log error
         // This could indicate sensor disconnection, wiring issues, or sensor failure
         Serial.println("Modbus error!");
-        iot.debug("error read sensor");
+        // iot.debug("error read sensor");
     }
 #endif
 }
@@ -2082,11 +2082,22 @@ void updateHardwareOutputs()
     // ----------------------------------------------------------------------------------
     // PUMP OUTPUT UPDATE
     // ----------------------------------------------------------------------------------
-    // Check if physical pump state differs from desired state
-    if (digitalRead(PUMP) != pumpState)
+    // Check if pump state has changed by reading the actual pin state
+    bool lastPumpState = (digitalRead(PUMP) == LOW);
+    if (pumpState != lastPumpState)
     {
-        // Serial.println("pump change to " + String(pumpState));
-        digitalWrite(PUMP, pumpState);  // Apply new state to GPIO pin
+        if (pumpState)
+        {
+            // Pump ON: Set to OUTPUT mode and drive LOW (active low)
+            pinMode(PUMP, OUTPUT);
+            digitalWrite(PUMP, LOW);
+        }
+        else
+        {
+            // Pump OFF: Set to INPUT mode (high impedance)
+            pinMode(PUMP, INPUT);
+            digitalWrite(PUMP, HIGH);
+        }
         iot.eventUpdate("P", pumpState);  // Notify cloud platform of state change
     }
 
