@@ -27,7 +27,7 @@
 #include <cynoiot.h>          // CynoIOT by IoTbundle
 
 // ถ้าต้องการใช้ DS18B20 Temperature Sensor ก็ต้องกำหนด TEMP_PIN
-// #define TEMP_PIN 9
+#define TEMP_PIN 9
 
 #ifdef TEMP_PIN
 #include <OneWire.h>           // OneWire library for DS18B20
@@ -163,6 +163,7 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
 #elif defined(ESP32)
 #define RSTPIN 8
+#define PUMP 37
 
 #ifdef CONFIG_IDF_TARGET_ESP32S2
 // #define TRIG_PIN 18
@@ -182,7 +183,7 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
 // TDS sensor calibration
 #define TDS_CALIBRATION_VOLTAGE 3.3
-#define TDS_CALIBRATION_COEFFICIENT 0.5
+float tds_calibration_coefficient = 10.0;
 
 unsigned long previousMillis = 0;
 float water_level, tds_value, ec_value;
@@ -235,6 +236,61 @@ uint16_t timer_nointernet;
 uint8_t numVariables;
 uint8_t sampleUpdate, updateValue = 10;
 
+void handleEvent(String event, String value)
+{
+
+    // EVENT: SQ - Sequence Mode Control
+    if (event == "PUMP")
+    {
+        Serial.println("PUMP: " + value);
+        // iot.debug("Event PUMP received with value: " + value);
+
+        // Turn pump on or off
+        if (value == "1")
+        {
+            digitalWrite(PUMP, HIGH);  // Turn PUMP ON
+            Serial.println("PUMP turned ON");
+            iot.debug("PUMP turned ON");
+        }
+        else if (value == "0")
+        {
+            digitalWrite(PUMP, LOW);   // Turn PUMP OFF
+            Serial.println("PUMP turned OFF");
+            iot.debug("PUMP turned OFF");
+        }
+    }
+
+    // EVENT: M - Global Mode Selection
+    else if (event == "CAL")
+    {
+
+        EEPROM.begin(512);
+
+        Serial.println("calibration: " + value);
+        // iot.debug("Event M received with value: " + value);
+
+        // Convert string value to float and update calibration coefficient
+        float newCalibration = value.toFloat();
+        if (newCalibration > 0)
+        {
+            // Persist calibration coefficient to EEPROM (only if changed to reduce write cycles)
+            float storedCalibration;
+            EEPROM.get(500, storedCalibration);
+            if (storedCalibration != newCalibration)
+            {
+                tds_calibration_coefficient = newCalibration;
+                EEPROM.put(500, tds_calibration_coefficient);
+                EEPROM.commit();
+                Serial.println("TDS Calibration coefficient saved to EEPROM: " + String(tds_calibration_coefficient));
+                iot.debug("TDS Calibration coefficient = " + String(tds_calibration_coefficient) + " saved to EEPROM");
+            }
+        }
+
+        EEPROM.end();  // Close EEPROM session
+    }
+
+}
+
 void iotSetup()
 {
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
@@ -246,6 +302,8 @@ void iotSetup()
     String keyname[numVariables] = {"level", "tds", "ec"}; // ชื่อตัวแปร
 #endif
     iot.setkeyname(keyname, numVariables);
+
+    iot.setEventCallback(handleEvent);
 
     // const uint8_t version = 1;              // เวอร์ชั่นโปรเจคนี้
     // iot.setTemplate("hydroponic", version); // เลือกเทมเพลตแดชบอร์ด
@@ -290,12 +348,33 @@ void setup()
 {
     Serial.begin(115200);
 
+    // Initialize EEPROM and read TDS calibration coefficient
+    EEPROM.begin(512);
+    EEPROM.get(500, tds_calibration_coefficient);
+
+    // Check if EEPROM value is valid (not NaN or zero)
+    if (isnan(tds_calibration_coefficient) || tds_calibration_coefficient == 0.0)
+    {
+        tds_calibration_coefficient = 10.0;  // Set default value
+        Serial.println("TDS Calibration coefficient set to default: 10.0");
+    }
+    else
+    {
+        Serial.println("TDS Calibration coefficient loaded from EEPROM: " + String(tds_calibration_coefficient));
+    }
+    EEPROM.end();
+
     // Initialize SR04 Ultrasonic Sensor
     pinMode(TRIG_PIN, OUTPUT);
     pinMode(ECHO_PIN, INPUT);
 
     // Initialize TDS Sensor
     pinMode(TDS_PIN, INPUT);
+
+    // Initialize PUMP
+    pinMode(PUMP, OUTPUT);
+    digitalWrite(PUMP, HIGH);  // ON for default
+
 #ifdef ESP32
     analogReadResolution(12);
 #endif
@@ -420,11 +499,10 @@ void loop()
 #ifdef TEMP_PIN
             //------get data from DS18B20 Temperature Sensor------
             readTemperature();
-#endif
 
             // display data in serialmonitor
-#ifdef TEMP_PIN
             Serial.println("Water Level: " + String(water_level) + "cm  TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm  Temp: " + String(temperature, 1) + "°C");
+
 #else
             Serial.println("Water Level: " + String(water_level) + "cm  TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm");
 #endif
@@ -517,7 +595,7 @@ void readTDS()
 
     // Convert voltage to TDS value (ppm)
     // This is a simplified conversion - actual calibration may be needed
-    float current_tds = (133.42 * voltage * voltage * voltage - 255.86 * voltage * voltage + 857.39 * voltage) * TDS_CALIBRATION_COEFFICIENT;
+    float current_tds = (133.42 * voltage * voltage * voltage - 255.86 * voltage * voltage + 857.39 * voltage) * tds_calibration_coefficient * 0.1;
 
     // Apply EMA filter (coefficient 0.1)
     if (tds_value == 0)
