@@ -1,11 +1,38 @@
+/*
+   -DHT Sensor-
+   ESP8266:
+   D5  - RESET (to GND for clear EEPROM)
+   D6  - GPIO12
+   D8  - GPIO15
+   D7  - DHTPIN (DHT sensor data)
+   SDA - D1
+   SCL - D3
+
+   GPIO4  - RESET (to GND for clear EEPROM)
+   GPIO12 - GPIO12
+   GPIO15 - GPIO15
+   GPIO13 - DHTPIN (DHT sensor data)
+   SDA - GPIO21
+   SCL - GPIO22
+*/
+
 // เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP8266
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-#include <WiFiClient.h>
-#include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266mDNS.h>
 #include <Ticker.h>
+
+// เรียกใช้ไลบรารี WiFi สำหรับบอร์ด ESP32
+#elif defined(ESP32)
+#include <WiFi.h>
+#include <NetworkClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <HTTPUpdateServer.h>
+#endif
+
 #include <Wire.h>
 #include <EEPROM.h>
 
@@ -27,8 +54,10 @@ const char wifiInitialApPassword[] = "iotbundle";
 #define STRING_LEN 128
 #define NUMBER_LEN 32
 
-// timer interrupt
+#ifdef ESP8266
+// timer interrupt for ESP8266
 Ticker timestamp;
+#endif
 
 // Static HTML stored in flash memory
 const char htmlTemplate[] PROGMEM = R"rawliteral(
@@ -132,7 +161,11 @@ void wifiConnected();
 void configSaved();
 bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
+#ifdef ESP8266
 #define DHTPIN D7
+#elif defined(ESP32)
+#define DHTPIN 11
+#endif
 // Uncomment whatever type you're using!
 #define DHTTYPE DHT11 // DHT 11
 // #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
@@ -144,11 +177,24 @@ float humid, temp;
 #define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
+#ifdef ESP8266
+#define RESET_PIN D5
+#elif defined(ESP32)
+#define RESET_PIN 4
+#endif
+
 unsigned long previousMillis = 0;
 
+// สร้าง object สำหรับ DNS Server และ Web Server
 DNSServer dnsServer;
 WebServer server(80);
+
+#ifdef ESP8266
 ESP8266HTTPUpdateServer httpUpdater;
+
+#elif defined(ESP32)
+HTTPUpdateServer httpUpdater;
+#endif
 
 char emailParamValue[STRING_LEN];
 
@@ -195,10 +241,10 @@ void iotSetup()
     Serial.println("ClinetID:" + String(iot.getClientId()));
 }
 
+#ifdef ESP8266
 // timer interrupt every 1 second
 void time1sec()
 {
-
     // if can't connect to network
     if (iotWebConf.getState() == iotwebconf::OnLine)
     {
@@ -229,19 +275,29 @@ void time1sec()
     else if (timer_nointernet >= 61)
         timer_nointernet++;
 }
+#endif
 
 void setup()
 {
+#ifdef ESP8266
     digitalWrite(D6, HIGH);
-    digitalWrite(D8, LOW);
+    digitalWrite(D5, LOW);
     pinMode(D6, OUTPUT);
-    pinMode(D8, OUTPUT);
+    pinMode(D5, OUTPUT);
+#elif defined(ESP32)
+    digitalWrite(9, HIGH);
+    digitalWrite(7, LOW);
+    pinMode(9, OUTPUT);
+    pinMode(7, OUTPUT);
+#endif
 
     Serial.begin(115200);
     dht.begin();
 
+#ifdef ESP8266
     // timer interrupt every 1 sec
     timestamp.attach(1, time1sec);
+#endif
 
     //------Display LOGO at start------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -253,12 +309,12 @@ void setup()
     oled.print("  CYNOIOT");
     oled.display();
 
-    // for clear eeprom jump D5 to GND
-    pinMode(D5, INPUT_PULLUP);
-    if (digitalRead(D5) == false)
+    // for clear eeprom
+    pinMode(RESET_PIN, INPUT_PULLUP);
+    if (digitalRead(RESET_PIN) == false)
     {
         delay(1000);
-        if (digitalRead(D5) == false)
+        if (digitalRead(RESET_PIN) == false)
         {
             oled.clearDisplay();
             oled.setCursor(0, 0);
@@ -313,6 +369,45 @@ void loop()
     iot.handle();
     iotWebConf.doLoop();
     server.handleClient();
+
+#ifdef ESP32
+    // timer for ESP32 (every 1 second)
+    static unsigned long lastTimer = 0;
+    if (millis() - lastTimer >= 1000)
+    {
+        lastTimer = millis();
+
+        // if can't connect to network
+        if (iotWebConf.getState() == iotwebconf::OnLine)
+        {
+            if (iot.status())
+            {
+                timer_nointernet = 0;
+            }
+            else
+            {
+                timer_nointernet++;
+                if (timer_nointernet > 30)
+                    Serial.println("No connection time : " + String(timer_nointernet));
+            }
+        }
+
+        // reconnect wifi if can't connect server
+        if (timer_nointernet == 60)
+        {
+            Serial.println("Can't connect to server -> Restart wifi");
+            iotWebConf.goOffLine();
+            timer_nointernet++;
+        }
+        else if (timer_nointernet >= 65)
+        {
+            timer_nointernet = 0;
+            iotWebConf.goOnLine(false);
+        }
+        else if (timer_nointernet >= 61)
+            timer_nointernet++;
+    }
+#endif
 #ifdef ESP8266
     MDNS.update();
 #endif
