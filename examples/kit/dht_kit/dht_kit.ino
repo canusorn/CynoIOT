@@ -8,6 +8,7 @@
    SDA - D1
    SCL - D3
 
+   ESP32:
    GPIO4  - RESET (to GND for clear EEPROM)
    GPIO12 - GPIO12
    GPIO15 - GPIO15
