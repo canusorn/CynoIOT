@@ -26,23 +26,22 @@
 #include <Adafruit_GFX.h>     // Adafruit GFX library by Adafruit
 #include <cynoiot.h>          // CynoIOT by IoTbundle
 
-// ถ้าต้องการใช้ DS18B20 Temperature Sensor ก็ต้องกำหนด TEMP_PIN
+// DS18B20 Temperature Sensor pin (required primary sensor)
 #define TEMP_PIN 9
 
-#ifdef TEMP_PIN
 #include <OneWire.h>           // OneWire library for DS18B20
 #include <DallasTemperature.h> // DallasTemperature library for DS18B20
 float temperature = NAN;
-#endif
+
+// ถ้าต้องการใช้ Ultrasonic Distance Sensor ก็ต้องกำหนด DISTANCE_PIN
+// #define DISTANCE_PIN
 
 // สร้าง object ชื่อ iot
 Cynoiot iot;
 
-#ifdef TEMP_PIN
 // DS18B20 Temperature Sensor Setup
 OneWire oneWire(TEMP_PIN);
 DallasTemperature sensors(&oneWire);
-#endif
 
 const char thingName[] = "hydro";
 const char wifiInitialApPassword[] = "iotbundle";
@@ -147,7 +146,9 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
 
 // -- Method declarations.
 void handleRoot();
+#ifdef DISTANCE_PIN
 float handleWaterLevelSpike(float new_distance);
+#endif
 // -- Callback methods.
 void wifiConnected();
 void configSaved();
@@ -155,8 +156,10 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
 // ตั้งค่า pin สำหรับเซ็นเซอร์และขา OUTPUT
 #ifdef ESP8266
+#ifdef DISTANCE_PIN
 #define TRIG_PIN D5 // D5 for ESP8266
 #define ECHO_PIN D6 // D6 for ESP8266
+#endif
 #define TDS_PIN A0  // A0 for ESP8266
 
 #define RSTPIN D8 // Define RSTPIN for ESP8266
@@ -169,13 +172,17 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 // #define TRIG_PIN 18
 // #define ECHO_PIN 16
 // #define TDS_PIN 5 // ADC1_CH0 for ESP32S2
+#ifdef DISTANCE_PIN
 #define TRIG_PIN 11 // ✅ Safe GPIO pin   RX
 #define ECHO_PIN 12 // ✅ Safe GPIO pin   TX
+#endif
 #define TDS_PIN 5   // ✅ ADC1_CH3 (safe ADC pin)   // old 4
 
 #else
+#ifdef DISTANCE_PIN
 #define TRIG_PIN 4 // GPIO4 for ESP32
 #define ECHO_PIN 2 // GPIO2 for ESP32
+#endif
 #define TDS_PIN 34 // ADC1_CH6 for ESP32 (only ADC1 pins available)
 #endif
 
@@ -186,9 +193,11 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 float tds_calibration_coefficient = 10.0;
 
 unsigned long previousMillis = 0;
-float water_level, tds_value, ec_value;
-float previous_distance = 0;
+#ifdef DISTANCE_PIN
+float water_level, previous_distance = 0;
 uint8_t consecutive_changes = 0;
+#endif
+float tds_value, ec_value;
 
 #define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
@@ -287,6 +296,9 @@ void handleEvent(String event, String value)
         }
 
         EEPROM.end();  // Close EEPROM session
+
+        // Reset sensor values after calibration
+        tds_value = 0;
     }
 
 }
@@ -294,12 +306,12 @@ void handleEvent(String event, String value)
 void iotSetup()
 {
     // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
-#ifdef TEMP_PIN
+#ifdef DISTANCE_PIN
     numVariables = 4;                                              // จำนวนตัวแปร
-    String keyname[numVariables] = {"level", "tds", "ec", "temp"}; // ชื่อตัวแปร
+    String keyname[numVariables] = {"tds", "ec", "temp", "level"}; // ชื่อตัวแปร
 #else
     numVariables = 3;                                      // จำนวนตัวแปร
-    String keyname[numVariables] = {"level", "tds", "ec"}; // ชื่อตัวแปร
+    String keyname[numVariables] = {"tds", "ec", "temp"}; // ชื่อตัวแปร
 #endif
     iot.setkeyname(keyname, numVariables);
 
@@ -364,9 +376,11 @@ void setup()
     }
     EEPROM.end();
 
+#ifdef DISTANCE_PIN
     // Initialize SR04 Ultrasonic Sensor
     pinMode(TRIG_PIN, OUTPUT);
     pinMode(ECHO_PIN, INPUT);
+#endif
 
     // Initialize TDS Sensor
     pinMode(TDS_PIN, INPUT);
@@ -379,7 +393,6 @@ void setup()
     analogReadResolution(12);
 #endif
 
-#ifdef TEMP_PIN
     // Initialize DS18B20 Temperature Sensor
     sensors.begin();
     sensors.setResolution(12); // 12-bit resolution (0.0625°C) for higher accuracy (~750ms)
@@ -398,7 +411,6 @@ void setup()
     {
         Serial.println("DS18B20 sensor detected. Count: " + String(sensors.getDeviceCount()));
     }
-#endif
 
     //------Display LOGO at start------
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -490,37 +502,39 @@ void loop()
         {
             sampleUpdate = 0;
 
-            //------get data from SR04 Ultrasonic Sensor------
-            readWaterLevel();
-
             //------get data from TDS Sensor------
             readTDS();
 
-#ifdef TEMP_PIN
             //------get data from DS18B20 Temperature Sensor------
             readTemperature();
 
-            // display data in serialmonitor
-            Serial.println("Water Level: " + String(water_level) + "cm  TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm  Temp: " + String(temperature, 1) + "°C");
-
-#else
-            Serial.println("Water Level: " + String(water_level) + "cm  TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm");
+#ifdef DISTANCE_PIN
+            //------get data from SR04 Ultrasonic Sensor------
+            readWaterLevel();
 #endif
 
-            if (isnan(water_level) || isnan(ec_value))
+            // display data in serialmonitor
+            Serial.println("TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm  Temp: " + String(temperature, 1) + "°C"
+#ifdef DISTANCE_PIN
+            + "  Water Level: " + String(water_level) + "cm"
+#endif
+            );
+
+            if (isnan(ec_value) || isnan(temperature))
                 return;
 
             //  อัพเดทค่าใหม่ในรูปแบบ array
-#ifdef TEMP_PIN
-            float val[numVariables] = {water_level, tds_value, ec_value, temperature};
+#ifdef DISTANCE_PIN
+            float val[numVariables] = {tds_value, ec_value, temperature, water_level};
 #else
-            float val[numVariables] = {water_level, tds_value, ec_value};
+            float val[numVariables] = {tds_value, ec_value, temperature};
 #endif
             iot.update(val);
         }
     }
 }
 
+#ifdef DISTANCE_PIN
 float handleWaterLevelSpike(float new_distance)
 {
     const float SPIKE_THRESHOLD = 1.0;
@@ -555,7 +569,9 @@ float handleWaterLevelSpike(float new_distance)
         }
     }
 }
+#endif
 
+#ifdef DISTANCE_PIN
 void readWaterLevel()
 {
     // Send 10us pulse to trigger
@@ -581,6 +597,7 @@ void readWaterLevel()
     else
         water_level = (0.3 * filtered_distance) + (0.7 * water_level);
 }
+#endif
 void readTDS()
 {
     // Read analog value from TDS sensor
@@ -614,7 +631,6 @@ void readTDS()
         ec_value = 5000; // Max 5000 μS/cm for hydroponic systems
 }
 
-#ifdef TEMP_PIN
 void readTemperature()
 {
     // Request temperature from all devices on the bus
@@ -660,11 +676,10 @@ void readTemperature()
     else
         temperature = (0.2 * tempC) + (0.8 * temperature);
 }
-#endif
 
 void display_update()
 {
-    if (isnan(water_level) || isnan(ec_value)) // if no data from sensors
+    if (isnan(ec_value) || isnan(temperature)) // if no data from primary sensors
     {
         oled.clearDisplay();
         oled.setTextSize(1);
@@ -680,12 +695,12 @@ void display_update()
         oled.setTextSize(1);
         oled.setCursor(0, 0);
         oled.println("--Hydro--");
-        oled.println("Level: " + String(water_level, 1) + " cm");
         oled.println("TDS: " + String(tds_value, 0) + " ppm");
         oled.println("EC: " + String(ec_value, 0) + " uS");
-#ifdef TEMP_PIN
-        if (!isnan(temperature))
-            oled.println("Temp: " + String(temperature, 1) + " C");
+        oled.println("Temp: " + String(temperature, 1) + " C");
+#ifdef DISTANCE_PIN
+        if (!isnan(water_level))
+            oled.println("Level: " + String(water_level, 1) + " cm");
 #endif
     }
 
