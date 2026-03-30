@@ -76,6 +76,12 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
             margin-bottom: 20px;
             font-size: 24px;
         }
+        h3 {
+            color: #333;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
         ul {
             list-style: none;
             padding: 0;
@@ -88,6 +94,54 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
         }
         li:last-child {
             border-bottom: none;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+        .btn-on {
+            background-color: #4CAF50;
+        }
+        .btn-on:hover {
+            background-color: #45a049;
+        }
+        .btn-off {
+            background-color: #f44336;
+        }
+        .btn-off:hover {
+            background-color: #da190b;
+        }
+        .btn-group {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .btn-group strong {
+            display: inline-block;
+            min-width: 80px;
+            color: #333;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .status-on {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .status-off {
+            background-color: #f44336;
+            color: white;
         }
         button {
             background: #007bff;
@@ -124,6 +178,34 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
     if (%STATE% == 0) {
         location.href='/config';
     }
+
+    function togglePin(pin, state) {
+        fetch('/gpio/' + pin + '?state=' + state)
+            .then(response => response.text())
+            .then(data => {
+                updateStatus();
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function updateStatus() {
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                updatePinStatus('pump', data.pump);
+            });
+    }
+
+    function updatePinStatus(id, state) {
+        const statusEl = document.getElementById(id + '_status');
+        if (statusEl) {
+            statusEl.className = 'status ' + (state ? 'status-on' : 'status-off');
+            statusEl.textContent = state ? 'ON' : 'OFF';
+        }
+    }
+
+    window.onload = updateStatus;
+    setInterval(updateStatus, 10000);
     </script>
 </head>
 <body>
@@ -137,8 +219,18 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
             <li>ESP ID: <a href='https://cynoiot.com/device/%ESP_ID%' target='_blank'>%ESP_ID%</a></li>
             <li>Version: %VERSION%</li>
         </ul>
+
         <a class="link" href='/config'>configure page แก้ไขข้อมูล wifi และ user</a>
         <button type='button' onclick="location.href='/reboot';">รีบูทอุปกรณ์</button>
+    </div>
+<br>
+    <div class="container">
+        <h3>Pump Control</h3>
+        <div class="btn-group">
+            <strong>PUMP:</strong> <span id="pump_status" class="status">Loading...</span><br>
+            <button class="btn btn-on" onclick="togglePin('pump', '1')">PUMP ON</button>
+            <button class="btn btn-off" onclick="togglePin('pump', '0')">PUMP OFF</button>
+        </div>
     </div>
 </body>
 </html>
@@ -146,6 +238,7 @@ const char htmlTemplate[] PROGMEM = R"rawliteral(
 
 // -- Method declarations.
 void handleRoot();
+void handleStatus();
 #ifdef DISTANCE_PIN
 float handleWaterLevelSpike(float new_distance);
 #endif
@@ -198,6 +291,7 @@ float water_level, previous_distance = 0;
 uint8_t consecutive_changes = 0;
 #endif
 float tds_value, ec_value;
+bool pumpState = true; // Track pump state, default ON
 
 #define OLED_RESET -1 // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
@@ -472,6 +566,27 @@ void setup()
               { iotWebConf.handleConfig(); });
     server.on("/cleareeprom", clearEEPROM);
     server.on("/reboot", reboot);
+
+    // Manual pump control via HTTP
+    server.on("/gpio/pump", []()
+              {
+                  String state = server.arg("state");
+                  if (state == "1")
+                  {
+                      pumpState = true;
+                      digitalWrite(PUMP, HIGH); // ON
+                  }
+                  else if (state == "0")
+                  {
+                      pumpState = false;
+                      digitalWrite(PUMP, LOW); // OFF
+                  }
+                  server.send(200, "text/plain", "OK");
+              });
+
+    // Status endpoint - returns JSON with current pump state
+    server.on("/status", handleStatus);
+
     server.onNotFound([]()
                       { iotWebConf.handleNotFound(); });
 
@@ -891,4 +1006,15 @@ void reboot()
     server.send(200, "text/plain", "rebooting");
     delay(1000);
     ESP.restart();
+}
+
+// ==========================================================================================
+// STATUS JSON ENDPOINT HANDLER
+// ==========================================================================================
+void handleStatus()
+{
+    String json = "{";
+    json += "\"pump\":" + String(pumpState);
+    json += "}";
+    server.send(200, "application/json", json);
 }
