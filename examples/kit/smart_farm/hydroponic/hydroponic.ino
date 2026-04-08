@@ -29,8 +29,7 @@
 // DS18B20 Temperature Sensor pin (required primary sensor)
 #define TEMP_PIN 9
 
-#include <DallasTemperature.h> // DallasTemperature library for DS18B20
-#include <OneWire.h>           // OneWire library for DS18B20
+#include "OneWireESP32.h"
 float temperature = NAN;
 
 // ถ้าต้องการใช้ Ultrasonic Distance Sensor ก็ต้องกำหนด DISTANCE_PIN
@@ -38,10 +37,6 @@ float temperature = NAN;
 
 // สร้าง object ชื่อ iot
 Cynoiot iot;
-
-// DS18B20 Temperature Sensor Setup
-OneWire oneWire(TEMP_PIN);
-DallasTemperature sensors(&oneWire);
 
 const char thingName[] = "hydro";
 const char wifiInitialApPassword[] = "iotbundle";
@@ -565,27 +560,6 @@ void setup() {
   oled.print("  CYNOIOT");
   oled.display();
 
-  delay(1000);
-
-  // Initialize DS18B20 Temperature Sensor
-  sensors.begin();
-  sensors.setResolution(10); // 12-bit resolution (0.0625°C) for higher accuracy (~750ms)
-
-  delay(1000);
-
-  // Check if DS18B20 is connected
-  if (sensors.getDeviceCount() == 0) {
-    Serial.println("No DS18B20 sensor found on pin " + String(TEMP_PIN));
-    Serial.println("Please check wiring:");
-    Serial.println("  - DS18B20 DATA pin -> GPIO " + String(TEMP_PIN));
-    Serial.println("  - DS18B20 VCC -> 3.3V");
-    Serial.println("  - DS18B20 GND -> GND");
-    Serial.println("  - 4.7K resistor between VCC and DATA");
-  } else {
-    Serial.println("DS18B20 sensor detected. Count: " +
-                   String(sensors.getDeviceCount()));
-  }
-
   // for clear eeprom jump D4 to GND
   pinMode(RSTPIN, INPUT_PULLUP);
   if (digitalRead(RSTPIN) == false) {
@@ -799,67 +773,48 @@ void readTDS() {
 }
 
 void readTemperature() {
-  const int MAX_RETRIES = 3;
-  float tempC = DEVICE_DISCONNECTED_C;
+    const uint8_t MaxDevs = 1;
 
-  for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    // Request temperature conversion
-    sensors.requestTemperatures();
+    float currTemp[MaxDevs];
 
-    // Wait for conversion to complete based on resolution
-    // 10-bit resolution requires ~187.5ms
-    delay(200);
+    OneWire32 ds(TEMP_PIN); //gpio pin
 
-    // Read temperature in Celsius
-    tempC = sensors.getTempCByIndex(0);
+	uint64_t addr[MaxDevs];
 
-    // Check if reading is valid
-    if (tempC != DEVICE_DISCONNECTED_C && tempC != 85.0 && tempC != -127.0) {
-      break; // Valid reading, exit retry loop
-    }
+	//uint64_t addr[] = {
+	//	0x183c01f09506f428,
+	//	0xf33c01e07683de28,
+	//};
 
-    // Log the error for this attempt
-    if (tempC == DEVICE_DISCONNECTED_C) {
-      Serial.println("DS18B20: Device disconnected (attempt " +
-                     String(attempt + 1) + "/" + String(MAX_RETRIES) + ")");
-    } else if (tempC == 85.0) {
-      Serial.println("DS18B20: Power-up error 85.0°C (attempt " +
-                     String(attempt + 1) + "/" + String(MAX_RETRIES) + ")");
-    } else if (tempC == -127.0) {
-      Serial.println("DS18B20: Communication error -127.0°C (attempt " +
-                     String(attempt + 1) + "/" + String(MAX_RETRIES) + ")");
-    }
+	//to find addresses
+	uint8_t devices = ds.search(addr, MaxDevs);
+	for (uint8_t i = 0; i < devices; i += 1) {
+		Serial.printf("%d: 0x%llx,\n", i, addr[i]);
+		//char buf[20]; snprintf( buf, 20, "0x%llx,", addr[i] ); Serial.println(buf);
+	}
+	//end
 
-    // Brief pause before retry to let the bus settle
-    if (attempt < MAX_RETRIES - 1) {
-      delay(50);
-    }
-  }
-
-  // Final check after all retries
-  if (tempC == DEVICE_DISCONNECTED_C) {
-    Serial.println("DS18B20: Device disconnected after all retries");
-    if (temperature == 0)
-      temperature = NAN;
-    return;
-  } else if (tempC == 85.0) {
-    Serial.println("DS18B20: Power-up error (85.0°C) after all retries");
-    if (temperature == 0)
-      temperature = NAN;
-    return;
-  } else if (tempC == -127.0) {
-    Serial.println("DS18B20: Communication error (-127.0°C) after all retries");
-    if (temperature == 0)
-      temperature = NAN;
-    return;
-  }
+	for(;;){
+		ds.request();
+		vTaskDelay(750 / portTICK_PERIOD_MS);
+		for(byte i = 0; i < MaxDevs; i++){
+			uint8_t err = ds.getTemp(addr[i], currTemp[i]);
+			if(err){
+				const char *errt[] = {"", "CRC", "BAD","DC","DRV"};
+				Serial.print(i); Serial.print(": "); Serial.println(errt[err]);
+			}else{
+				Serial.print(i); Serial.print(": "); Serial.println(currTemp[i]);
+			}
+		}
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
 
   // Valid reading
   // Apply simple EMA filter for temperature (alpha = 0.2)
   if (isnan(temperature))
-    temperature = tempC;
+    temperature = currTemp[1];
   else
-    temperature = (0.2 * tempC) + (0.8 * temperature);
+    temperature = (0.2 * currTemp[1]) + (0.8 * temperature);
 }
 
 void display_update() {
