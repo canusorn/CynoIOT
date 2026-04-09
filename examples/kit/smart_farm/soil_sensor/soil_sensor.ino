@@ -1476,10 +1476,6 @@ void readAndSendSensorData()
     iot.update(payload);
 
 #elif defined(HUMID_MODEL)
-    // No sensors - only send the onState state
-    float payload[numVariables] = {onState};
-    iot.update(payload);
-#elif defined(HUMID_MODEL)
 
     uint8_t result = node.readHoldingRegisters(0x0000, 1); // Read 1 register: humidity
     disConnect();  // Disable RS485 transceiver after reading
