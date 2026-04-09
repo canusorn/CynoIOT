@@ -15,16 +15,16 @@
 #include <WiFi.h>
 #endif
 
-#include <EEPROM.h> // EEPROM library for storing data
-#include <Wire.h>   // Wire library for I2C communication
+#include <EEPROM.h>  // EEPROM library for storing data
+#include <Wire.h>    // Wire library for I2C communication
 
 // IoTWebconfrom https://github.com/canusorn/IotWebConf-iotbundle
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h>
 
-#include <Adafruit_GFX.h>     // Adafruit GFX library by Adafruit
-#include <Adafruit_SSD1306.h> // Adafruit SSD1306 library by Adafruit
-#include <cynoiot.h>          // CynoIOT by IoTbundle
+#include <Adafruit_GFX.h>      // Adafruit GFX library by Adafruit
+#include <Adafruit_SSD1306.h>  // Adafruit SSD1306 library by Adafruit
+#include <cynoiot.h>           // CynoIOT by IoTbundle
 
 // DS18B20 Temperature Sensor pin (required primary sensor)
 #define TEMP_PIN 9
@@ -317,12 +317,12 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 // ตั้งค่า pin สำหรับเซ็นเซอร์และขา OUTPUT
 #ifdef ESP8266
 #ifdef DISTANCE_PIN
-#define TRIG_PIN D5 // D5 for ESP8266
-#define ECHO_PIN D6 // D6 for ESP8266
+#define TRIG_PIN D5  // D5 for ESP8266
+#define ECHO_PIN D6  // D6 for ESP8266
 #endif
-#define TDS_PIN A0 // A0 for ESP8266
+#define TDS_PIN A0  // A0 for ESP8266
 
-#define RSTPIN D8 // Define RSTPIN for ESP8266
+#define RSTPIN D8  // Define RSTPIN for ESP8266
 
 #elif defined(ESP32)
 #define RSTPIN 8
@@ -333,17 +333,17 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 // #define ECHO_PIN 16
 // #define TDS_PIN 5 // ADC1_CH0 for ESP32S2
 #ifdef DISTANCE_PIN
-#define TRIG_PIN 11 // ✅ Safe GPIO pin   RX
-#define ECHO_PIN 12 // ✅ Safe GPIO pin   TX
+#define TRIG_PIN 11  // ✅ Safe GPIO pin   RX
+#define ECHO_PIN 12  // ✅ Safe GPIO pin   TX
 #endif
-#define TDS_PIN 5 // ✅ ADC1_CH3 (safe ADC pin)   // old 4
+#define TDS_PIN 5  // ✅ ADC1_CH3 (safe ADC pin)   // old 4
 
 #else
 #ifdef DISTANCE_PIN
-#define TRIG_PIN 4 // GPIO4 for ESP32
-#define ECHO_PIN 2 // GPIO2 for ESP32
+#define TRIG_PIN 4  // GPIO4 for ESP32
+#define ECHO_PIN 2  // GPIO2 for ESP32
 #endif
-#define TDS_PIN 34 // ADC1_CH6 for ESP32 (only ADC1 pins available)
+#define TDS_PIN 34  // ADC1_CH6 for ESP32 (only ADC1 pins available)
 #endif
 
 #endif
@@ -358,9 +358,9 @@ float water_level, previous_distance = 0;
 uint8_t consecutive_changes = 0;
 #endif
 float tds_value, ec_value;
-bool pumpState = true; // Track pump state, default ON
+bool pumpState = true;  // Track pump state, default ON
 
-#define OLED_RESET -1 // GPIO0
+#define OLED_RESET -1  // GPIO0
 Adafruit_SSD1306 oled(OLED_RESET);
 
 // สร้าง object สำหรับ DNS Server และ Web Server
@@ -377,38 +377,40 @@ HTTPUpdateServer httpUpdater;
 char emailParamValue[STRING_LEN];
 
 IotWebConf
-    iotWebConf(thingName, &dnsServer, &server,
-               wifiInitialApPassword); // version defind in iotbundle.h file
+  iotWebConf(thingName, &dnsServer, &server,
+             wifiInitialApPassword);  // version defind in iotbundle.h file
 // -- You can also use namespace formats e.g.: iotwebconf::TextParameter
 IotWebConfParameterGroup login =
-    IotWebConfParameterGroup("login", "ล็อกอิน(สมัครที่เว็บก่อนนะครับ)");
+  IotWebConfParameterGroup("login", "ล็อกอิน(สมัครที่เว็บก่อนนะครับ)");
 
 IotWebConfTextParameter emailParam =
-    IotWebConfTextParameter("อีเมลล์", "emailParam", emailParamValue, STRING_LEN);
+  IotWebConfTextParameter("อีเมลล์", "emailParam", emailParamValue, STRING_LEN);
 
-const uint8_t logo_bmp[] = { // 'cyno', 33x30px
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xc0,
-    0x01, 0xf8, 0x00, 0x1f, 0xff, 0xff, 0xfc, 0x00, 0x1f, 0xff, 0xff, 0xfc,
-    0x00, 0x1f, 0xff, 0xff, 0xfc, 0x00, 0x1f, 0xf8, 0x0f, 0xfe, 0x00, 0x3f,
-    0xf0, 0x07, 0xfe, 0x00, 0x3f, 0xf0, 0x07, 0xfe, 0x00, 0x3f, 0xe0, 0x03,
-    0xfe, 0x00, 0x3f, 0xc0, 0x01, 0xfe, 0x00, 0x3f, 0x80, 0x00, 0xfe, 0x00,
-    0x7f, 0x00, 0x00, 0x7f, 0x00, 0x7f, 0x00, 0x00, 0x7f, 0x00, 0x7e, 0x00,
-    0x00, 0x3f, 0x00, 0x7e, 0x00, 0x00, 0x3f, 0x00, 0x7e, 0x38, 0x0e, 0x3f,
-    0x00, 0x3e, 0x38, 0x0e, 0x3e, 0x00, 0x0e, 0x10, 0x04, 0x38, 0x00, 0x0e,
-    0x00, 0x00, 0x38, 0x00, 0x0e, 0x00, 0x00, 0x38, 0x00, 0x0e, 0x03, 0x20,
-    0x38, 0x00, 0x0e, 0x07, 0xf0, 0x38, 0x00, 0x0e, 0x03, 0xe0, 0x30, 0x00,
-    0x06, 0x01, 0xc0, 0x30, 0x00, 0x07, 0x01, 0xc0, 0x70, 0x00, 0x03, 0xff,
-    0xff, 0xe0, 0x00, 0x01, 0xff, 0xff, 0xc0, 0x00, 0x00, 0x7f, 0xff, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t wifi_on[] = {0x00, 0x3c, 0x42, 0x99,
-                           0x24, 0x00, 0x18, 0x18}; // 'wifi-1', 8x8px
-const uint8_t wifi_off[] = {0x01, 0x3e, 0x46, 0x99, 0x34,
-                            0x20, 0x58, 0x98}; // 'wifi_nointernet-1', 8x8px
+const uint8_t logo_bmp[] = {  // 'cyno', 33x30px
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xc0,
+  0x01, 0xf8, 0x00, 0x1f, 0xff, 0xff, 0xfc, 0x00, 0x1f, 0xff, 0xff, 0xfc,
+  0x00, 0x1f, 0xff, 0xff, 0xfc, 0x00, 0x1f, 0xf8, 0x0f, 0xfe, 0x00, 0x3f,
+  0xf0, 0x07, 0xfe, 0x00, 0x3f, 0xf0, 0x07, 0xfe, 0x00, 0x3f, 0xe0, 0x03,
+  0xfe, 0x00, 0x3f, 0xc0, 0x01, 0xfe, 0x00, 0x3f, 0x80, 0x00, 0xfe, 0x00,
+  0x7f, 0x00, 0x00, 0x7f, 0x00, 0x7f, 0x00, 0x00, 0x7f, 0x00, 0x7e, 0x00,
+  0x00, 0x3f, 0x00, 0x7e, 0x00, 0x00, 0x3f, 0x00, 0x7e, 0x38, 0x0e, 0x3f,
+  0x00, 0x3e, 0x38, 0x0e, 0x3e, 0x00, 0x0e, 0x10, 0x04, 0x38, 0x00, 0x0e,
+  0x00, 0x00, 0x38, 0x00, 0x0e, 0x00, 0x00, 0x38, 0x00, 0x0e, 0x03, 0x20,
+  0x38, 0x00, 0x0e, 0x07, 0xf0, 0x38, 0x00, 0x0e, 0x03, 0xe0, 0x30, 0x00,
+  0x06, 0x01, 0xc0, 0x30, 0x00, 0x07, 0x01, 0xc0, 0x70, 0x00, 0x03, 0xff,
+  0xff, 0xe0, 0x00, 0x01, 0xff, 0xff, 0xc0, 0x00, 0x00, 0x7f, 0xff, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+const uint8_t wifi_on[] = { 0x00, 0x3c, 0x42, 0x99,
+                            0x24, 0x00, 0x18, 0x18 };  // 'wifi-1', 8x8px
+const uint8_t wifi_off[] = { 0x01, 0x3e, 0x46, 0x99, 0x34,
+                             0x20, 0x58, 0x98 };  // 'wifi_nointernet-1', 8x8px
 const uint8_t wifi_ap[] = {
-    0x41, 0x00, 0x80, 0x80, 0xa2, 0x80, 0xaa, 0x80,
-    0xaa, 0x80, 0x88, 0x80, 0x49, 0x00, 0x08, 0x00}; // 'router-2', 9x8px
-const uint8_t wifi_nointernet[] = {0x03, 0x7b, 0x87, 0x33,
-                                   0x4b, 0x00, 0x33, 0x33};
+  0x41, 0x00, 0x80, 0x80, 0xa2, 0x80, 0xaa, 0x80,
+  0xaa, 0x80, 0x88, 0x80, 0x49, 0x00, 0x08, 0x00
+};  // 'router-2', 9x8px
+const uint8_t wifi_nointernet[] = { 0x03, 0x7b, 0x87, 0x33,
+                                    0x4b, 0x00, 0x33, 0x33 };
 uint8_t t_connecting;
 iotwebconf::NetworkState prev_state = iotwebconf::Boot;
 uint8_t displaytime;
@@ -416,7 +418,7 @@ String noti;
 bool ota_updated = false;
 uint16_t timer_nointernet;
 uint8_t numVariables;
-uint8_t sampleUpdate, updateValue = 10;
+uint8_t sampleUpdate, updateValue = 5;
 
 void handleEvent(String event, String value) {
 
@@ -427,11 +429,11 @@ void handleEvent(String event, String value) {
 
     // Turn pump on or off
     if (value == "1") {
-      digitalWrite(PUMP, HIGH); // Turn PUMP ON
+      digitalWrite(PUMP, HIGH);  // Turn PUMP ON
       Serial.println("PUMP turned ON");
       iot.debug("PUMP turned ON");
     } else if (value == "0") {
-      digitalWrite(PUMP, LOW); // Turn PUMP OFF
+      digitalWrite(PUMP, LOW);  // Turn PUMP OFF
       Serial.println("PUMP turned OFF");
       iot.debug("PUMP turned OFF");
     }
@@ -456,14 +458,12 @@ void handleEvent(String event, String value) {
         tds_calibration_coefficient = newCalibration;
         EEPROM.put(500, tds_calibration_coefficient);
         EEPROM.commit();
-        Serial.println("TDS Calibration coefficient saved to EEPROM: " +
-                       String(tds_calibration_coefficient));
-        iot.debug("TDS Calibration coefficient = " +
-                  String(tds_calibration_coefficient) + " saved to EEPROM");
+        Serial.println("TDS Calibration coefficient saved to EEPROM: " + String(tds_calibration_coefficient));
+        iot.debug("TDS Calibration coefficient = " + String(tds_calibration_coefficient) + " saved to EEPROM");
       }
     }
 
-    EEPROM.end(); // Close EEPROM session
+    EEPROM.end();  // Close EEPROM session
 
     // Reset sensor values after calibration
     tds_value = 0;
@@ -473,18 +473,18 @@ void handleEvent(String event, String value) {
 void iotSetup() {
   // ตั้งค่าตัวแปรที่จะส่งขึ้นเว็บ
 #ifdef DISTANCE_PIN
-  numVariables = 4;                                              // จำนวนตัวแปร
-  String keyname[numVariables] = {"tds", "ec", "temp", "level"}; // ชื่อตัวแปร
+  numVariables = 4;                                                 // จำนวนตัวแปร
+  String keyname[numVariables] = { "tds", "ec", "temp", "level" };  // ชื่อตัวแปร
 #else
-  numVariables = 3;                                     // จำนวนตัวแปร
-  String keyname[numVariables] = {"tds", "ec", "temp"}; // ชื่อตัวแปร
+  numVariables = 3;                                        // จำนวนตัวแปร
+  String keyname[numVariables] = { "tds", "ec", "temp" };  // ชื่อตัวแปร
 #endif
   iot.setkeyname(keyname, numVariables);
 
   iot.setEventCallback(handleEvent);
 
-  const uint8_t version = 1;              // เวอร์ชั่นโปรเจคนี้
-  iot.setTemplate("hydroponic", version); // เลือกเทมเพลตแดชบอร์ด
+  const uint8_t version = 1;               // เวอร์ชั่นโปรเจคนี้
+  iot.setTemplate("hydroponic", version);  // เลือกเทมเพลตแดชบอร์ด
 
   Serial.println("ClinetID:" + String(iot.getClientId()));
 }
@@ -521,13 +521,11 @@ void setup() {
   EEPROM.get(500, tds_calibration_coefficient);
 
   // Check if EEPROM value is valid (not NaN or zero)
-  if (isnan(tds_calibration_coefficient) ||
-      tds_calibration_coefficient == 0.0) {
-    tds_calibration_coefficient = 10.0; // Set default value
+  if (isnan(tds_calibration_coefficient) || tds_calibration_coefficient == 0.0) {
+    tds_calibration_coefficient = 10.0;  // Set default value
     Serial.println("TDS Calibration coefficient set to default: 10.0");
   } else {
-    Serial.println("TDS Calibration coefficient loaded from EEPROM: " +
-                   String(tds_calibration_coefficient));
+    Serial.println("TDS Calibration coefficient loaded from EEPROM: " + String(tds_calibration_coefficient));
   }
   EEPROM.end();
 
@@ -542,7 +540,7 @@ void setup() {
 
   // Initialize PUMP
   pinMode(PUMP, OUTPUT);
-  digitalWrite(PUMP, HIGH); // ON for default
+  digitalWrite(PUMP, HIGH);  // ON for default
 
 #ifdef ESP32
   analogReadResolution(12);
@@ -552,8 +550,8 @@ void setup() {
   oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   oled.clearDisplay();
   oled.drawBitmap(
-      16, 5, logo_bmp, 33, 30,
-      1); // call the drawBitmap function and pass it the array from above
+    16, 5, logo_bmp, 33, 30,
+    1);  // call the drawBitmap function and pass it the array from above
   oled.setTextSize(1);
   oled.setTextColor(WHITE);
   oled.setCursor(0, 40);
@@ -590,17 +588,21 @@ void setup() {
 
   // -- Define how to handle updateServer calls.
   iotWebConf.setupUpdateServer(
-      [](const char *updatePath) { httpUpdater.setup(&server, updatePath); },
-      [](const char *userName, char *password) {
-        httpUpdater.updateCredentials(userName, password);
-      });
+    [](const char *updatePath) {
+      httpUpdater.setup(&server, updatePath);
+    },
+    [](const char *userName, char *password) {
+      httpUpdater.updateCredentials(userName, password);
+    });
 
   // -- Initializing the configuration.
   iotWebConf.init();
 
   // -- Set up required URL handlers on the web server.
   server.on("/", handleRoot);
-  server.on("/config", [] { iotWebConf.handleConfig(); });
+  server.on("/config", [] {
+    iotWebConf.handleConfig();
+  });
   server.on("/cleareeprom", clearEEPROM);
   server.on("/reboot", reboot);
 
@@ -609,10 +611,10 @@ void setup() {
     String state = server.arg("state");
     if (state == "1") {
       pumpState = true;
-      digitalWrite(PUMP, HIGH); // ON
+      digitalWrite(PUMP, HIGH);  // ON
     } else if (state == "0") {
       pumpState = false;
-      digitalWrite(PUMP, LOW); // OFF
+      digitalWrite(PUMP, LOW);  // OFF
     }
     server.send(200, "text/plain", "OK");
   });
@@ -623,7 +625,9 @@ void setup() {
   // Sensor data endpoint - returns JSON with current sensor readings
   server.on("/sensor", handleSensor);
 
-  server.onNotFound([]() { iotWebConf.handleNotFound(); });
+  server.onNotFound([]() {
+    iotWebConf.handleNotFound();
+  });
 
   Serial.println("Ready.");
 
@@ -639,10 +643,9 @@ void loop() {
 #endif
 
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= 1000) { // run every 1 second
+  if (currentMillis - previousMillis >= 1000) {  // run every 1 second
     previousMillis = currentMillis;
 
-    display_update();
     time1sec();
     sampleUpdate++;
 
@@ -661,9 +664,7 @@ void loop() {
 #endif
 
       // display data in serialmonitor
-      Serial.println("TDS: " + String(tds_value) +
-                     "ppm  EC: " + String(ec_value) +
-                     "μS/cm  Temp: " + String(temperature, 1) + "°C"
+      Serial.println("TDS: " + String(tds_value) + "ppm  EC: " + String(ec_value) + "μS/cm  Temp: " + String(temperature, 1) + "°C"
 #ifdef DISTANCE_PIN
                      + "  Water Level: " + String(water_level) + "cm"
 #endif
@@ -672,14 +673,17 @@ void loop() {
       if (isnan(ec_value) || isnan(temperature))
         return;
 
-      //  อัพเดทค่าใหม่ในรูปแบบ array
+        //  อัพเดทค่าใหม่ในรูปแบบ array
 #ifdef DISTANCE_PIN
-      float val[numVariables] = {tds_value, ec_value, temperature, water_level};
+      float val[numVariables] = { tds_value, ec_value, temperature, water_level };
 #else
-      float val[numVariables] = {tds_value, ec_value, temperature};
+      float val[numVariables] = { tds_value, ec_value, temperature };
 #endif
       iot.update(val);
     }
+
+    display_update();
+
   }
 }
 
@@ -751,13 +755,11 @@ void readTDS() {
 
   // Convert voltage to TDS value (ppm)
   // This is a simplified conversion - actual calibration may be needed
-  float current_tds = (133.42 * voltage * voltage * voltage -
-                       255.86 * voltage * voltage + 857.39 * voltage) *
-                      tds_calibration_coefficient * 0.1;
+  float current_tds = (133.42 * voltage * voltage * voltage - 255.86 * voltage * voltage + 857.39 * voltage) * tds_calibration_coefficient * 0.1;
 
   // Apply EMA filter (coefficient 0.1)
   if (tds_value == 0)
-    tds_value = current_tds; // Initialize with first reading
+    tds_value = current_tds;  // Initialize with first reading
   else
     tds_value = (0.1 * current_tds) + (0.9 * tds_value);
 
@@ -769,52 +771,53 @@ void readTDS() {
   if (ec_value < 0)
     ec_value = 0;
   if (ec_value > 5000)
-    ec_value = 5000; // Max 5000 μS/cm for hydroponic systems
+    ec_value = 5000;  // Max 5000 μS/cm for hydroponic systems
 }
 
 void readTemperature() {
-    const uint8_t MaxDevs = 1;
+  const uint8_t MaxDevs = 1;
 
-    float currTemp[MaxDevs];
+  float currTemp[MaxDevs];
 
-    OneWire32 ds(TEMP_PIN); //gpio pin
+  OneWire32 ds(TEMP_PIN);  //gpio pin
 
-	uint64_t addr[MaxDevs];
+  uint64_t addr[MaxDevs];
 
-	//uint64_t addr[] = {
-	//	0x183c01f09506f428,
-	//	0xf33c01e07683de28,
-	//};
+  //uint64_t addr[] = {
+  //	0x183c01f09506f428,
+  //	0xf33c01e07683de28,
+  //};
 
-	//to find addresses
-	uint8_t devices = ds.search(addr, MaxDevs);
-	for (uint8_t i = 0; i < devices; i += 1) {
-		Serial.printf("%d: 0x%llx,\n", i, addr[i]);
-		//char buf[20]; snprintf( buf, 20, "0x%llx,", addr[i] ); Serial.println(buf);
-	}
-	//end
+  //to find addresses
+  uint8_t devices = ds.search(addr, MaxDevs);
+  // for (uint8_t i = 0; i < devices; i += 1) {
+  // 	Serial.printf("%d: 0x%llx,\n", i, addr[i]);
+  // 	//char buf[20]; snprintf( buf, 20, "0x%llx,", addr[i] ); Serial.println(buf);
+  // }
+  //end
 
-	for(;;){
-		ds.request();
-		vTaskDelay(750 / portTICK_PERIOD_MS);
-		for(byte i = 0; i < MaxDevs; i++){
-			uint8_t err = ds.getTemp(addr[i], currTemp[i]);
-			if(err){
-				const char *errt[] = {"", "CRC", "BAD","DC","DRV"};
-				Serial.print(i); Serial.print(": "); Serial.println(errt[err]);
-			}else{
-				Serial.print(i); Serial.print(": "); Serial.println(currTemp[i]);
-			}
-		}
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
+  ds.request();
+  delay(750);
+  for (byte i = 0; i < MaxDevs; i++) {
+    uint8_t err = ds.getTemp(addr[i], currTemp[i]);
+    if (err) {
+      const char *errt[] = { "", "CRC", "BAD", "DC", "DRV" };
+      Serial.print(i);
+      Serial.print(": ");
+      Serial.println(errt[err]);
+    } else {
+      // Serial.print(i);
+      // Serial.print(": ");
+      // Serial.println(currTemp[i]);
 
-  // Valid reading
-  // Apply simple EMA filter for temperature (alpha = 0.2)
-  if (isnan(temperature))
-    temperature = currTemp[1];
-  else
-    temperature = (0.2 * currTemp[1]) + (0.8 * temperature);
+      // Valid reading
+      // Apply simple EMA filter for temperature (alpha = 0.2)
+      if (isnan(temperature))
+        temperature = currTemp[1];
+      else
+        temperature = (0.2 * currTemp[0]) + (0.8 * temperature);
+    }
+  }
 }
 
 void display_update() {
@@ -871,7 +874,7 @@ void display_update() {
       displaytime = 5;
       prev_state = curr_state;
       noti =
-          "-State-\n\nwifi\nconnect\nsuccess\n" + String(WiFi.RSSI()) + " dBm";
+        "-State-\n\nwifi\nconnect\nsuccess\n" + String(WiFi.RSSI()) + " dBm";
     }
   }
 
@@ -891,8 +894,7 @@ void display_update() {
   }
 
   // display state
-  if (curr_state == iotwebconf::NotConfigured ||
-      curr_state == iotwebconf::ApMode)
+  if (curr_state == iotwebconf::NotConfigured || curr_state == iotwebconf::ApMode)
     oled.drawBitmap(55, 0, wifi_ap, 9, 8, 1);
   else if (curr_state == iotwebconf::Connecting) {
     if (t_connecting == 1) {
@@ -922,19 +924,21 @@ void handleRoot() {
 
   String s = FPSTR(htmlTemplate);
   s.replace("%STATE%",
-            String(iotWebConf.getState())); // Replace state placeholder
+            String(iotWebConf.getState()));  // Replace state placeholder
   s.replace("%THING_NAME%",
-            String(iotWebConf.getThingName()));      // Replace device name
-  s.replace("%EMAIL%", String(emailParamValue));     // Replace email
-  s.replace("%SSID%", String(iotWebConf.getSSID())); // Replace SSID
-  s.replace("%RSSI%", String(WiFi.RSSI()));          // Replace RSSI
-  s.replace("%ESP_ID%", String(iot.getClientId()));  // Replace ESP ID
-  s.replace("%VERSION%", String(IOTVERSION));        // Replace version
+            String(iotWebConf.getThingName()));       // Replace device name
+  s.replace("%EMAIL%", String(emailParamValue));      // Replace email
+  s.replace("%SSID%", String(iotWebConf.getSSID()));  // Replace SSID
+  s.replace("%RSSI%", String(WiFi.RSSI()));           // Replace RSSI
+  s.replace("%ESP_ID%", String(iot.getClientId()));   // Replace ESP ID
+  s.replace("%VERSION%", String(IOTVERSION));         // Replace version
 
   server.send(200, "text/html", s);
 }
 
-void configSaved() { Serial.println("Configuration was updated."); }
+void configSaved() {
+  Serial.println("Configuration was updated.");
+}
 
 void wifiConnected() {
   Serial.println("WiFi was connected.");
