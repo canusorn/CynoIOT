@@ -371,31 +371,24 @@ bool Cynoiot::connect(const char email[], const char server[])
   {
     _email = email;
   }
+  _server = server;
 
   if (WiFi.status() != WL_CONNECTED)
   {
+    this->_connected = false;
+    this->_Subscribed = false;
     return false;
   }
 
-  // client.begin(server, net);
-  client.begin(server, PORT, net);
-  client.onMessage(messageReceived);
-  // client.setCleanSession(false);
-
-  uint8_t ArrayLength =
-      getClientId().length() + 1; // The +1 is for the 0x00h Terminator
-  char ClientID[ArrayLength];
-  getClientId().toCharArray(ClientID, ArrayLength);
-
-  uint32_t currentMillis = millis();
-  if (currentMillis - _lastReConnect > RECONNECT_SERVER_TIME ||
-      _lastReConnect == 0)
+  if (!_mqttInitialized)
   {
-    net.setInsecure();
-    DEBUGLN("\nConnecting to " + String(server));
-    this->_lastReConnect = currentMillis;
-    client.connect(ClientID, email, this->_secret);
+    client.begin(_server.c_str(), PORT, net);
+    client.onMessage(messageReceived);
+    client.setTimeout(200); // keep reconnect attempts short and non-blocking
+    _mqttInitialized = true;
   }
+
+  attemptMqttReconnect();
 
   if (!status() && this->_connected)
   {
@@ -403,24 +396,18 @@ bool Cynoiot::connect(const char email[], const char server[])
     this->_connected = false;
     this->_Subscribed = false;
   }
-  // else if (!status() && !this->_connected)
-  // {
-  // DEBUG(".");
-  // }
   else if (status() && !this->_connected)
   {
     this->_connected = true;
     DEBUGLN("\nServer Connected!");
     this->_Subscribed = false;
 
-    // if (this->_template != "")
     templatePublish();
 
     // ota status checking
     EEPROM.begin(512);
 
     int retrievedValue = EEPROM.read(511);
-    // Serial.println("EEPROM: " + String(retrievedValue));
     String payload = "";
     String topic = "";
     if (retrievedValue != 0)
@@ -447,15 +434,36 @@ bool Cynoiot::connect(const char email[], const char server[])
     EEPROM.end();
   }
 
-#ifdef CYNOIOT_DEBUG
-  uint32_t timetoconnect = millis() - currentMillis;
-  if (timetoconnect > 1000)
-  {
-    DEBUGLN("Reconnecting time : " + String(timetoconnect) + " ms");
-  }
-#endif
-
   return this->_connected;
+}
+
+void Cynoiot::attemptMqttReconnect()
+{
+  if (status() || WiFi.status() != WL_CONNECTED || _email.length() == 0)
+  {
+    return;
+  }
+
+  uint32_t currentMillis = millis();
+  if (currentMillis - _lastReConnect > RECONNECT_SERVER_TIME || _lastReConnect == 0)
+  {
+    uint32_t reconnectStart = currentMillis;
+    net.setInsecure();
+    DEBUGLN("\nConnecting to " + _server);
+    this->_lastReConnect = currentMillis;
+    uint8_t arrayLength = getClientId().length() + 1;
+    char clientID[arrayLength];
+    getClientId().toCharArray(clientID, arrayLength);
+    client.connect(clientID, _email.c_str(), this->_secret);
+
+#ifdef CYNOIOT_DEBUG
+    uint32_t timetoconnect = millis() - reconnectStart;
+    if (timetoconnect > 250)
+    {
+      DEBUGLN("Reconnect attempt time: " + String(timetoconnect) + " ms");
+    }
+#endif
+  }
 }
 
 void Cynoiot::handle()
@@ -534,7 +542,7 @@ void Cynoiot::handle()
 
   if (!status())
   {
-    connect(_email);
+    attemptMqttReconnect();
   }
 }
 
@@ -952,7 +960,26 @@ void Cynoiot::messageReceived(String &topic, String &payload)
   }
   else if (topic.startsWith("/" + _clientid + "/timestamps"))
   {
-    weektimestamp = payload.toInt();
+    String tsPayload = payload;
+    tsPayload.trim();
+    bool isValidTimestamp = tsPayload.length() > 0;
+    for (uint16_t i = 0; i < tsPayload.length() && isValidTimestamp; i++)
+    {
+      if (!isDigit(tsPayload.charAt(i)))
+      {
+        isValidTimestamp = false;
+      }
+    }
+
+    if (!isValidTimestamp)
+    {
+      DEBUGLN("Invalid timestamps payload: '" + payload + "', requesting again");
+      String reqTopic = "/" + _clientid + "/gettimestamps";
+      cynoiotInstance.publish("", reqTopic);
+      return;
+    }
+
+    weektimestamp = tsPayload.toInt();
     DEBUGLN("Timestamps: " + String(weektimestamp));
 
     // Detach any existing timer before attaching a new one to prevent multiple

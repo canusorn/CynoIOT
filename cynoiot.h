@@ -50,11 +50,14 @@ private:
   uint32_t _lastReConnect, _lastPublish;
   String _topic;
   bool _Subscribed = false;
+  bool _mqttInitialized = false;
   String _template = "";
+  String _server = DEFAULT_SERVER;
   uint8_t _templateVersion = 0;
   EventCallbackFunction _eventCallback = NULL; // Store the callback function
   bool _initRequested = false; // Flag to track if init data has been requested
 
+  void attemptMqttReconnect();
   String getPublishTopic();
   bool subscribe();
   void publish(String payload);

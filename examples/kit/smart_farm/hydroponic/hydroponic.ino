@@ -427,13 +427,13 @@ void handleEvent(String event, String value) {
     Serial.println("PUMP: " + value);
     // iot.debug("Event PUMP received with value: " + value);
 
-    // Turn pump on or off
+    // Save pump state to variable
     if (value == "1") {
-      digitalWrite(PUMP, HIGH);  // Turn PUMP ON
+      pumpState = true;  // Turn PUMP ON
       Serial.println("PUMP turned ON");
       iot.debug("PUMP turned ON");
     } else if (value == "0") {
-      digitalWrite(PUMP, LOW);  // Turn PUMP OFF
+      pumpState = false;  // Turn PUMP OFF
       Serial.println("PUMP turned OFF");
       iot.debug("PUMP turned OFF");
     }
@@ -641,6 +641,8 @@ void loop() {
 #ifdef ESP8266
   MDNS.update();
 #endif
+
+  digitalWrite(PUMP, pumpState ? HIGH : LOW);
 
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= 1000) {  // run every 1 second
