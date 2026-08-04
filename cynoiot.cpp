@@ -938,14 +938,21 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
   if (topic == "/" + _clientid + "/io")
   {
-    uint8_t gpioIndex;
-    while (gpio[gpioIndex].length() != 0)
+    uint8_t gpioIndex = 0;
+    while (gpio[gpioIndex].length() != 0 && gpioIndex < bufferIO)
     {
       gpioIndex++;
     }
 
-    // DEBUGLN("Control: " + payload);
-    gpio[gpioIndex] = payload;
+    if (gpioIndex < bufferIO)
+    {
+      // DEBUGLN("Control: " + payload);
+      gpio[gpioIndex] = payload;
+    }
+    else
+    {
+      DEBUGLN("GPIO buffer full, dropping command: " + payload);
+    }
   }
   // else if (topic.startsWith("/" + _clientid + "/init"))
   // {
@@ -1001,14 +1008,21 @@ void Cynoiot::messageReceived(String &topic, String &payload)
 
       if (firstColon != -1 && secondColon != -1)
       {
-        uint8_t eventIndex;
-        while (event[eventIndex].length() != 0)
+        uint8_t eventIndex = 0;
+        while (event[eventIndex].length() != 0 && eventIndex < bufferIO)
         {
           eventIndex++;
         }
 
-        event[eventIndex] = payload.substring(firstColon + 1, secondColon);
-        value[eventIndex] = payload.substring(secondColon + 1);
+        if (eventIndex < bufferIO)
+        {
+          event[eventIndex] = payload.substring(firstColon + 1, secondColon);
+          value[eventIndex] = payload.substring(secondColon + 1);
+        }
+        else
+        {
+          DEBUGLN("Event buffer full, dropping command: " + payload);
+        }
         // cynoiotInstance.triggerEvent(event, value); // Trigger the callback
         // function with event and value
         return;
