@@ -104,19 +104,19 @@ void checkTimers()
   // if (_numTimer == -1)
   //     return;
 
-  uint8_t eventIndex, gpioIndex;
+  uint8_t eventIndex = 0, gpioIndex = 0;
 
   for (uint _numTimer = 0; _numTimer < MAXTIMER; _numTimer++)
   {
     if (timerList[_numTimer].length())
     {
 
-      while (event[eventIndex].length() != 0)
+      while (eventIndex < bufferIO && event[eventIndex].length() != 0)
       {
         eventIndex++;
       }
 
-      while (gpio[gpioIndex].length() != 0)
+      while (gpioIndex < bufferIO && gpio[gpioIndex].length() != 0)
       {
         gpioIndex++;
       }
@@ -163,9 +163,9 @@ void checkTimers()
               {
                 if (mode == "d")
                 {
-                  if (gpio[gpioIndex].length() == 0)
+                  if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                   {
-                    gpio[gpioIndex] = String(target + "digit" + value);
+                    gpio[gpioIndex] = String(target + ":digit:" + value);
                   }
                   // else
                   // {
@@ -174,9 +174,9 @@ void checkTimers()
                 }
                 else if (mode == "p")
                 {
-                  if (gpio[gpioIndex].length() == 0)
+                  if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                   {
-                    gpio[gpioIndex] = String(target + "pwm" + value);
+                    gpio[gpioIndex] = String(target + ":pwm:" + value);
                   }
                   // else
                   // {
@@ -186,9 +186,9 @@ void checkTimers()
 #ifdef ESP32
                 else if (mode == "a")
                 {
-                  if (gpio[gpioIndex].length() == 0)
+                  if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                   {
-                    gpio[gpioIndex] = String(target + "DAC" + value);
+                    gpio[gpioIndex] = String(target + ":DAC:" + value);
                   }
                   // else
                   // {
@@ -201,8 +201,11 @@ void checkTimers()
               {
                 DEBUGLN("Timer(Weekly) trig Event " + target + " value " +
                         value);
-                event[eventIndex] = target;
-                ::value[eventIndex] = value;
+                if (eventIndex < bufferIO)
+                {
+                  event[eventIndex] = target;
+                  ::value[eventIndex] = value;
+                }
               }
             }
           }
@@ -214,7 +217,7 @@ void checkTimers()
               if (mode == "d")
               {
                 DEBUGLN("Timer trig digital Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0)
+                if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                 {
                   gpio[gpioIndex] = String(target + ":digit:" + value);
                 }
@@ -226,7 +229,7 @@ void checkTimers()
               else if (mode == "p")
               {
                 DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0)
+                if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                 {
                   gpio[gpioIndex] = String(target + ":pwm:" + value);
                 }
@@ -239,7 +242,7 @@ void checkTimers()
               else if (mode == "a")
               {
                 DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0)
+                if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                 {
                   gpio[gpioIndex] = String(target + ":DAC:" + value);
                 }
@@ -253,8 +256,11 @@ void checkTimers()
             else if (actionType == "e")
             {
               DEBUGLN("Timer trig Event " + target + " value " + value);
-              event[eventIndex] = target;
-              ::value[eventIndex] = value;
+              if (eventIndex < bufferIO)
+              {
+                event[eventIndex] = target;
+                ::value[eventIndex] = value;
+              }
             }
           }
           else if (repeat == "o")
@@ -264,7 +270,7 @@ void checkTimers()
               if (mode == "d")
               {
                 DEBUGLN("Timer trig digital Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0)
+                if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                 {
                   gpio[gpioIndex] = String(target + ":digit:" + value);
                 }
@@ -276,7 +282,7 @@ void checkTimers()
               else if (mode == "p")
               {
                 DEBUGLN("Timer trig pwm Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0)
+                if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                 {
                   gpio[gpioIndex] = String(target + ":pwm:" + value);
                 }
@@ -289,7 +295,7 @@ void checkTimers()
               else if (mode == "a")
               {
                 DEBUGLN("Timer trig DAC Pin " + target + " value " + value);
-                if (gpio[gpioIndex].length() == 0)
+                if (gpioIndex < bufferIO && gpio[gpioIndex].length() == 0)
                 {
                   gpio[gpioIndex] = String(target + ":DAC:" + value);
                 }
@@ -303,8 +309,11 @@ void checkTimers()
             else if (actionType == "e")
             {
               DEBUGLN("Timer trig Event " + target + " value " + value);
-              event[eventIndex] = target;
-              ::value[eventIndex] = value;
+              if (eventIndex < bufferIO)
+              {
+                event[eventIndex] = target;
+                ::value[eventIndex] = value;
+              }
             }
 
             // if (timerReadData)
