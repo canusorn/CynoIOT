@@ -42,13 +42,37 @@ const char wifiInitialApPassword[] = "iotbundle";
 // timer interrupt
 Ticker timestamp;
 
+#ifdef ESP8266
 SoftwareSerial RS485Serial;
+#elif defined(ESP32)
+#define RS485Serial Serial1
+#endif
 
 // ตั้งค่า pin สำหรับต่อกับ MAX485
-#define MAX485_RO D7
+#ifdef ESP8266
+#define MAX485_RO D7 // RX
 #define MAX485_RE D6
 #define MAX485_DE D5
-#define MAX485_DI D0
+#define MAX485_DI D0 // TX
+#define RSTPIN D5
+
+#elif defined(ESP32)
+#define RSTPIN 7
+
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+#define MAX485_RO 18
+#define MAX485_RE 9
+#define MAX485_DE 9
+#define MAX485_DI 21
+
+#else
+#define MAX485_RO 23
+#define MAX485_RE 9
+#define MAX485_DE 9
+#define MAX485_DI 26
+#endif
+
+#endif
 
 ModbusMaster node;
 
@@ -156,7 +180,12 @@ bool formValidator(iotwebconf::WebRequestWrapper *webRequestWrapper);
 
 DNSServer dnsServer;
 WebServer server(80);
+#ifdef ESP8266
 ESP8266HTTPUpdateServer httpUpdater;
+
+#elif defined(ESP32)
+HTTPUpdateServer httpUpdater;
+#endif
 
 char emailParamValue[STRING_LEN];
 
@@ -242,7 +271,12 @@ void setup()
 {
 
     Serial.begin(115200);
+
+#ifdef ESP8266
     RS485Serial.begin(9600, SWSERIAL_8N1, MAX485_RO, MAX485_DI); // software serial สำหรับติดต่อกับ MAX485
+#elif defined(ESP32)
+    RS485Serial.begin(9600, SERIAL_8N1, MAX485_RO, MAX485_DI); // serial สำหรับติดต่อกับ MAX485
+#endif
 
     // timer interrupt every 1 sec
     timestamp.attach(1, time1sec);
@@ -257,12 +291,12 @@ void setup()
     oled.print("  CYNOIOT");
     oled.display();
 
-    // for clear eeprom jump D5 to GND
-    pinMode(D5, INPUT_PULLUP);
-    if (digitalRead(D5) == false)
+    // for clear eeprom jump RSTPIN to GND
+    pinMode(RSTPIN, INPUT_PULLUP);
+    if (digitalRead(RSTPIN) == false)
     {
         delay(1000);
-        if (digitalRead(D5) == false)
+        if (digitalRead(RSTPIN) == false)
         {
             oled.clearDisplay();
             oled.setCursor(0, 0);
@@ -308,7 +342,11 @@ void setup()
     server.onNotFound([]()
                       { iotWebConf.handleNotFound(); });
 
+    #ifdef ESP8266
     Serial.println("ESPID: " + String(ESP.getChipId()));
+#elif defined(ESP32)
+    Serial.println("ESPID: " + String(ESP.getEfuseMac()));
+#endif
     Serial.println("Ready.");
 
     pinMode(MAX485_RE, OUTPUT); /* Define RE Pin as Signal Output for RS485 converter. Output pin means Arduino command the pin signal to go high or low so that signal is received by the converter*/
